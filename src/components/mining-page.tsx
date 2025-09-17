@@ -20,10 +20,10 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { claimReward, startMiningSession, getUserData, getGlobalSettings } from "@/app/actions";
+import { claimReward, startMiningSession, getUserData } from "@/app/actions";
 import type { UserData } from "@/lib/types";
 import { useRouter } from "next/navigation";
-import { onSnapshot, doc, getDoc } from "firebase/firestore";
+import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 
 
@@ -105,48 +105,32 @@ export default function MiningPage() {
 
   useEffect(() => {
     const FAKE_USER_ID = 'user_placeholder_id';
+
+    // Initial fetch to create user if doesn't exist and get initial data
+    getUserData().then(initialUser => {
+        if (initialUser) {
+            setUserData(initialUser);
+        }
+    });
+    
+    // Real-time listener for updates
     const userRef = doc(db, 'users', FAKE_USER_ID);
-    const settingsRef = doc(db, 'settings', 'global');
-
-    const syncUserData = (userDoc: any, settingsDoc: any) => {
-        let user = userDoc.data() as UserData;
-        const settings = settingsDoc.data();
-        // This is the sync logic from actions.ts, duplicated for real-time updates
-        if (user.vipStatus === 'approved' && !user.vip) {
-            user.vip = true;
-        } else if (user.vipStatus !== 'approved' && user.vip) {
-            user.vip = false;
-        }
-
-        if(settings && user.baseRate !== settings.baseRate) {
-            user.baseRate = settings.baseRate;
-        }
-        setUserData(user);
-    }
-
-    const unsubscribeUser = onSnapshot(userRef, async (doc) => {
+    const unsubscribe = onSnapshot(userRef, (doc) => {
         if (doc.exists()) {
-            const settingsDoc = await getDoc(settingsRef);
-            syncUserData(doc, settingsDoc);
-        } else {
-            // This case should be handled by the initial creation logic in getUserData
-            getUserData().then(newUser => setUserData(newUser));
+            const data = doc.data() as UserData;
+            // Also sync VIP status here
+            if (data.vipStatus === 'approved' && !data.vip) {
+                data.vip = true;
+            } else if (data.vipStatus !== 'approved' && data.vip) {
+                data.vip = false;
+            }
+            setUserData(data);
         }
     }, (error) => {
         console.error("Error fetching real-time user data:", error);
     });
 
-    const unsubscribeSettings = onSnapshot(settingsRef, async (doc) => {
-        if (doc.exists() && userData) {
-             const userDoc = await getDoc(userRef);
-             syncUserData(userDoc, doc);
-        }
-    });
-
-    return () => {
-        unsubscribeUser();
-        unsubscribeSettings();
-    };
+    return () => unsubscribe();
   }, []);
 
 

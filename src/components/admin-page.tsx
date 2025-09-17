@@ -486,13 +486,13 @@ export default function AdminPage() {
     const [refreshKey, setRefreshKey] = useState(0);
 
     const fetchData = async () => {
-        // Set loading to true only if it's not the initial load to prevent flickering
-        setLoading(prev => !prev ? false : true);
-        const [user, users, requests] = await Promise.all([
-            getUserData(),
-            getUsers(),
-            getVipRequests()
-        ]);
+        setLoading(true);
+        const userPromise = getUserData();
+        const usersPromise = getUsers();
+        const requestsPromise = getVipRequests();
+
+        const [user, users, requests] = await Promise.all([userPromise, usersPromise, requestsPromise]);
+        
         setCurrentUser(user);
         setAllUsers(users);
         setVipRequests(requests);

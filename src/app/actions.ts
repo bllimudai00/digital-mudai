@@ -566,7 +566,7 @@ export async function updateUserFromAdmin(userId: string, dataToUpdate: Partial<
     const userRef = doc(db, 'users', userId);
 
     // Sanitize data: remove id and any other non-updatable fields
-    const { id, baseRate, ...updateData } = dataToUpdate; // baseRate is global, so don't update it per-user.
+    const { id, baseRate, ...updateData } = dataToUpdate; // baseRate is global, so don't update it per user.
 
     try {
         await updateDoc(userRef, updateData);
