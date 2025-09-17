@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getInitialUserData, claimTaskReward, getTasks } from "@/app/actions";
+import { getUserData, claimTaskReward, getTasks } from "@/app/actions";
 import type { Task, UserData } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 
@@ -165,9 +165,10 @@ export default function TasksPage() {
 
   async function loadInitialData() {
       setLoading(true);
-      const [user, taskList] = await Promise.all([getInitialUserData(), getTasks()]);
+      const user = await getUserData();
+      const taskList = await getTasks();
       if(user) {
-          setUserData(user.user);
+          setUserData(user);
       }
       setTasks(taskList);
       setLoading(false);
