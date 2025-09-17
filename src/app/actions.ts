@@ -161,6 +161,7 @@ needsUpdate = true;
             vip: false,
             referralCode: 'PARIRBESS8',
             name: 'Balram Singh Rajput',
+            username: 'balramsingh',
             email: 'seemarajput8540@gmail.com',
             createdAt: new Date().toISOString(),
             sessionEndTime: null,

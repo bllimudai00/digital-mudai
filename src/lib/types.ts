@@ -10,6 +10,7 @@ export type UserData = {
   referralCode: string;
   referredBy?: string;
   name: string;
+  username?: string;
   email: string;
   createdAt: string | Timestamp; // Allow both for server/client
   sessionEndTime: number | null;

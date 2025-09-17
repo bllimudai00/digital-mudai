@@ -11,11 +11,8 @@ import {
   FileJson,
   Send,
   MessageSquare,
-  X,
   Wrench,
   ChevronRight,
-  Mail,
-  Calendar,
   Zap,
   Newspaper,
   ListChecks,
@@ -180,23 +177,10 @@ export default function ProfilePage() {
               )}
             </div>
             <h2 className="text-xl font-bold">{userData.name}</h2>
-            <div className="flex items-center gap-2 text-muted-foreground text-sm mt-2">
-              <Mail className="w-4 h-4" />
-              <span>{userData.email}</span>
-            </div>
-            <div className="flex items-center gap-2 text-muted-foreground text-sm mt-1">
-              <Calendar className="w-4 h-4" />
-              {userData.createdAt && 
-                <span>Member since {new Date(userData.createdAt).toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
-              }
-            </div>
+            {userData.username && (
+              <p className="text-muted-foreground text-sm mt-2">@{userData.username}</p>
+            )}
           </CardContent>
-        </Card>
-
-        <Card className="bg-card/80 backdrop-blur-sm">
-            <CardContent className="p-4 text-center">
-                <p className="text-sm">Your referral code: <span className="text-accent font-bold">{userData.referralCode}</span></p>
-            </CardContent>
         </Card>
 
         {userData.isAdmin && (
