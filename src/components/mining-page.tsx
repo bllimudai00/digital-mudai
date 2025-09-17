@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -38,14 +39,25 @@ function StatCard({
   value: string;
   className?: string;
 }) {
+  const isPariBalanceCard = label === "PARI Balance";
   return (
     <Card className={`bg-card/80 backdrop-blur-sm p-3 ${className}`}>
-      <CardContent className="p-0">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      <CardContent className={`p-0 ${isPariBalanceCard ? "text-center" : ""}`}>
+        <div
+          className={`flex items-center gap-2 text-sm text-muted-foreground ${
+            isPariBalanceCard ? "justify-center" : ""
+          }`}
+        >
           {icon}
           <span>{label}</span>
         </div>
-        <div className="text-xl font-bold mt-1">{value}</div>
+        <div
+          className={`font-bold mt-1 ${
+            isPariBalanceCard ? "text-3xl" : "text-xl"
+          }`}
+        >
+          {value}
+        </div>
       </CardContent>
     </Card>
   );
@@ -280,7 +292,7 @@ export default function MiningPage() {
             {miningState === 'mining' && (
               <div className="relative w-full my-2 h-2 overflow-hidden">
                   <div className="absolute top-1/2 left-0 h-0.5 w-full bg-primary/70 animate-line-across" />
-                  <div className="absolute top-1/2 left-0 h-0.5 w-full bg-accent/70 animate-line-across-reverse" />
+                  <div className="absolute top-1/2 left-0 h-0.5 w-full bg-primary/70 animate-line-across-reverse" />
               </div>
             )}
             <MiningButton />
