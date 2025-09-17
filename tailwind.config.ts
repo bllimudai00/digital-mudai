@@ -95,13 +95,19 @@ export default {
         'float-up': {
             '0%': { transform: 'translateY(0) translateX(-50%)', opacity: '1' },
             '100%': { transform: 'translateY(-60px) translateX(-50%)', opacity: '0' },
-        }
+        },
+        'line-across': {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(100%)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         'ripple': 'ripple 1s cubic-bezier(0, 0, 0.2, 1) forwards',
         'float-up': 'float-up 1.5s ease-out forwards',
+        'line-across-blue': 'line-across 1.5s linear infinite',
+        'line-across-orange': 'line-across 1.5s linear infinite reverse',
       },
     },
   },

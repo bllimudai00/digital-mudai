@@ -21,11 +21,15 @@ import {
   ListChecks,
   Gift,
   User,
+  Loader,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useEffect, useState } from "react";
+import { getUserData } from "@/app/actions";
+import type { UserData } from "@/lib/types";
 
 function BottomNavItem({
   icon,
@@ -76,6 +80,24 @@ const XIcon = () => (
 )
 
 export default function ProfilePage() {
+  const [userData, setUserData] = useState<UserData | null>(null);
+
+  useEffect(() => {
+    async function fetchUser() {
+      const data = await getUserData();
+      setUserData(data);
+    }
+    fetchUser();
+  }, []);
+
+  if (!userData) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <Loader className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="bg-background text-foreground min-h-screen flex flex-col font-body">
       <main className="flex-1 p-4 space-y-6 pb-24">
@@ -85,31 +107,31 @@ export default function ProfilePage() {
           <CardContent className="p-0 flex flex-col items-center text-center">
             <Avatar className="w-24 h-24 mb-4 border-2 border-primary">
               <AvatarImage src="https://picsum.photos/seed/pari/200" alt="User Avatar" data-ai-hint="network logo" />
-              <AvatarFallback>BSR</AvatarFallback>
+              <AvatarFallback>{userData.name.substring(0, 2)}</AvatarFallback>
             </Avatar>
-            <h2 className="text-xl font-bold">Balram Singh Rajput</h2>
+            <h2 className="text-xl font-bold">{userData.name}</h2>
             <div className="flex items-center gap-2 text-muted-foreground text-sm mt-2">
               <Mail className="w-4 h-4" />
-              <span>seemarajput8540@gmail.com</span>
+              <span>{userData.email}</span>
             </div>
             <div className="flex items-center gap-2 text-muted-foreground text-sm mt-1">
               <Calendar className="w-4 h-4" />
-              <span>Member since August 2025</span>
+              <span>Member since {new Date(userData.createdAt).toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-card/80 backdrop-blur-sm">
             <CardContent className="p-4 text-center">
-                <p className="text-sm">Your referral code: <span className="text-accent font-bold">PARIRBESS8</span></p>
+                <p className="text-sm">Your referral code: <span className="text-accent font-bold">{userData.referralCode}</span></p>
             </CardContent>
         </Card>
 
         <Card className="bg-card/80 backdrop-blur-sm">
           <CardContent className="p-4 divide-y divide-border">
             <ProfileMenuItem icon={<ShieldCheck className="w-5 h-5 text-primary" />} label="VIP Membership" href="/vip" />
-            <ProfileMenuItem icon={<History className="w-5 h-5 text-primary" />} label="Mining History" />
-            <ProfileMenuItem icon={<Users className="w-5 h-5 text-primary" />} label="My Referrals" />
+            <ProfileMenuItem icon={<History className="w-5 h-5 text-primary" />} label="Mining History" href="/mining-history" />
+            <ProfileMenuItem icon={<Users className="w-5 h-5 text-primary" />} label="My Referrals" href="/refer" />
             <ProfileMenuItem icon={<Settings className="w-5 h-5 text-primary" />} label="Account Settings" />
           </CardContent>
         </Card>

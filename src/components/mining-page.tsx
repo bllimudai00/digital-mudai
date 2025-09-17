@@ -14,10 +14,13 @@ import {
   ListChecks,
   Gift,
   User,
+  Loader,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
+import { claimReward, getUserData, startMiningSession } from "@/app/actions";
+import type { UserData } from "@/lib/types";
 
 function StatCard({
   icon,
@@ -53,7 +56,8 @@ function BottomNavItem({
   isActive?: boolean;
 }) {
   return (
-    <Link href={href}
+    <Link
+      href={href}
       className={`flex flex-col items-center gap-1 ${
         isActive ? "text-primary" : "text-muted-foreground"
       }`}
@@ -64,15 +68,164 @@ function BottomNavItem({
   );
 }
 
+function formatTime(ms: number) {
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
+
 export default function MiningPage() {
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [miningState, setMiningState] = useState<'idle' | 'mining' | 'claimable' | 'loading'>('loading');
+  const [timeRemaining, setTimeRemaining] = useState(0);
+  const [isActionLoading, setIsActionLoading] = useState(false);
+
+  useEffect(() => {
+    async function fetchUser() {
+      const data = await getUserData();
+      setUserData(data);
+      if (data) {
+        if (data.sessionEndTime) {
+          const remaining = data.sessionEndTime - Date.now();
+          if (remaining > 0) {
+            setMiningState('mining');
+            setTimeRemaining(remaining);
+          } else {
+            setMiningState('claimable');
+          }
+        } else {
+          setMiningState('idle');
+        }
+      } else {
+        setMiningState('idle'); // Or some error state
+      }
+    }
+    fetchUser();
+  }, []);
+
+  useEffect(() => {
+    if (miningState !== 'mining' || timeRemaining <= 0) {
+      return;
+    }
+    const interval = setInterval(() => {
+      setTimeRemaining(prev => {
+        if (prev <= 1000) {
+          setMiningState('claimable');
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1000;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [miningState, timeRemaining]);
+
+
+  const handleStartMining = async () => {
+    if (!userData) return;
+    setIsActionLoading(true);
+    const result = await startMiningSession(userData.id);
+    if (result.success && result.sessionEndTime) {
+        const remaining = result.sessionEndTime - Date.now();
+        setTimeRemaining(remaining);
+        setMiningState('mining');
+    }
+    setIsActionLoading(false);
+  };
+
+  const handleClaimReward = async () => {
+    if (!userData) return;
+    setIsActionLoading(true);
+    const result = await claimReward(userData.id);
+    if (result.success) {
+      setUserData(prev => prev ? { ...prev, pariBalance: prev.pariBalance + (result.reward || 0) } : null);
+      setMiningState('idle');
+    }
+    setIsActionLoading(false);
+  };
+
+  const MiningButton = () => {
+    if (isActionLoading || miningState === 'loading') {
+      return (
+        <Button size="lg" className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white mt-4" disabled>
+          <Loader className="w-4 h-4 mr-2 animate-spin" />
+          Loading...
+        </Button>
+      )
+    }
+    switch (miningState) {
+      case 'idle':
+        return (
+          <Button size="lg" className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white mt-4" onClick={handleStartMining}>
+            <Zap className="w-4 h-4 mr-2" />
+            Start Mining
+          </Button>
+        );
+      case 'mining':
+        return (
+          <Button size="lg" className="w-full bg-gradient-to-r from-purple-800 to-blue-800 text-white/70 mt-4" disabled>
+            <Zap className="w-4 h-4 mr-2" />
+            Mining...
+          </Button>
+        );
+      case 'claimable':
+        return (
+          <Button size="lg" className="w-full bg-gradient-to-r from-green-500 to-teal-500 text-white mt-4" onClick={handleClaimReward}>
+            <Gift className="w-4 h-4 mr-2" />
+            Claim Reward
+          </Button>
+        );
+      default:
+        return null;
+    }
+  }
+
+  const getCardContent = () => {
+    switch(miningState){
+        case 'mining':
+            return (
+                <>
+                    <h2 className="text-2xl font-bold">{formatTime(timeRemaining)}</h2>
+                    <p className="text-muted-foreground">Until session complete</p>
+                </>
+            );
+        case 'claimable':
+             return (
+                <>
+                    <h2 className="text-2xl font-bold">Session Complete</h2>
+                    <p className="text-muted-foreground">Claim your 40.0000 PARI reward!</p>
+                </>
+            );
+        default:
+             return (
+                <>
+                    <h2 className="text-2xl font-bold">Start New Session</h2>
+                    <p className="text-muted-foreground">Tap to start mining PARI</p>
+                </>
+            );
+    }
+  }
+
+
+  if (!userData) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <Loader className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="bg-background text-foreground min-h-screen flex flex-col font-body">
       <main className="flex-1 p-4 space-y-6 pb-24">
         <div className="grid grid-cols-2 gap-4">
-          <StatCard icon={<LinkIcon className="w-4 h-4" />} label="PARI Balance" value="1080.00" />
-          <StatCard icon={<TrendingUp className="w-4 h-4 text-green-400" />} label="Hash Power" value="1x" />
-          <StatCard icon={<Zap className="w-4 h-4" />} label="Base Rate" value="10.00/hr" />
-          <StatCard icon={<Flame className="w-4 h-4 text-orange-400" />} label="Streak" value="16" />
+          <StatCard icon={<LinkIcon className="w-4 h-4" />} label="PARI Balance" value={userData.pariBalance.toFixed(4)} />
+          <StatCard icon={<TrendingUp className="w-4 h-4 text-green-400" />} label="Hash Power" value={`${userData.hashPower}x`} />
+          <StatCard icon={<Zap className="w-4 h-4" />} label="Base Rate" value={`${userData.baseRate.toFixed(2)}/hr`} />
+          <StatCard icon={<Flame className="w-4 h-4 text-orange-400" />} label="Streak" value={userData.streak.toString()} />
         </div>
 
         <Card className="bg-card/80 backdrop-blur-sm text-center p-6 space-y-4">
@@ -87,17 +240,21 @@ export default function MiningPage() {
                   data-ai-hint="network logo"
                   className="rounded-full"
                 />
+                 {miningState === 'mining' && (
+                    <div className="absolute inset-0 rounded-full overflow-hidden">
+                        <div className="relative w-full h-full">
+                            <div className="absolute top-1/2 left-0 h-0.5 w-full bg-primary/70 animate-line-across-blue" />
+                            <div className="absolute top-1/2 left-0 h-0.5 w-full bg-accent/70 animate-line-across-orange" />
+                        </div>
+                    </div>
+                 )}
                 <div className="absolute bottom-0 right-0 bg-card rounded-full p-2 border-2 border-primary">
                   <Zap className="w-4 h-4 text-primary" />
                 </div>
               </div>
             </div>
-            <h2 className="text-2xl font-bold">Session Complete</h2>
-            <p className="text-muted-foreground">Claim your 40.0000 PARI reward!</p>
-            <Button size="lg" className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white mt-4">
-              <Zap className="w-4 h-4 mr-2" />
-              Claim Reward
-            </Button>
+            {getCardContent()}
+            <MiningButton />
           </CardContent>
         </Card>
 
