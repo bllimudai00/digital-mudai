@@ -198,6 +198,7 @@ export default function TasksPage() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dataLoaded, setDataLoaded] = useState({ user: false, tasks: false });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -209,10 +210,10 @@ export default function TasksPage() {
         if (doc.exists()) {
             setUserData(doc.data() as UserData);
         }
-        if (tasks.length > 0) setLoading(false);
+        setDataLoaded(prev => ({...prev, user: true}));
     }, (error) => {
         console.error("Error fetching real-time user data:", error);
-        setLoading(false);
+        setDataLoaded(prev => ({...prev, user: true}));
     });
     
     // Listen for tasks data
@@ -220,10 +221,10 @@ export default function TasksPage() {
     const unsubscribeTasks = onSnapshot(tasksCollection, (snapshot) => {
         const tasksList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Task);
         setTasks(tasksList.sort((a,b) => a.order - b.order));
-        if (userData) setLoading(false);
+        setDataLoaded(prev => ({...prev, tasks: true}));
     }, (error) => {
         console.error("Error fetching real-time tasks:", error);
-        setLoading(false);
+        setDataLoaded(prev => ({...prev, tasks: true}));
     });
 
     return () => {
@@ -231,6 +232,13 @@ export default function TasksPage() {
         unsubscribeTasks();
     };
   }, []);
+
+  useEffect(() => {
+    if (dataLoaded.user && dataLoaded.tasks) {
+        setLoading(false);
+    }
+  }, [dataLoaded]);
+
 
   const handleClaim = async (taskId: string) => {
     if (!userData) return;
