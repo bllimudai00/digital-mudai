@@ -238,7 +238,7 @@ export default function ProfilePage() {
             <ProfileMenuItem icon={<Send className="w-5 h-5 text-muted-foreground" />} label="Official Channel" href="https://t.me/PariNetwork" isExternal />
             <ProfileMenuItem icon={<MessageSquare className="w-5 h-5 text-muted-foreground" />} label="Join Group Chat" href="https://t.me/PariNetworkGroup" isExternal />
             <ProfileMenuItem icon={<XIcon />} label="Follow us on X" href="https://x.com/PariNetwork" isExternal />
-            <ProfileMenuItem icon={<Wrench className="w-5 h-5 text-muted-foreground" />} label="Get Support" />
+            <ProfileMenuItem icon={<Wrench className="w-5 h-5 text-muted-foreground" />} label="Get Support" href="/support" />
           </CardContent>
         </Card>
       </main>
