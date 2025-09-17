@@ -131,6 +131,8 @@ function UpgradeToVipForm({ userId, vipPrice }: { userId: string, vipPrice: numb
 function VipStatus({ status, userId, walletAddress, vipPrice }: { status: 'none' | 'pending' | 'approved' | 'rejected', userId: string, walletAddress: string, vipPrice: number }) {
     
     const { toast } = useToast();
+    const finalWalletAddress = walletAddress || "0x10FA107AF74434313841FB36F4547ac";
+
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
         toast({
@@ -139,8 +141,7 @@ function VipStatus({ status, userId, walletAddress, vipPrice }: { status: 'none'
         })
     }
     
-    const qrCodeUrl = walletAddress ? `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${walletAddress}` : "";
-
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${finalWalletAddress}`;
 
     if (status === 'approved') {
         return (
@@ -184,18 +185,16 @@ function VipStatus({ status, userId, walletAddress, vipPrice }: { status: 'none'
              <div>
                 <label className="text-sm text-muted-foreground">Wallet Address</label>
                 <div className="relative mt-1">
-                    <Input type="text" readOnly value={walletAddress} className="pr-12 bg-background"/>
-                    <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground" onClick={() => copyToClipboard(walletAddress)}>
+                    <Input type="text" readOnly value={finalWalletAddress} className="pr-12 bg-background"/>
+                    <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground" onClick={() => copyToClipboard(finalWalletAddress)}>
                         <Copy className="w-4 h-4"/>
                     </Button>
                 </div>
             </div>
-            {qrCodeUrl && (
-                <div className="flex flex-col items-center gap-2">
-                    <Image src={qrCodeUrl} width={150} height={150} alt="QR Code" data-ai-hint="qr code" />
-                    <p className="text-sm text-muted-foreground">Scan QR Code</p>
-                </div>
-            )}
+            <div className="flex flex-col items-center gap-2">
+                <Image src={qrCodeUrl} width={150} height={150} alt="QR Code" data-ai-hint="qr code" />
+                <p className="text-sm text-muted-foreground">Scan QR Code</p>
+            </div>
              <p className="text-xs text-muted-foreground text-center">After payment, submit your transaction ID for verification.</p>
              <UpgradeToVipForm userId={userId} vipPrice={vipPrice} />
         </div>
@@ -245,7 +244,7 @@ export default function VipPage() {
   const claimedSlots = settings?.claimedVipSlots || 0;
   const totalSlots = settings?.totalVipSlots || 1;
   const progressPercentage = (claimedSlots / totalSlots) * 100;
-  const walletAddress = settings?.vipWalletAddress || "0x10FA107AF74434313841FB36F4547ac";
+  const walletAddress = settings?.vipWalletAddress || "";
   const vipPrice = settings?.vipPrice || 5;
 
   return (
