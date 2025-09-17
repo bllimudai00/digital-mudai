@@ -106,6 +106,30 @@ function PodiumSpot({ user, rank, medal }: { user: LeaderboardEntry, rank: numbe
     );
 }
 
+const ShareButton = ({ platform, referralLink, children, className }: { platform: 'whatsapp' | 'telegram' | 'sms' | 'email', referralLink: string, children: React.ReactNode, className: string }) => {
+    const shareText = `Join me on PARI Network and start mining! Use my referral link: ${referralLink}`;
+    
+    const getShareUrl = () => {
+        switch (platform) {
+            case 'whatsapp':
+                return `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+            case 'telegram':
+                return `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareText)}`;
+            case 'sms':
+                return `sms:?body=${encodeURIComponent(shareText)}`;
+            case 'email':
+                return `mailto:?subject=Join me on PARI Network&body=${encodeURIComponent(shareText)}`;
+        }
+    };
+
+    return (
+        <a href={getShareUrl()} target="_blank" rel="noopener noreferrer" className={className}>
+            {children}
+        </a>
+    );
+};
+
+
 export default function ReferPage() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [referrals, setReferrals] = useState<Referral[]>([]);
@@ -248,7 +272,7 @@ export default function ReferPage() {
           <StatCard
             icon={<BarChart className="w-8 h-8 text-accent" />}
             label="Total Earned"
-            value="0.0000"
+            value={(userData?.referralEarnings || 0).toFixed(4)}
           />
         </div>
 
@@ -296,25 +320,26 @@ export default function ReferPage() {
             </div>
           </div>
         </div>
-
+        
         <div className="grid grid-cols-2 gap-4">
-          <Button className="bg-green-500 hover:bg-green-600 text-white h-12 text-md">
-            <WhatsAppIcon />
-            WhatsApp
-          </Button>
-          <Button className="bg-blue-500 hover:bg-blue-600 text-white h-12 text-md">
-            <Send className="w-5 h-5" />
-            Telegram
-          </Button>
-          <Button className="bg-card/80 hover:bg-card/90 text-foreground h-12 text-md">
-            <Smartphone className="w-5 h-5" />
-            SMS
-          </Button>
-          <Button className="bg-orange-500 hover:bg-orange-600 text-white h-12 text-md">
-            <Mail className="w-5 h-5" />
-            Email
-          </Button>
+            <ShareButton platform="whatsapp" referralLink={referralLink} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-green-500 text-white hover:bg-green-600 h-12 text-md">
+                <WhatsAppIcon />
+                WhatsApp
+            </ShareButton>
+            <ShareButton platform="telegram" referralLink={referralLink} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-blue-500 text-white hover:bg-blue-600 h-12 text-md">
+                <Send className="w-5 h-5" />
+                Telegram
+            </ShareButton>
+            <ShareButton platform="sms" referralLink={referralLink} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-card/80 text-foreground hover:bg-card/90 h-12 text-md">
+                <Smartphone className="w-5 h-5" />
+                SMS
+            </ShareButton>
+            <ShareButton platform="email" referralLink={referralLink} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-orange-500 text-white hover:bg-orange-600 h-12 text-md">
+                <Mail className="w-5 h-5" />
+                Email
+            </ShareButton>
         </div>
+
 
         <Card className="bg-card/80 backdrop-blur-sm p-6 space-y-4">
            <CardContent className="p-0 flex flex-col items-center justify-center">

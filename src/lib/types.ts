@@ -26,6 +26,7 @@ export type UserData = {
   vipTransactionId?: string;
   vipProofSubmittedAt?: string | Timestamp; // Allow both for server/client
   isAdmin?: boolean;
+  referralEarnings?: number;
 };
 
 export type GlobalSettings = {

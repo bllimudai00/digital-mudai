@@ -175,7 +175,8 @@ needsUpdate = true;
             history: [],
             vipStatus: 'none',
             isAdmin: true,
-            referredBy: 'super_referrer_placeholder_id'
+            referredBy: 'super_referrer_placeholder_id',
+            referralEarnings: 0
         };
 
         await setDoc(userRef, {
@@ -363,7 +364,8 @@ export async function claimReward(userId: string) {
                 if (referrerL1Doc.exists()) {
                     const commissionAmountL1 = finalReward * 0.10; // 10% commission
                     transaction.update(referrerRefL1, {
-                        pariBalance: increment(commissionAmountL1)
+                        pariBalance: increment(commissionAmountL1),
+                        referralEarnings: increment(commissionAmountL1)
                     });
 
                     // Handle referral commission for Level 2
@@ -374,7 +376,8 @@ export async function claimReward(userId: string) {
                         if(referrerL2Doc.exists()) {
                             const commissionAmountL2 = finalReward * 0.05; // 5% commission
                             transaction.update(referrerRefL2, {
-                                pariBalance: increment(commissionAmountL2)
+                                pariBalance: increment(commissionAmountL2),
+                                referralEarnings: increment(commissionAmountL2)
                             });
                         }
                     }
@@ -390,6 +393,7 @@ export async function claimReward(userId: string) {
 
         revalidatePath('/');
         revalidatePath('/history');
+        revalidatePath('/refer');
         return { success: true, reward: rewardAmount };
 
     } catch (e: any) {
