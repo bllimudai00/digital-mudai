@@ -229,10 +229,23 @@ export async function claimReward(userId: string) {
                 const referrerRef = doc(db, "users", userData.referredBy);
                 const referrerDoc = await transaction.get(referrerRef);
                 if (referrerDoc.exists()) {
-                    const commissionAmount = finalReward * 0.10; // 10% commission
+                    const commissionAmountL1 = finalReward * 0.10; // 10% commission
                     transaction.update(referrerRef, {
-                        pariBalance: increment(commissionAmount)
+                        pariBalance: increment(commissionAmountL1)
                     });
+
+                    // Handle referral commission for Level 2
+                    const referrerData = referrerDoc.data() as UserData;
+                    if (referrerData.referredBy) {
+                        const superReferrerRef = doc(db, "users", referrerData.referredBy);
+                        const superReferrerDoc = await transaction.get(superReferrerRef);
+                        if (superReferrerDoc.exists()) {
+                             const commissionAmountL2 = finalReward * 0.05; // 5% commission
+                             transaction.update(superReferrerRef, {
+                                pariBalance: increment(commissionAmountL2)
+                             });
+                        }
+                    }
                 }
             }
 
