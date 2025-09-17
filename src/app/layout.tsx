@@ -3,8 +3,8 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'Aetherium Forge',
-  description: 'A gamified web application for mining virtual resources.',
+  title: 'PARI Network',
+  description: 'Mining PARI tokens.',
 };
 
 export default function RootLayout({
