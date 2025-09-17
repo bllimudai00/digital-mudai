@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { UserData, NewsArticle } from "@/lib/types";
+import type { UserData, NewsArticle, GlobalSettings } from "@/lib/types";
 import { getUserData, getVipRequests, updateVipStatus, getNews, addNews, deleteNews, getUsers, updateUserFromAdmin, deleteUser, getGlobalSettings, updateGlobalSettings } from "@/app/actions";
 import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck, Zap } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -227,7 +227,7 @@ function EditUserDialog({ user, isOpen, onOpenChange, onUserUpdate }: { user: Us
                 name: user.name,
                 email: user.email,
                 pariBalance: user.pariBalance,
-                // baseRate is now global, so we don't edit it per user
+                baseRate: user.baseRate,
             });
         }
     }, [user]);
@@ -236,7 +236,7 @@ function EditUserDialog({ user, isOpen, onOpenChange, onUserUpdate }: { user: Us
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        setEditedUser(prev => ({ ...prev, [name]: name === 'pariBalance' ? parseFloat(value) || 0 : value }));
+        setEditedUser(prev => ({ ...prev, [name]: name === 'pariBalance' || name === 'baseRate' ? parseFloat(value) || 0 : value }));
     };
 
     const handleSave = async () => {
@@ -408,7 +408,7 @@ function UserManagementSection({ users, loading, onUpdate }: { users: UserData[]
 }
 
 function GlobalSettingsSection({ onUpdate }: { onUpdate: () => void}) {
-    const [baseRate, setBaseRate] = useState<number>(10.00);
+    const [settings, setSettings] = useState<Partial<GlobalSettings>>({});
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const { toast } = useToast();
@@ -416,23 +416,28 @@ function GlobalSettingsSection({ onUpdate }: { onUpdate: () => void}) {
     useEffect(() => {
         const fetchSettings = async () => {
             setIsLoading(true);
-            const settings = await getGlobalSettings();
-            if (settings) {
-                setBaseRate(settings.baseRate);
+            const currentSettings = await getGlobalSettings();
+            if (currentSettings) {
+                setSettings(currentSettings);
             }
             setIsLoading(false);
         };
         fetchSettings();
     }, []);
+    
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setSettings(prev => ({ ...prev, [name]: parseFloat(value) || 0 }));
+    };
 
-    const handleUpdateRate = async () => {
+    const handleUpdateSettings = async () => {
         setIsSaving(true);
-        const result = await updateGlobalSettings({ baseRate });
+        const result = await updateGlobalSettings(settings);
         if (result.success) {
-            toast({ title: "Success", description: "Global base rate updated." });
+            toast({ title: "Success", description: "Global settings updated." });
             onUpdate();
         } else {
-            toast({ title: "Error", description: result.error || "Failed to update base rate.", variant: "destructive" });
+            toast({ title: "Error", description: result.error || "Failed to update settings.", variant: "destructive" });
         }
         setIsSaving(false);
     };
@@ -441,7 +446,7 @@ function GlobalSettingsSection({ onUpdate }: { onUpdate: () => void}) {
          return (
             <Card className="bg-card/80 backdrop-blur-sm">
                 <CardHeader>
-                    <CardTitle>Global Mining Settings</CardTitle>
+                    <CardTitle>Global Settings</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="flex justify-center p-8"><Loader className="w-6 h-6 animate-spin"/></div>
@@ -453,24 +458,49 @@ function GlobalSettingsSection({ onUpdate }: { onUpdate: () => void}) {
     return (
         <Card className="bg-card/80 backdrop-blur-sm">
             <CardHeader>
-                <CardTitle>Global Mining Settings</CardTitle>
+                <CardTitle>Global Settings</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-                 <div>
-                    <Label htmlFor="baseRate">Global Base Rate (/hr)</Label>
-                    <div className="flex gap-4 items-center mt-2">
+                 <div className="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <Label htmlFor="baseRate">Global Base Rate (/hr)</Label>
                         <Input 
                             id="baseRate"
+                            name="baseRate"
                             type="number"
-                            value={baseRate}
-                            onChange={(e) => setBaseRate(parseFloat(e.target.value) || 0)}
-                            className="max-w-xs"
+                            value={settings.baseRate || 0}
+                            onChange={handleInputChange}
+                            className="mt-2"
                         />
-                        <Button onClick={handleUpdateRate} disabled={isSaving}>
-                            {isSaving ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : <Zap className="w-4 h-4 mr-2" />}
-                            Update Rate
-                        </Button>
                     </div>
+                    <div>
+                        <Label htmlFor="totalVipSlots">Total VIP Slots</Label>
+                        <Input 
+                            id="totalVipSlots"
+                            name="totalVipSlots"
+                            type="number"
+                            value={settings.totalVipSlots || 0}
+                            onChange={handleInputChange}
+                            className="mt-2"
+                        />
+                    </div>
+                     <div>
+                        <Label htmlFor="claimedVipSlots">Claimed VIP Slots</Label>
+                        <Input 
+                            id="claimedVipSlots"
+                            name="claimedVipSlots"
+                            type="number"
+                            value={settings.claimedVipSlots || 0}
+                            onChange={handleInputChange}
+                            className="mt-2"
+                        />
+                    </div>
+                </div>
+                 <div className="flex justify-end mt-4">
+                    <Button onClick={handleUpdateSettings} disabled={isSaving}>
+                        {isSaving ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : <Zap className="w-4 h-4 mr-2" />}
+                        Update Settings
+                    </Button>
                 </div>
             </CardContent>
         </Card>
@@ -540,8 +570,8 @@ export default function AdminPage() {
             </header>
             
             <DashboardStatsSection users={allUsers} vipRequests={vipRequests} />
-            <UserManagementSection users={allUsers} loading={loading} onUpdate={handleDataUpdate} />
             <GlobalSettingsSection onUpdate={handleDataUpdate} />
+            <UserManagementSection users={allUsers} loading={loading} onUpdate={handleDataUpdate} />
             <VipRequestSection vipRequests={vipRequests} loading={loading} onUpdate={handleDataUpdate} />
             <NewsManagementSection onUpdate={handleDataUpdate} />
 

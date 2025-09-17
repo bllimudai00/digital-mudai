@@ -3,7 +3,7 @@
 import { doc, updateDoc, arrayUnion, getDoc, runTransaction, increment, collection, getDocs, writeBatch, setDoc, query, where, addDoc, deleteDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/firebase/firestore';
-import type { UserData, Referral, Task, NewsArticle } from '@/lib/types';
+import type { UserData, Referral, Task, NewsArticle, GlobalSettings } from '@/lib/types';
 
 // This is a placeholder for a real user ID
 const FAKE_USER_ID = 'user_placeholder_id';
@@ -131,7 +131,11 @@ export async function seedInitialData() {
     const settingsRef = doc(db, 'settings', 'global');
     const settingsSnapshot = await getDoc(settingsRef);
     if (!settingsSnapshot.exists()) {
-        await setDoc(settingsRef, { baseRate: 10.00 });
+        await setDoc(settingsRef, { 
+            baseRate: 10.00,
+            totalVipSlots: 20000,
+            claimedVipSlots: 1500,
+        });
         console.log("Initial global settings seeded.");
     }
 }
@@ -155,7 +159,7 @@ export async function getInitialUserData() {
         }
     }
 
-    return { user: finalUser, referrals, tasks, news };
+    return { user: finalUser, referrals, tasks, news, settings };
 }
 
 function serializeFirestoreTimestamps(data: { [key: string]: any }): { [key: string]: any } {
@@ -460,16 +464,16 @@ export async function submitVipProof(userId: string, transactionId: string) {
 
 // --- Admin Actions ---
 
-export async function getGlobalSettings(): Promise<{ baseRate: number } | null> {
+export async function getGlobalSettings(): Promise<GlobalSettings | null> {
     const settingsRef = doc(db, 'settings', 'global');
     const settingsSnap = await getDoc(settingsRef);
     if (settingsSnap.exists()) {
-        return settingsSnap.data() as { baseRate: number };
+        return settingsSnap.data() as GlobalSettings;
     }
     return null;
 }
 
-export async function updateGlobalSettings(settings: { baseRate: number }) {
+export async function updateGlobalSettings(settings: Partial<GlobalSettings>) {
     'use server';
     const settingsRef = doc(db, 'settings', 'global');
     try {
@@ -501,12 +505,31 @@ export async function getVipRequests(): Promise<UserData[]> {
 
 export async function updateVipStatus(userId: string, status: 'approved' | 'rejected') {
     const userRef = doc(db, 'users', userId);
-    await updateDoc(userRef, {
-        vipStatus: status,
-    });
+    const settingsRef = doc(db, 'settings', 'global');
+    
+    if (status === 'approved') {
+        try {
+            await runTransaction(db, async (transaction) => {
+                const settingsDoc = await transaction.get(settingsRef);
+                if (!settingsDoc.exists()) {
+                    throw "Global settings not found!";
+                }
+                
+                transaction.update(userRef, { vipStatus: 'approved' });
+                transaction.update(settingsRef, { claimedVipSlots: increment(1) });
+            });
+        } catch (e: any) {
+            console.error("VIP approval transaction failed: ", e);
+            return { success: false, error: e.message || 'An unexpected error occurred.' };
+        }
+    } else { // For rejected status
+         await updateDoc(userRef, { vipStatus: status });
+    }
+
     revalidatePath('/admin');
-    revalidatePath(`/vip`); 
-    // The user's page will update in real-time due to snapshot listeners.
+    revalidatePath('/vip');
+    revalidatePath('/'); // For progress bar on mining page
+    
     return { success: true };
 }
 
@@ -576,7 +599,7 @@ export async function updateUserFromAdmin(userId: string, dataToUpdate: Partial<
     const userRef = doc(db, 'users', userId);
 
     // Sanitize data: remove id and any other non-updatable fields
-    const { id, baseRate, ...updateData } = dataToUpdate; // baseRate is global, so don't update it per user.
+    const { id, ...updateData } = dataToUpdate; 
 
     try {
         await updateDoc(userRef, updateData as any);

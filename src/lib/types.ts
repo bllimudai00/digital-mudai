@@ -20,6 +20,12 @@ export type UserData = {
   isAdmin?: boolean;
 };
 
+export type GlobalSettings = {
+  baseRate: number;
+  totalVipSlots: number;
+  claimedVipSlots: number;
+};
+
 export type Referral = {
   id: string;
   name: string;

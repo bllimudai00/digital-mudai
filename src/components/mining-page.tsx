@@ -20,8 +20,8 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { claimReward, startMiningSession, getUserData } from "@/app/actions";
-import type { UserData } from "@/lib/types";
+import { claimReward, startMiningSession, getInitialUserData } from "@/app/actions";
+import type { UserData, GlobalSettings } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
@@ -98,6 +98,7 @@ function formatTime(ms: number) {
 
 export default function MiningPage() {
   const [userData, setUserData] = useState<UserData | null>(null);
+  const [settings, setSettings] = useState<GlobalSettings | null>(null);
   const [miningState, setMiningState] = useState<'idle' | 'mining' | 'claimable' | 'loading'>('loading');
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [isActionLoading, setIsActionLoading] = useState(false);
@@ -110,15 +111,18 @@ export default function MiningPage() {
     const FAKE_USER_ID = 'user_placeholder_id';
 
     // Initial fetch to create user if doesn't exist and get initial data
-    getUserData().then(initialUser => {
-        if (initialUser) {
-            setUserData(initialUser);
+    getInitialUserData().then(initialData => {
+        if (initialData.user) {
+            setUserData(initialData.user);
+        }
+        if (initialData.settings) {
+            setSettings(initialData.settings);
         }
     });
     
-    // Real-time listener for updates
+    // Real-time listener for user updates
     const userRef = doc(db, 'users', FAKE_USER_ID);
-    const unsubscribe = onSnapshot(userRef, (doc) => {
+    const unsubscribeUser = onSnapshot(userRef, (doc) => {
         if (doc.exists()) {
             const data = doc.data() as UserData;
             // Also sync VIP status here
@@ -133,7 +137,19 @@ export default function MiningPage() {
         console.error("Error fetching real-time user data:", error);
     });
 
-    return () => unsubscribe();
+    // Real-time listener for settings updates
+    const settingsRef = doc(db, 'settings', 'global');
+    const unsubscribeSettings = onSnapshot(settingsRef, (doc) => {
+        if (doc.exists()) {
+            setSettings(doc.data() as GlobalSettings);
+        }
+    });
+
+
+    return () => {
+        unsubscribeUser();
+        unsubscribeSettings();
+    };
   }, []);
 
 
@@ -260,8 +276,12 @@ export default function MiningPage() {
     }
   }
 
+  const claimedSlots = settings?.claimedVipSlots || 0;
+  const totalSlots = settings?.totalVipSlots || 1;
+  const progressPercentage = (claimedSlots / totalSlots) * 100;
 
-  if (!userData) {
+
+  if (!userData || !settings) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader className="w-8 h-8 animate-spin text-primary" />
@@ -346,8 +366,8 @@ export default function MiningPage() {
                         <Users className="w-4 h-4" />
                         <span>FCFS Limited Slots</span>
                     </div>
-                <Progress value={7.5} className="h-2 bg-muted" />
-                <div className="text-right text-sm text-muted-foreground mt-1">1500 / 20000</div>
+                <Progress value={progressPercentage} className="h-2 bg-muted" />
+                <div className="text-right text-sm text-muted-foreground mt-1">{claimedSlots} / {totalSlots}</div>
                 </div>
             </CardContent>
             </Card>

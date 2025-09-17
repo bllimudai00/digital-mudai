@@ -32,16 +32,18 @@ import {
   BadgeCheck,
   Clock,
   XCircle,
+  Users,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Input } from "./ui/input";
 import React, { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { submitVipProof } from "@/app/actions";
-import { UserData } from "@/lib/types";
+import { submitVipProof, getGlobalSettings } from "@/app/actions";
+import { UserData, GlobalSettings } from "@/lib/types";
 import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
+import { Progress } from "./ui/progress";
 
 function BottomNavItem({
   icon,
@@ -160,9 +162,13 @@ function UpgradeToVipForm({ userId }: { userId: string }) {
 
 function VipStatus({ status, userId }: { status: 'none' | 'pending' | 'approved' | 'rejected', userId: string }) {
     
+    const { toast } = useToast();
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
-        // Maybe show a toast notification
+        toast({
+            title: "Copied!",
+            description: "Wallet address copied to clipboard."
+        })
     }
 
     if (status === 'approved') {
@@ -232,15 +238,17 @@ function VipStatus({ status, userId }: { status: 'none' | 'pending' | 'approved'
 
 export default function VipPage() {
   const [userData, setUserData] = useState<UserData | null>(null);
+  const [settings, setSettings] = useState<GlobalSettings | null>(null);
+
 
   useEffect(() => {
     const FAKE_USER_ID = 'user_placeholder_id';
+    
+    // Listen for user data
     const userRef = doc(db, 'users', FAKE_USER_ID);
-
-    const unsubscribe = onSnapshot(userRef, (doc) => {
+    const unsubscribeUser = onSnapshot(userRef, (doc) => {
         if (doc.exists()) {
             const user = doc.data() as UserData;
-            // This is the sync logic from actions.ts, duplicated for real-time updates
             if (user.vipStatus === 'approved' && !user.vip) {
                 user.vip = true;
             } else if (user.vipStatus !== 'approved' && user.vip) {
@@ -251,9 +259,26 @@ export default function VipPage() {
     }, (error) => {
         console.error("Error fetching real-time user data:", error);
     });
-    
-    return () => unsubscribe();
+
+    // Listen for global settings
+    const settingsRef = doc(db, 'settings', 'global');
+    const unsubscribeSettings = onSnapshot(settingsRef, (doc) => {
+         if (doc.exists()) {
+            setSettings(doc.data() as GlobalSettings);
+        }
+    }, (error) => {
+        console.error("Error fetching real-time settings:", error);
+    });
+
+    return () => {
+        unsubscribeUser();
+        unsubscribeSettings();
+    };
   }, []);
+
+  const claimedSlots = settings?.claimedVipSlots || 0;
+  const totalSlots = settings?.totalVipSlots || 1;
+  const progressPercentage = (claimedSlots / totalSlots) * 100;
 
   return (
     <div className="bg-background text-foreground min-h-screen flex flex-col font-body">
@@ -295,6 +320,18 @@ export default function VipPage() {
               description="Priority support and special airdrop allocation"
               className="bg-purple-900/30 border-purple-500/30"
             />
+             <Card className="bg-card/80 backdrop-blur-sm p-4">
+                <CardContent className="p-0">
+                    <div className="mt-4">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                            <Users className="w-4 h-4" />
+                            <span>FCFS Limited Slots</span>
+                        </div>
+                    <Progress value={progressPercentage} className="h-2 bg-muted" />
+                    <div className="text-right text-sm text-muted-foreground mt-1">{claimedSlots} / {totalSlots}</div>
+                    </div>
+                </CardContent>
+            </Card>
           </CardContent>
         </Card>
 
