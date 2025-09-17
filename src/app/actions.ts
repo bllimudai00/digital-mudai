@@ -623,14 +623,22 @@ export async function getLeaderboard(): Promise<LeaderboardEntry[]> {
             .filter(user => !manualUserIds.includes(user.id))
             .slice(0, 7);
 
-        const genuineEntries: LeaderboardEntry[] = genuineUsers.map((user, index) => ({
-            rank: 4 + index,
-            userId: user.id,
-            name: user.name,
-            referralCount: user.referrals?.length || 0,
-            prize: 100 - (index * 10), // Example prize structure
-            type: 'genuine'
-        }));
+        const genuineEntries: LeaderboardEntry[] = genuineUsers.map((user, index) => {
+            let prize = 0;
+            const rank = 4 + index;
+            if (rank === 4) prize = 100;
+            else if (rank === 5) prize = 50;
+            else if (rank >= 6 && rank <= 10) prize = 10;
+
+            return {
+                rank: rank,
+                userId: user.id,
+                name: user.name,
+                referralCount: user.referrals?.length || 0,
+                prize: prize,
+                type: 'genuine'
+            };
+        });
         
         // 3. Combine and sort
         const finalLeaderboard = [...manualEntries, ...genuineEntries];
@@ -656,3 +664,4 @@ export async function updateLeaderboardEntry(entry: LeaderboardEntry) {
         return { success: false, error: error.message };
     }
 }
+
