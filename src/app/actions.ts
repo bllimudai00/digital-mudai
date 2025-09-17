@@ -396,7 +396,6 @@ export async function getVipRequests(): Promise<UserData[]> {
 
         for (const key in data) {
             const value = data[key];
-            // Check if it's a Firestore Timestamp and convert it
             if (value && typeof value.toDate === 'function') {
                 serializedData[key] = value.toDate().toISOString();
             } else {
