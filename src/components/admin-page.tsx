@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { UserData, NewsArticle } from "@/lib/types";
 import { getUserData, getVipRequests, updateVipStatus, getNews, addNews, deleteNews, getUsers } from "@/app/actions";
-import { Loader, Shield, UserCheck, UserX, Newspaper as NewsIcon, Trash2, PlusCircle, Users, Badge, Edit } from "lucide-react";
+import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";

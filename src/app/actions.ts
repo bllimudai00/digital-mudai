@@ -377,6 +377,7 @@ export async function submitVipProof(userId: string, transactionId: string) {
     });
 
     revalidatePath('/vip');
+    revalidatePath('/admin');
     return { success: true, message: "Proof submitted successfully!" };
 }
 
@@ -470,7 +471,3 @@ export async function getUsers(): Promise<UserData[]> {
   const querySnapshot = await getDocs(usersRef);
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserData));
 }
-
-    
-
-    
