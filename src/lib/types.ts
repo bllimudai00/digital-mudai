@@ -11,9 +11,9 @@ export type UserData = {
   referredBy?: string;
   name: string;
   email: string;
-  createdAt: number;
+  createdAt: string; // Changed to string for serializability
   sessionEndTime: number | null;
-  miningHistory: { amount: number; claimedAt: number }[];
+  miningHistory: { amount: number; claimedAt: number | string }[]; // Allow string for serialization
   vipStatus: 'none' | 'pending' | 'approved' | 'rejected';
   vipTransactionId?: string;
   vipProofSubmittedAt?: string; // Changed to string to be serializable
@@ -50,3 +50,5 @@ export type NewsArticle = {
   priority: 'low' | 'medium' | 'high';
   content: NewsContentItem[];
 };
+
+    

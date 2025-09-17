@@ -88,8 +88,17 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const FAKE_USER_ID = 'user_placeholder_id';
-    const userRef = doc(db, 'users', FAKE_USER_ID);
+    
+    // Initial fetch from server action to handle user creation and get serialized data
+    getUserData().then(user => {
+      if (user) {
+        setUserData(user);
+      }
+      setLoading(false);
+    }).catch(() => setLoading(false));
 
+    // Real-time updates from client-side snapshot listener
+    const userRef = doc(db, 'users', FAKE_USER_ID);
     const unsubscribe = onSnapshot(userRef, (doc) => {
         if (doc.exists()) {
             const user = doc.data() as UserData;
@@ -98,20 +107,22 @@ export default function ProfilePage() {
             } else if (user.vipStatus !== 'approved' && user.vip) {
                 user.vip = false;
             }
-            setUserData(user);
+             // Convert timestamps on the client side for real-time updates
+            const clientSideSerializedUser = {
+                ...user,
+                createdAt: user.createdAt && typeof (user.createdAt as any).toDate === 'function' ? (user.createdAt as any).toDate().toISOString() : user.createdAt,
+                vipProofSubmittedAt: user.vipProofSubmittedAt && typeof (user.vipProofSubmittedAt as any).toDate === 'function' ? (user.vipProofSubmittedAt as any).toDate().toISOString() : user.vipProofSubmittedAt,
+                miningHistory: user.miningHistory.map(h => ({
+                    ...h,
+                    claimedAt: h.claimedAt && typeof (h.claimedAt as any).toDate === 'function' ? (h.claimedAt as any).toDate().toISOString() : h.claimedAt,
+                }))
+            };
+            setUserData(clientSideSerializedUser as UserData);
         }
         setLoading(false);
     }, (error) => {
         console.error("Error fetching real-time user data:", error);
         setLoading(false);
-    });
-
-    // Also fetch initial data which handles user creation
-    getUserData().then(user => {
-      if (!userData) { // only set if snapshot hasn't returned yet
-          setUserData(user);
-      }
-      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -220,3 +231,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+    

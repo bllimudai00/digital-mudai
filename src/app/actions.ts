@@ -138,6 +138,28 @@ export async function getInitialUserData() {
     return { user, referrals, tasks, news };
 }
 
+function serializeFirestoreTimestamps(data: { [key: string]: any }): { [key: string]: any } {
+    const serializedData: { [key: string]: any } = {};
+    for (const key in data) {
+        const value = data[key];
+        if (value && typeof value.toDate === 'function') {
+            // It's a Firestore Timestamp, convert it to a string
+            serializedData[key] = value.toDate().toISOString();
+        } else if (Array.isArray(value)) {
+            // If it's an array, recursively serialize its contents
+            serializedData[key] = value.map(item =>
+                (item && typeof item === 'object' && !Array.isArray(item))
+                    ? serializeFirestoreTimestamps(item)
+                    : item
+            );
+        } else {
+            serializedData[key] = value;
+        }
+    }
+    return serializedData;
+}
+
+
 export async function getUserData(): Promise<UserData | null> {
     const userRef = doc(db, 'users', FAKE_USER_ID);
     const userSnap = await getDoc(userRef);
@@ -152,7 +174,8 @@ export async function getUserData(): Promise<UserData | null> {
             await updateDoc(userRef, { vip: false });
             userData.vip = false;
         }
-        return userData;
+        return serializeFirestoreTimestamps(userData) as UserData;
+
     } else {
         // If user doesn't exist, create a new one with default values
         console.log("User not found, creating a new one...");
@@ -168,7 +191,7 @@ export async function getUserData(): Promise<UserData | null> {
             referralCode: 'PARIRBESS8',
             name: 'Balram Singh Rajput',
             email: 'seemarajput8540@gmail.com',
-            createdAt: Date.now(),
+            createdAt: new Date().toISOString(),
             sessionEndTime: null,
             miningHistory: [],
             vipStatus: 'none',
@@ -176,7 +199,10 @@ export async function getUserData(): Promise<UserData | null> {
             referredBy: 'super_referrer_placeholder_id'
         };
 
-        await setDoc(userRef, newUser);
+        await setDoc(userRef, {
+            ...newUser,
+            createdAt: serverTimestamp(), // Use server timestamp for creation
+        });
         await seedInitialData(); 
         console.log("New user and initial data seeded successfully.");
         return newUser;
@@ -316,7 +342,7 @@ export async function claimReward(userId: string) {
             // Update user's balance and history
             const newHistoryItem = {
                 amount: finalReward,
-                claimedAt: Date.now(),
+                claimedAt: serverTimestamp(),
             };
 
             transaction.update(userRef, {
@@ -392,17 +418,7 @@ export async function getVipRequests(): Promise<UserData[]> {
     const requests = querySnapshot.docs.map(doc => {
         const data = doc.data();
         const docId = doc.id;
-        const serializedData: { [key: string]: any } = { id: docId };
-
-        for (const key in data) {
-            const value = data[key];
-            // Check if it's a Firestore Timestamp and convert it
-            if (value && typeof value.toDate === 'function') {
-                serializedData[key] = value.toDate().toISOString();
-            } else {
-                serializedData[key] = value;
-            }
-        }
+        const serializedData = serializeFirestoreTimestamps({ id: docId, ...data });
         return serializedData as UserData;
     });
 
@@ -475,18 +491,11 @@ export async function getUsers(): Promise<UserData[]> {
   const users = querySnapshot.docs.map(doc => {
         const data = doc.data();
         const docId = doc.id;
-        const serializedData: { [key: string]: any } = { id: docId };
-
-        for (const key in data) {
-            const value = data[key];
-            if (value && typeof value.toDate === 'function') {
-                serializedData[key] = value.toDate().toISOString();
-            } else {
-                serializedData[key] = value;
-            }
-        }
+        const serializedData = serializeFirestoreTimestamps({ id: docId, ...data });
         return serializedData as UserData;
     });
 
     return users;
 }
+
+    
