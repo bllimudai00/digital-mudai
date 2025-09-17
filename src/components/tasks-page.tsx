@@ -201,13 +201,14 @@ export default function TasksPage() {
              // This may be the first run, try to create the user
             getUserData().then(newUser => setUserData(newUser));
         }
+        setLoading(false);
     }, (error) => {
         console.error("Error fetching real-time user data:", error);
+        setLoading(false);
     });
 
     getTasks().then(taskList => {
         setTasks(taskList);
-        setLoading(false);
     }).catch(error => {
         console.error("Error fetching tasks:", error);
         setLoading(false);
@@ -235,7 +236,7 @@ export default function TasksPage() {
   };
 
 
-  if (loading) {
+  if (loading || !userData) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader className="w-8 h-8 animate-spin text-primary" />
