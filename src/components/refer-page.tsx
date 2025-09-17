@@ -205,7 +205,7 @@ export default function ReferPage() {
           <BottomNavItem
             icon={<User className="w-6 h-6" />}
             label="Profile"
-            href="#"
+            href="/profile"
           />
         </div>
       </footer>
