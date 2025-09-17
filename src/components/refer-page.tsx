@@ -80,28 +80,27 @@ const WhatsAppIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
 )
 
-function PodiumSpot({ user, rank, medal, podiumHeight, avatarSize }: { user: LeaderboardEntry, rank: number, medal: string, podiumHeight: string, avatarSize: string }) {
-    if (!user) return <div className={`flex-1 ${podiumHeight}`}></div>;
+function PodiumSpot({ user, rank, medal, podiumHeight, avatarSize, medalOffset }: { user: LeaderboardEntry, rank: number, medal: string, podiumHeight: string, avatarSize: string, medalOffset: string }) {
+    if (!user || !user.name) return <div className={`flex-1 ${podiumHeight}`}></div>;
 
-    const rankColors = {
-        1: 'bg-yellow-400/80', // Gold
-        2: 'bg-slate-400/80', // Silver
-        3: 'bg-orange-400/80', // Bronze
+    const rankColors: { [key: number]: string } = {
+        1: 'bg-yellow-500/30 border-yellow-500',
+        2: 'bg-slate-500/30 border-slate-500',
+        3: 'bg-orange-600/30 border-orange-600',
     };
 
     return (
-        <div className="flex-1 flex flex-col items-center justify-end mx-1">
-            <div className="relative mb-2">
-                <p className="absolute -top-4 left-1/2 -translate-x-1/2 text-3xl">{medal}</p>
+        <div className="w-1/3 flex flex-col items-center">
+            <div className={`relative ${medalOffset}`}>
+                <p className="absolute -top-3 left-1/2 -translate-x-1/2 text-4xl z-10">{medal}</p>
                 <Avatar className={`${avatarSize} border-4 border-background shadow-lg`}>
                     <AvatarImage src={`https://picsum.photos/seed/${user.userId}/100`} />
                     <AvatarFallback>{user.name ? user.name.substring(0, 2) : '?'}</AvatarFallback>
                 </Avatar>
             </div>
-            <div className={`w-full ${podiumHeight} ${rankColors[rank as keyof typeof rankColors]} rounded-t-lg flex flex-col items-center justify-center p-2 pt-4 text-center`}>
-                <p className="font-bold text-black text-sm truncate w-20">{user.name}</p>
-                <p className="text-xs text-black/80 font-semibold">{user.referralCount} Referrals</p>
-                <p className="text-lg font-bold text-black/70 mt-1">#{rank}</p>
+            <div className={`w-full ${podiumHeight} ${rankColors[rank]} rounded-t-lg flex flex-col items-center justify-start pt-8 text-center border-t-4`}>
+                <p className="font-bold text-sm truncate w-24">{user.name}</p>
+                <p className="text-xs text-muted-foreground font-semibold">{user.referralCount} Referrals</p>
             </div>
         </div>
     );
@@ -149,8 +148,10 @@ export default function ReferPage() {
 
     const leaderboardCollection = collection(db, 'leaderboard');
     const unsubscribeLeaderboard = onSnapshot(leaderboardCollection, async () => {
+        setLoading(true);
         const updatedLeaderboard = await getLeaderboard();
         setLeaderboard(updatedLeaderboard);
+        setLoading(false);
     });
 
     return () => {
@@ -201,17 +202,24 @@ export default function ReferPage() {
                  </Button>
             </div>
             {loading ? (
-                <div className="flex justify-center items-center min-h-[250px]">
+                <div className="flex justify-center items-center min-h-[200px]">
                     <Loader className="w-8 h-8 animate-spin" />
                 </div>
-            ) : top1 && top2 && top3 ? (
-                <div className="mt-4 flex items-end justify-center min-h-[250px] bg-gradient-to-t from-background/50 to-transparent pt-8 px-2">
-                    <PodiumSpot user={top2} rank={2} medal="🥈" podiumHeight="h-24" avatarSize="w-16 h-16" />
-                    <PodiumSpot user={top1} rank={1} medal="🥇" podiumHeight="h-32" avatarSize="w-20 h-20" />
-                    <PodiumSpot user={top3} rank={3} medal="🥉" podiumHeight="h-20" avatarSize="w-14 h-14" />
+            ) : (top1 && top2 && top3) ? (
+                <div className="mt-8 flex items-end justify-center px-2 relative h-48">
+                    {/* Podium items are absolutely positioned within the container */}
+                    <div className="absolute bottom-0 w-1/3 h-24 flex flex-col items-center justify-end">
+                         <PodiumSpot user={top2} rank={2} medal="🥈" podiumHeight="h-full" avatarSize="w-16 h-16" medalOffset="mb-2" />
+                    </div>
+                     <div className="absolute bottom-0 w-1/3 h-36 flex flex-col items-center justify-end z-10">
+                         <PodiumSpot user={top1} rank={1} medal="🥇" podiumHeight="h-full" avatarSize="w-20 h-20" medalOffset="mb-3" />
+                    </div>
+                     <div className="absolute bottom-0 right-0 w-1/3 h-20 flex flex-col items-center justify-end">
+                         <PodiumSpot user={top3} rank={3} medal="🥉" podiumHeight="h-full" avatarSize="w-14 h-14" medalOffset="mb-1" />
+                    </div>
                 </div>
             ) : (
-                 <div className="flex flex-col items-center justify-center min-h-[250px] text-muted-foreground">
+                 <div className="flex flex-col items-center justify-center min-h-[200px] text-muted-foreground">
                     <Trophy className="w-10 h-10 mb-2"/>
                     <p>Leaderboard is being prepared.</p>
                 </div>
