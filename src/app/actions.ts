@@ -389,13 +389,14 @@ export async function getVipRequests(): Promise<UserData[]> {
     const q = query(usersRef, where('vipStatus', '==', 'pending'));
     const querySnapshot = await getDocs(q);
     
-    return querySnapshot.docs.map(doc => {
+    const requests = querySnapshot.docs.map(doc => {
         const data = doc.data();
         const docId = doc.id;
         const serializedData: { [key: string]: any } = { id: docId };
 
         for (const key in data) {
             const value = data[key];
+            // Check if it's a Firestore Timestamp and convert it
             if (value && typeof value.toDate === 'function') {
                 serializedData[key] = value.toDate().toISOString();
             } else {
@@ -404,7 +405,10 @@ export async function getVipRequests(): Promise<UserData[]> {
         }
         return serializedData as UserData;
     });
+
+    return requests;
 }
+
 
 export async function updateVipStatus(userId: string, status: 'approved' | 'rejected') {
     const userRef = doc(db, 'users', userId);
