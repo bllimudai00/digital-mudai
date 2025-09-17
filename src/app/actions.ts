@@ -1,6 +1,6 @@
 'use server';
 
-import { doc, updateDoc, arrayUnion, getDoc, runTransaction, increment, collection, getDocs, writeBatch, setDoc, query, where, addDoc, deleteDoc } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, getDoc, runTransaction, increment, collection, getDocs, writeBatch, setDoc, query, where, addDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/firebase/firestore';
 import type { UserData, Referral, Task, NewsArticle } from '@/lib/types';
@@ -373,7 +373,7 @@ export async function submitVipProof(userId: string, transactionId: string) {
     await updateDoc(userRef, {
         vipStatus: 'pending',
         vipTransactionId: transactionId,
-        vipProofSubmittedAt: new Date(),
+        vipProofSubmittedAt: serverTimestamp(),
     });
 
     revalidatePath('/vip');
@@ -395,6 +395,7 @@ export async function getVipRequests(): Promise<UserData[]> {
 
         for (const key in data) {
             const value = data[key];
+            // Check if it's a Firestore Timestamp and convert it
             if (value && typeof value.toDate === 'function') {
                 serializedData[key] = value.toDate().toISOString();
             } else {
@@ -469,5 +470,7 @@ export async function getUsers(): Promise<UserData[]> {
   const querySnapshot = await getDocs(usersRef);
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserData));
 }
+
+    
 
     
