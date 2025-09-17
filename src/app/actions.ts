@@ -1,9 +1,9 @@
 'use server';
 
-import { doc, updateDoc, arrayUnion, getDoc, runTransaction, increment, collection, getDocs, writeBatch, setDoc, query, where, addDoc, deleteDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, getDoc, runTransaction, increment, collection, getDocs, writeBatch, setDoc, query, where, addDoc, deleteDoc, serverTimestamp, Timestamp, orderBy, limit } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/firebase/firestore';
-import type { UserData, Referral, Task, NewsArticle, GlobalSettings, NewsContentItem } from '@/lib/types';
+import type { UserData, Referral, Task, NewsArticle, GlobalSettings, LeaderboardEntry } from '@/lib/types';
 
 // This is a placeholder for a real user ID
 const FAKE_USER_ID = 'user_placeholder_id';
@@ -35,8 +35,6 @@ export async function seedInitialData() {
         console.log("Initial tasks seeded.");
     }
     
-    // Seed news - no longer needed as it will be managed from admin panel
-    
     // Seed global settings
     const settingsRef = doc(db, 'settings', 'global');
     const settingsSnapshot = await getDoc(settingsRef);
@@ -48,6 +46,24 @@ export async function seedInitialData() {
         });
         console.log("Initial global settings seeded.");
     }
+     // Seed leaderboard
+    const leaderboardRef = collection(db, 'leaderboard');
+    const leaderboardSnapshot = await getDocs(leaderboardRef);
+    if (leaderboardSnapshot.empty) {
+        console.log("Seeding initial leaderboard...");
+        const initialLeaderboard = [
+            { rank: 1, userId: "top_user_1", name: "Alex", referralCount: 1250, prize: 1000, type: "manual" },
+            { rank: 2, userId: "top_user_2", name: "Maria", referralCount: 980, prize: 500, type: "manual" },
+            { rank: 3, userId: "top_user_3", name: "John", referralCount: 750, prize: 200, type: "manual" },
+        ];
+        const batch = writeBatch(db);
+        initialLeaderboard.forEach(entry => {
+            const entryRef = doc(leaderboardRef, `rank_${entry.rank}`);
+            batch.set(entryRef, entry);
+        });
+        await batch.commit();
+        console.log("Initial leaderboard seeded.");
+    }
 }
 
 
@@ -58,6 +74,7 @@ export async function getInitialUserData() {
     const tasks = await getTasks();
     const news = await getNews();
     const settings = await getGlobalSettings();
+    const leaderboard = await getLeaderboard();
     
     let finalUser = user;
     if (user && settings) {
@@ -69,7 +86,7 @@ export async function getInitialUserData() {
         }
     }
 
-    return { user: finalUser, referrals, tasks, news, settings };
+    return { user: finalUser, referrals, tasks, news, settings, leaderboard };
 }
 
 function serializeFirestoreTimestamps(data: { [key: string]: any }): { [key: string]: any } {
@@ -510,7 +527,8 @@ export async function getUsers(): Promise<UserData[]> {
         return serializedData as UserData;
     });
 
-    return users;
+    // Sort by referral count descending for leaderboard purposes
+    return users.sort((a, b) => (b.referrals?.length || 0) - (a.referrals?.length || 0));
 }
 
 export async function updateUserFromAdmin(userId: string, dataToUpdate: Partial<UserData>) {
@@ -581,6 +599,56 @@ export async function deleteTask(taskId: string) {
         await deleteDoc(taskRef);
         revalidatePath('/admin/tasks');
         revalidatePath('/tasks');
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+
+export async function getLeaderboard(): Promise<LeaderboardEntry[]> {
+    try {
+        // 1. Fetch manually set top 3
+        const leaderboardRef = collection(db, 'leaderboard');
+        const manualQuery = query(leaderboardRef, where('type', '==', 'manual'), orderBy('rank'), limit(3));
+        const manualSnapshot = await getDocs(manualQuery);
+        const manualEntries = manualSnapshot.docs.map(doc => doc.data() as LeaderboardEntry);
+        const manualUserIds = manualEntries.map(e => e.userId);
+
+        // 2. Fetch top 7 genuine users, excluding the manual ones
+        const allUsers = await getUsers();
+        const genuineUsers = allUsers
+            .filter(user => !manualUserIds.includes(user.id))
+            .slice(0, 7);
+
+        const genuineEntries: LeaderboardEntry[] = genuineUsers.map((user, index) => ({
+            rank: 4 + index,
+            userId: user.id,
+            name: user.name,
+            referralCount: user.referrals?.length || 0,
+            prize: 100 - (index * 10), // Example prize structure
+            type: 'genuine'
+        }));
+        
+        // 3. Combine and sort
+        const finalLeaderboard = [...manualEntries, ...genuineEntries];
+        return finalLeaderboard.sort((a, b) => a.rank - b.rank);
+
+    } catch (error) {
+        console.error("Error fetching leaderboard:", error);
+        return [];
+    }
+}
+
+
+export async function updateLeaderboardEntry(entry: LeaderboardEntry) {
+    'use server';
+    try {
+        const docRef = doc(db, 'leaderboard', `rank_${entry.rank}`);
+        await setDoc(docRef, { ...entry, type: 'manual' });
+        revalidatePath('/admin');
+        revalidatePath('/refer');
+        revalidatePath('/referral-contest');
         return { success: true };
     } catch (error: any) {
         return { success: false, error: error.message };

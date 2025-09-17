@@ -17,13 +17,14 @@ import {
   Newspaper,
   ListChecks,
   User,
-  Loader
+  Loader,
+  Trophy
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getReferrals } from "@/app/actions";
-import type { UserData, Referral } from "@/lib/types";
-import { onSnapshot, doc } from "firebase/firestore";
+import { getInitialUserData, getReferrals } from "@/app/actions";
+import type { UserData, Referral, LeaderboardEntry } from "@/lib/types";
+import { onSnapshot, doc, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -79,18 +80,42 @@ const WhatsAppIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
 )
 
+function TopReferrerCard({ rank, user, bgColor, borderColor, medalColor }: { rank: number, user: LeaderboardEntry, bgColor: string, borderColor: string, medalColor: string }) {
+    return (
+        <div className={`flex-1 flex flex-col items-center p-4 rounded-lg ${bgColor} border-2 ${borderColor} relative`}>
+            <div className={`absolute -top-4 text-3xl font-bold ${medalColor}`}>
+                {rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'}
+            </div>
+            <Avatar className="w-16 h-16 mt-4 border-4 border-background">
+                <AvatarImage src={`https://picsum.photos/seed/${user.userId}/100`} />
+                <AvatarFallback>{user.name.substring(0, 2)}</AvatarFallback>
+            </Avatar>
+            <p className="font-bold text-white mt-2">{user.name}</p>
+            <p className="text-sm text-muted-foreground font-semibold">{user.referralCount} Referrals</p>
+        </div>
+    )
+}
+
 
 export default function ReferPage() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [referrals, setReferrals] = useState<Referral[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
     const FAKE_USER_ID = 'user_placeholder_id';
-    const userRef = doc(db, 'users', FAKE_USER_ID);
+    
+    getInitialUserData().then(data => {
+        setUserData(data.user);
+        setReferrals(data.referrals);
+        setLeaderboard(data.leaderboard);
+        setLoading(false);
+    });
 
-    const unsubscribe = onSnapshot(userRef, async (doc) => {
+    const userRef = doc(db, 'users', FAKE_USER_ID);
+    const unsubscribeUser = onSnapshot(userRef, async (doc) => {
         if (doc.exists()) {
             const user = doc.data() as UserData;
             setUserData(user);
@@ -101,13 +126,20 @@ export default function ReferPage() {
                 setReferrals([]);
             }
         }
-        setLoading(false);
-    }, (error) => {
-        console.error("Error fetching real-time user data:", error);
-        setLoading(false);
     });
 
-    return () => unsubscribe();
+    const leaderboardRef = collection(db, 'leaderboard');
+    const unsubscribeLeaderboard = onSnapshot(leaderboardRef, (snapshot) => {
+         getInitialUserData().then(data => {
+            setLeaderboard(data.leaderboard);
+        });
+    });
+
+
+    return () => {
+        unsubscribeUser();
+        unsubscribeLeaderboard();
+    };
   }, []);
 
   const copyToClipboard = (text: string, label: string) => {
@@ -135,10 +167,31 @@ export default function ReferPage() {
       </div>
     );
   }
+  
+  const top1 = leaderboard.find(u => u.rank === 1);
+  const top2 = leaderboard.find(u => u.rank === 2);
+  const top3 = leaderboard.find(u => u.rank === 3);
 
   return (
     <div className="bg-background text-foreground min-h-screen flex flex-col font-body">
       <main className="flex-1 p-4 space-y-6 pb-24">
+        <Card className="bg-card/80 backdrop-blur-sm">
+          <CardContent className="p-4">
+            <div className="flex justify-between items-center">
+                 <h2 className="text-xl font-bold flex items-center gap-2"><Trophy className="text-accent"/> Referral Contest</h2>
+                 <Button asChild variant="outline" size="sm">
+                    <Link href="/referral-contest">View All</Link>
+                 </Button>
+            </div>
+            <div className="mt-4 flex gap-2 items-end">
+                {top2 && <TopReferrerCard rank={2} user={top2} bgColor="bg-slate-700/50" borderColor="border-slate-500" medalColor="text-slate-300" />}
+                {top1 && <TopReferrerCard rank={1} user={top1} bgColor="bg-amber-600/50" borderColor="border-amber-400" medalColor="text-amber-300" />}
+                {top3 && <TopReferrerCard rank={3} user={top3} bgColor="bg-orange-800/50" borderColor="border-orange-600" medalColor="text-orange-400" />}
+            </div>
+          </CardContent>
+        </Card>
+
+
         <Card className="bg-green-900/20 border-green-500/30">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="bg-green-500/20 p-3 rounded-lg">

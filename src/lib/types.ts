@@ -56,3 +56,12 @@ export type NewsArticle = {
   priority: 'low' | 'medium' | 'high';
   content: NewsContentItem[];
 };
+
+export type LeaderboardEntry = {
+    rank: number;
+    userId: string;
+    name: string;
+    referralCount: number;
+    prize: number;
+    type: 'manual' | 'genuine';
+}
