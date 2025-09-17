@@ -130,18 +130,24 @@ export async function getUserData(): Promise<UserData | null> {
         const data = userSnap.data();
         let userData = serializeFirestoreTimestamps(data) as UserData;
         
-        // Sync vip status
+        // Sync vip status and ensure admin
         let needsUpdate = false;
         const updates: Partial<UserData> = {};
 
         if (userData.vipStatus === 'approved' && !userData.vip) {
             updates.vip = true;
-needsUpdate = true;
+            needsUpdate = true;
         } else if (userData.vipStatus !== 'approved' && userData.vip) {
             updates.vip = false;
             needsUpdate = true;
         }
         
+        // Ensure the default user is always an admin
+        if (!userData.isAdmin) {
+            updates.isAdmin = true;
+            needsUpdate = true;
+        }
+
         // Sync baseRate with global settings
         const settings = await getGlobalSettings();
         if (settings && userData.baseRate !== settings.baseRate) {
