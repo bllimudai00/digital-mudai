@@ -206,12 +206,12 @@ export async function claimReward(userId: string) {
                 return "Mining session not yet complete.";
             }
 
-            // In a real app, calculate reward based on hashPower, streak, etc.
+            // Calculate reward
             const baseReward = 40.0;
-            // VIP users get double reward
             const finalReward = userData.vip ? baseReward * 2 : baseReward;
             rewardAmount = finalReward;
 
+            // Update user's balance and history
             const newHistoryItem = {
                 amount: finalReward,
                 claimedAt: Date.now(),
@@ -222,7 +222,20 @@ export async function claimReward(userId: string) {
                 sessionEndTime: null,
                 miningHistory: arrayUnion(newHistoryItem)
             });
-            return null;
+
+            // Handle referral commission for Level 1
+            if (userData.referredBy) {
+                const referrerRef = doc(db, "users", userData.referredBy);
+                const referrerDoc = await transaction.get(referrerRef);
+                if (referrerDoc.exists()) {
+                    const commissionAmount = finalReward * 0.10; // 10% commission
+                    transaction.update(referrerRef, {
+                        pariBalance: increment(commissionAmount)
+                    });
+                }
+            }
+
+            return null; // No error
         });
 
         if (error) {
