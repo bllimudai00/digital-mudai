@@ -24,7 +24,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getInitialUserData, getReferrals, getLeaderboard } from "@/app/actions";
 import type { UserData, Referral, LeaderboardEntry } from "@/lib/types";
-import { onSnapshot, doc, collection, query, where, orderBy } from "firebase/firestore";
+import { onSnapshot, doc, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -145,8 +145,7 @@ export default function ReferPage() {
     });
 
     const leaderboardCollection = collection(db, 'leaderboard');
-    const q = query(leaderboardCollection, where('type', '==', 'manual'), orderBy('rank'));
-    const unsubscribeLeaderboard = onSnapshot(q, async () => {
+    const unsubscribeLeaderboard = onSnapshot(leaderboardCollection, async () => {
         const updatedLeaderboard = await getLeaderboard();
         setLeaderboard(updatedLeaderboard);
     });

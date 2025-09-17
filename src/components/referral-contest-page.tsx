@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getLeaderboard } from "@/app/actions";
 import type { LeaderboardEntry } from "@/lib/types";
-import { onSnapshot, collection, query, where, orderBy } from "firebase/firestore";
+import { onSnapshot, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
@@ -66,8 +66,7 @@ export default function ReferralContestPage() {
 
     // Listen for real-time updates on manual entries
     const leaderboardCollection = collection(db, 'leaderboard');
-    const q = query(leaderboardCollection, where('type', '==', 'manual'), orderBy('rank'));
-    const unsubscribe = onSnapshot(q, async () => {
+    const unsubscribe = onSnapshot(leaderboardCollection, async () => {
         // Refetch the whole leaderboard when manual entries change
         const data = await getLeaderboard();
         setLeaderboard(data);
