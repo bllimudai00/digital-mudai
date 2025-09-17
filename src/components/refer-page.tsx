@@ -80,35 +80,28 @@ const WhatsAppIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
 )
 
-function TopReferrerCard({ rank, user, bgColor, borderColor }: { rank: number, user: LeaderboardEntry, bgColor: string, borderColor: string }) {
-    
-    let medal, medalColor;
-    if (rank === 1) {
-        medal = '🥇';
-        medalColor = "text-amber-300";
-    } else if (rank === 2) {
-        medal = '🥈';
-        medalColor = "text-slate-300";
-    } else {
-        medal = '🥉';
-        medalColor = "text-orange-400";
-    }
+function PodiumSpot({ rank, user, heightClass, bgColor, medal }: { rank: number, user: LeaderboardEntry, heightClass: string, bgColor: string, medal: string }) {
+    if (!user) return <div className={`flex-1 ${heightClass}`}></div>;
 
     return (
-        <div className={`flex-1 flex flex-col items-center p-4 rounded-lg ${bgColor} border-2 ${borderColor} relative mt-4`}>
-            <div className={`absolute -top-4 text-3xl font-bold ${medalColor}`}>
-                {medal}
+        <div className="flex-1 flex flex-col items-center justify-end">
+            <div className="relative">
+                <Avatar className="w-16 h-16 border-4 border-background">
+                    <AvatarImage src={`https://picsum.photos/seed/${user.userId}/100`} />
+                    <AvatarFallback>{user.name.substring(0, 2)}</AvatarFallback>
+                </Avatar>
+                <div className="absolute -top-3 -right-3 text-3xl">
+                    {medal}
+                </div>
             </div>
-            <Avatar className="w-16 h-16 mt-4 border-4 border-background">
-                <AvatarImage src={`https://picsum.photos/seed/${user.userId}/100`} />
-                <AvatarFallback>{user.name.substring(0, 2)}</AvatarFallback>
-            </Avatar>
-            <p className="font-bold text-white mt-2">{user.name}</p>
-            <p className="text-sm text-muted-foreground font-semibold">{user.referralCount} Referrals</p>
+            <p className="font-bold text-white mt-2 text-center text-sm">{user.name}</p>
+            <p className="text-xs text-muted-foreground font-semibold">{user.referralCount} Referrals</p>
+            <div className={`w-full ${heightClass} ${bgColor} rounded-t-lg mt-2 flex items-center justify-center p-2`}>
+                <p className="text-2xl font-bold text-white">{rank}</p>
+            </div>
         </div>
     )
 }
-
 
 export default function ReferPage() {
   const [userData, setUserData] = useState<UserData | null>(null);
@@ -121,6 +114,7 @@ export default function ReferPage() {
     const FAKE_USER_ID = 'user_placeholder_id';
     
     const fetchInitialData = async () => {
+        setLoading(true);
         const data = await getInitialUserData();
         setUserData(data.user);
         setReferrals(data.referrals);
@@ -197,10 +191,10 @@ export default function ReferPage() {
                     <Link href="/referral-contest">View All</Link>
                  </Button>
             </div>
-            <div className="mt-4 flex gap-2 items-end justify-center">
-                {top2 && <TopReferrerCard rank={2} user={top2} bgColor="bg-slate-700/50" borderColor="border-slate-500" />}
-                {top1 && <TopReferrerCard rank={1} user={top1} bgColor="bg-amber-600/50" borderColor="border-amber-400" />}
-                {top3 && <TopReferrerCard rank={3} user={top3} bgColor="bg-orange-800/50" borderColor="border-orange-600" />}
+            <div className="mt-4 flex gap-2 items-end justify-center min-h-[220px]">
+                {top2 && <PodiumSpot rank={2} user={top2} heightClass="h-24" bgColor="bg-slate-500" medal="🥈" />}
+                {top1 && <PodiumSpot rank={1} user={top1} heightClass="h-32" bgColor="bg-amber-500" medal="🥇" />}
+                {top3 && <PodiumSpot rank={3} user={top3} heightClass="h-20" bgColor="bg-orange-700" medal="🥉" />}
             </div>
           </CardContent>
         </Card>
@@ -360,3 +354,5 @@ export default function ReferPage() {
     </div>
   );
 }
+
+    
