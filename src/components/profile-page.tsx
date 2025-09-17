@@ -233,7 +233,6 @@ export default function ProfilePage() {
             <ProfileMenuItem icon={<ShieldCheck className="w-5 h-5 text-primary" />} label="VIP Membership" href="/vip" />
             <ProfileMenuItem icon={<History className="w-5 h-5 text-primary" />} label="History" href="/history" />
             <ProfileMenuItem icon={<Users className="w-5 h-5 text-primary" />} label="My Referrals" href="/refer" />
-            <ProfileMenuItem icon={<Settings className="w-5 h-5 text-primary" />} label="Account Settings" />
           </CardContent>
         </Card>
 
