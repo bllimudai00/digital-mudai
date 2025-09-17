@@ -144,7 +144,7 @@ function serializeFirestoreTimestamps(data: { [key: string]: any }): { [key: str
         const value = data[key];
         if (value instanceof Timestamp) {
             serializedData[key] = value.toDate().toISOString();
-        } else if (value && typeof value.toDate === 'function') {
+        } else if (value && typeof value.toDate === 'function') { // Fallback for other timestamp-like objects
             serializedData[key] = value.toDate().toISOString();
         } else if (Array.isArray(value)) {
             serializedData[key] = value.map(item =>
@@ -516,6 +516,22 @@ export async function updateUserFromAdmin(userId: string, dataToUpdate: Partial<
         return { success: true };
     } catch (error: any) {
         console.error("Error updating user:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function deleteUser(userId: string) {
+    'use server';
+    if (!userId) {
+        return { success: false, error: "User ID is required." };
+    }
+    try {
+        const userRef = doc(db, 'users', userId);
+        await deleteDoc(userRef);
+        revalidatePath('/admin');
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error deleting user:", error);
         return { success: false, error: error.message };
     }
 }

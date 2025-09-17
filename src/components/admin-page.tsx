@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import type { UserData, NewsArticle } from "@/lib/types";
-import { getUserData, getVipRequests, updateVipStatus, getNews, addNews, deleteNews, getUsers, updateUserFromAdmin } from "@/app/actions";
+import { getUserData, getVipRequests, updateVipStatus, getNews, addNews, deleteNews, getUsers, updateUserFromAdmin, deleteUser } from "@/app/actions";
 import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -14,6 +14,8 @@ import { Textarea } from "./ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "./ui/dialog";
 import { Label } from "./ui/label";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./ui/alert-dialog";
+
 
 function StatCard({ title, value, icon }: { title: string, value: string | number, icon: React.ReactNode }) {
     return (
@@ -108,7 +110,7 @@ function VipRequestSection({ vipRequests, loading, onUpdate }: { vipRequests: Us
 
 function NewsManagementSection() {
     const [news, setNews] = useState<NewsArticle[]>([]);
-    const [loading, setLoading]_useState(true);
+    const [loading, setLoading] = useState(true);
     const [newTitle, setNewTitle] = useState("");
     const [newContent, setNewContent] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -282,8 +284,50 @@ function EditUserDialog({ user, isOpen, onOpenChange, onUserUpdate }: { user: Us
     );
 }
 
+function DeleteUserDialog({ user, isOpen, onOpenChange, onUserDelete }: { user: UserData | null, isOpen: boolean, onOpenChange: (open: boolean) => void, onUserDelete: () => void }) {
+    const [isDeleting, setIsDeleting] = useState(false);
+    const { toast } = useToast();
+
+    if (!user) return null;
+
+    const handleDelete = async () => {
+        setIsDeleting(true);
+        const result = await deleteUser(user.id);
+        setIsDeleting(false);
+        if (result.success) {
+            toast({ title: "Success", description: "User deleted successfully." });
+            onUserDelete();
+        } else {
+            toast({ title: "Error", description: result.error || "Failed to delete user.", variant: "destructive" });
+            onOpenChange(false);
+        }
+    };
+
+    return (
+        <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete the user <span className="font-bold">{user.name}</span> and their data from the servers.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className={buttonVariants({ variant: "destructive" })}>
+                        {isDeleting ? <Loader className="w-4 h-4 animate-spin mr-2" /> : null}
+                        Delete
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    );
+}
+
+
 function UserManagementSection({ users, loading, onUpdate }: { users: UserData[], loading: boolean, onUpdate: () => void }) {
     const [editingUser, setEditingUser] = useState<UserData | null>(null);
+    const [deletingUser, setDeletingUser] = useState<UserData | null>(null);
 
     const handleEditClick = (user: UserData) => {
         setEditingUser(user);
@@ -293,6 +337,12 @@ function UserManagementSection({ users, loading, onUpdate }: { users: UserData[]
         setEditingUser(null);
         onUpdate();
     }
+    
+    const handleUserDelete = () => {
+        setDeletingUser(null);
+        onUpdate();
+    }
+
 
     if (loading) {
         return <div className="flex justify-center p-8"><Loader className="w-6 h-6 animate-spin" /></div>;
@@ -319,7 +369,7 @@ function UserManagementSection({ users, loading, onUpdate }: { users: UserData[]
                             <TableRow key={user.id}>
                                 <TableCell className="font-medium">{user.name}</TableCell>
                                 <TableCell>{user.email}</TableCell>
-                                <TableCell className="text-right">{(typeof user.pariBalance === 'number' ? user.pariBalance : parseFloat(user.pariBalance)).toFixed(4)}</TableCell>
+                                <TableCell className="text-right">{(typeof user.pariBalance === 'number' ? user.pariBalance : parseFloat(user.pariBalance || '0')).toFixed(4)}</TableCell>
                                 <TableCell className="text-center">
                                     {user.vip ? (
                                         <Badge className="bg-green-500 text-white">Yes</Badge>
@@ -331,7 +381,7 @@ function UserManagementSection({ users, loading, onUpdate }: { users: UserData[]
                                     <Button variant="ghost" size="icon" onClick={() => handleEditClick(user)}>
                                         <Edit className="w-4 h-4" />
                                     </Button>
-                                    <Button variant="ghost" size="icon" className="text-destructive" disabled>
+                                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setDeletingUser(user)}>
                                         <Trash2 className="w-4 h-4" />
                                     </Button>
                                 </TableCell>
@@ -346,6 +396,12 @@ function UserManagementSection({ users, loading, onUpdate }: { users: UserData[]
                 onOpenChange={(isOpen) => { if (!isOpen) setEditingUser(null); }}
                 onUserUpdate={handleUserUpdate}
             />
+            <DeleteUserDialog
+                user={deletingUser}
+                isOpen={!!deletingUser}
+                onOpenChange={(isOpen) => { if(!isOpen) setDeletingUser(null); }}
+                onUserDelete={handleUserDelete}
+            />
         </Card>
     );
 }
@@ -358,8 +414,8 @@ export default function AdminPage() {
     const [loading, setLoading] = useState(true);
 
     const fetchData = async () => {
-        // Set loading to true only if it's the initial load
-        setLoading(prev => (prev === true ? true : false));
+        // Set loading to true only if it's not the initial load to prevent flickering
+        setLoading(prev => prev ? true : false);
         const [user, users, requests] = await Promise.all([
             getUserData(),
             getUsers(),
@@ -415,5 +471,3 @@ export default function AdminPage() {
         </div>
     );
 }
-
-    
