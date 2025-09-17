@@ -14,6 +14,9 @@ export type UserData = {
   createdAt: number;
   sessionEndTime: number | null;
   miningHistory: { amount: number; claimedAt: number }[];
+  vipStatus: 'none' | 'pending' | 'approved' | 'rejected';
+  vipTransactionId?: string;
+  vipProofSubmittedAt?: Date;
 };
 
 export type Referral = {
@@ -26,4 +29,7 @@ export type Task = {
   id: string;
   title: string;
   reward: number;
+  order: number;
+  type: 'external' | 'referral_milestone';
+  requiredCount?: number;
 };

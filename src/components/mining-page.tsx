@@ -21,6 +21,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { claimReward, getUserData, startMiningSession } from "@/app/actions";
 import type { UserData } from "@/lib/types";
+import { doc, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase/firestore";
 
 function StatCard({
   icon,
@@ -69,6 +71,7 @@ function BottomNavItem({
 }
 
 function formatTime(ms: number) {
+  if (ms <= 0) return "00:00:00";
   const totalSeconds = Math.floor(ms / 1000);
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -84,27 +87,43 @@ export default function MiningPage() {
   const [isActionLoading, setIsActionLoading] = useState(false);
 
   useEffect(() => {
-    async function fetchUser() {
-      const data = await getUserData();
-      setUserData(data);
-      if (data) {
-        if (data.sessionEndTime) {
-          const remaining = data.sessionEndTime - Date.now();
-          if (remaining > 0) {
-            setMiningState('mining');
-            setTimeRemaining(remaining);
-          } else {
-            setMiningState('claimable');
-          }
-        } else {
-          setMiningState('idle');
-        }
+    // Let's use a placeholder ID for now
+    const FAKE_USER_ID = 'user_placeholder_id';
+
+    // Set up a real-time listener for user data
+    const unsub = onSnapshot(doc(db, "users", FAKE_USER_ID), async (doc) => {
+      if (doc.exists()) {
+        setUserData(doc.data() as UserData);
       } else {
-        setMiningState('idle'); // Or some error state
+        // If user doesn't exist, create them
+        await getUserData();
       }
-    }
-    fetchUser();
+    });
+
+    return () => unsub();
   }, []);
+
+  useEffect(() => {
+    if (!userData) {
+      setMiningState('loading');
+      return;
+    };
+
+    if (userData.sessionEndTime) {
+      const remaining = userData.sessionEndTime - Date.now();
+      if (remaining > 0) {
+        setMiningState('mining');
+        setTimeRemaining(remaining);
+      } else {
+        setMiningState('claimable');
+        setTimeRemaining(0);
+      }
+    } else {
+      setMiningState('idle');
+      setTimeRemaining(0);
+    }
+  }, [userData]);
+
 
   useEffect(() => {
     if (miningState !== 'mining' || timeRemaining <= 0) {
@@ -125,25 +144,18 @@ export default function MiningPage() {
 
 
   const handleStartMining = async () => {
-    if (!userData) return;
+    if (!userData || miningState !== 'idle') return;
     setIsActionLoading(true);
     const result = await startMiningSession(userData.id);
-    if (result.success && result.sessionEndTime) {
-        const remaining = result.sessionEndTime - Date.now();
-        setTimeRemaining(remaining);
-        setMiningState('mining');
-    }
+    // Real-time listener will update the state, so no need to set it here
     setIsActionLoading(false);
   };
 
   const handleClaimReward = async () => {
-    if (!userData) return;
+    if (!userData || miningState !== 'claimable') return;
     setIsActionLoading(true);
     const result = await claimReward(userData.id);
-    if (result.success) {
-      setUserData(prev => prev ? { ...prev, pariBalance: prev.pariBalance + (result.reward || 0) } : null);
-      setMiningState('idle');
-    }
+    // Real-time listener will update the state
     setIsActionLoading(false);
   };
 

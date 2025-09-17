@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, History, Loader, Coins } from "lucide-react";
 import Link from "next/link";
@@ -8,18 +8,23 @@ import { useEffect, useState } from "react";
 import { getUserData } from "@/app/actions";
 import type { UserData } from "@/lib/types";
 import { format } from "date-fns";
+import { doc, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase/firestore";
 
 export default function MiningHistoryPage() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchData() {
-      const data = await getUserData();
-      setUserData(data);
+    const FAKE_USER_ID = 'user_placeholder_id';
+    const unsub = onSnapshot(doc(db, "users", FAKE_USER_ID), (doc) => {
+      if (doc.exists()) {
+        setUserData(doc.data() as UserData);
+      }
       setLoading(false);
-    }
-    fetchData();
+    });
+
+    return () => unsub();
   }, []);
 
   const history = userData?.miningHistory?.sort((a, b) => b.claimedAt - a.claimedAt) || [];

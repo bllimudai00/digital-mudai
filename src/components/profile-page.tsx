@@ -30,6 +30,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useEffect, useState } from "react";
 import { getUserData } from "@/app/actions";
 import type { UserData } from "@/lib/types";
+import { doc, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase/firestore";
 
 function BottomNavItem({
   icon,
@@ -83,11 +85,14 @@ export default function ProfilePage() {
   const [userData, setUserData] = useState<UserData | null>(null);
 
   useEffect(() => {
-    async function fetchUser() {
-      const data = await getUserData();
-      setUserData(data);
-    }
-    fetchUser();
+    const FAKE_USER_ID = 'user_placeholder_id';
+    const unsub = onSnapshot(doc(db, "users", FAKE_USER_ID), (doc) => {
+      if (doc.exists()) {
+        setUserData(doc.data() as UserData);
+      }
+    });
+
+    return () => unsub();
   }, []);
 
   if (!userData) {

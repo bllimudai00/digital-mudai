@@ -28,10 +28,19 @@ import {
   Gift,
   User,
   Upload,
+  Loader,
+  BadgeCheck,
+  Clock,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Input } from "./ui/input";
+import React, { useEffect, useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { submitVipProof } from "@/app/actions";
+import { doc, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase/firestore";
+import { UserData } from "@/lib/types";
 
 function BottomNavItem({
   icon,
@@ -100,7 +109,131 @@ const faqData = [
     }
 ]
 
+function UpgradeToVipForm() {
+    const [transactionId, setTransactionId] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
+    const { toast } = useToast();
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!transactionId) {
+            toast({ title: "Error", description: "Please enter a Transaction ID.", variant: "destructive" });
+            return;
+        }
+        setIsLoading(true);
+        // We're using a placeholder user ID for now
+        const result = await submitVipProof('user_placeholder_id', transactionId);
+        setIsLoading(false);
+
+        if (result.success) {
+            toast({ title: "Success", description: result.message });
+            setTransactionId("");
+        } else {
+            toast({ title: "Error", description: result.error, variant: "destructive" });
+        }
+    };
+
+    return (
+         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+            <div>
+              <label className="text-sm text-muted-foreground ml-1 mb-1 block">Payment Amount (USDT)</label>
+              <Input type="text" readOnly value="5" className="bg-background" />
+            </div>
+            <div>
+              <label className="text-sm text-muted-foreground ml-1 mb-1 block">Transaction ID</label>
+              <Input 
+                type="text" 
+                placeholder="Enter transaction hash/ID" 
+                className="bg-background"
+                value={transactionId}
+                onChange={(e) => setTransactionId(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+            <Button size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90" type="submit" disabled={isLoading}>
+              {isLoading ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+              {isLoading ? "Submitting..." : "Submit for Verification"}
+            </Button>
+        </form>
+    )
+}
+
+function VipStatus({ status }: { status: 'none' | 'pending' | 'approved' | 'rejected' }) {
+    if (status === 'approved') {
+        return (
+            <div className="text-center bg-green-900/30 border border-green-500/50 p-4 rounded-lg flex flex-col items-center gap-2">
+                <BadgeCheck className="w-10 h-10 text-green-400" />
+                <h3 className="text-lg font-bold text-white">VIP Active</h3>
+                <p className="text-sm text-muted-foreground">Your VIP membership is approved and active.</p>
+            </div>
+        )
+    }
+     if (status === 'pending') {
+        return (
+            <div className="text-center bg-yellow-900/30 border border-yellow-500/50 p-4 rounded-lg flex flex-col items-center gap-2">
+                <Clock className="w-10 h-10 text-yellow-400" />
+                <h3 className="text-lg font-bold text-white">Verification Pending</h3>
+                <p className="text-sm text-muted-foreground">Your proof has been submitted and is awaiting verification (2-24 hours).</p>
+            </div>
+        )
+    }
+
+    // Default view for 'none' or 'rejected'
+    return (
+        <Tabs defaultValue="payment">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="payment">Payment</TabsTrigger>
+            <TabsTrigger value="proof">Submit Proof</TabsTrigger>
+          </TabsList>
+          <TabsContent value="payment" className="mt-6 space-y-6">
+            <div className="text-center bg-muted/50 p-4 rounded-lg">
+                <p className="text-3xl font-bold text-accent">$5 USDT</p>
+                <p className="text-sm text-muted-foreground">Permanent VIP Membership</p>
+            </div>
+            {status === 'rejected' && (
+                 <p className="text-center text-red-400 text-sm">Your previous submission was rejected. Please double-check your transaction ID and resubmit.</p>
+            )}
+            <div>
+                <label className="text-sm text-muted-foreground">Payment Method</label>
+                <div className="mt-1 bg-background p-3 rounded-md">
+                    <p className="font-bold text-accent">USDT (BEP-20)</p>
+                    <p className="text-xs text-muted-foreground">Binance Smart Chain Network</p>
+                </div>
+            </div>
+             <div>
+                <label className="text-sm text-muted-foreground">Wallet Address</label>
+                <div className="relative mt-1">
+                    <Input type="text" readOnly value="0x10FA107AF74434313841FB36F4547ac" className="pr-12 bg-background"/>
+                    <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground">
+                        <Copy className="w-4 h-4"/>
+                    </Button>
+                </div>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+                <Image src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=0x10FA107AF74434313841FB36F4547ac" width={150} height={150} alt="QR Code" data-ai-hint="qr code" />
+                <p className="text-sm text-muted-foreground">Scan QR Code</p>
+            </div>
+          </TabsContent>
+          <TabsContent value="proof">
+            <UpgradeToVipForm />
+          </TabsContent>
+        </Tabs>
+    );
+}
+
 export default function VipPage() {
+  const [userData, setUserData] = useState<UserData | null>(null);
+
+  useEffect(() => {
+    const FAKE_USER_ID = 'user_placeholder_id';
+    const unsub = onSnapshot(doc(db, "users", FAKE_USER_ID), (doc) => {
+      if (doc.exists()) {
+        setUserData(doc.data() as UserData);
+      }
+    });
+    return () => unsub();
+  }, []);
+
   return (
     <div className="bg-background text-foreground min-h-screen flex flex-col font-body">
         <header className="flex justify-between items-center p-4">
@@ -152,52 +285,13 @@ export default function VipPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="payment">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="payment">Payment</TabsTrigger>
-                <TabsTrigger value="proof">Submit Proof</TabsTrigger>
-              </TabsList>
-              <TabsContent value="payment" className="mt-6 space-y-6">
-                <div className="text-center bg-muted/50 p-4 rounded-lg">
-                    <p className="text-3xl font-bold text-accent">$5 USDT</p>
-                    <p className="text-sm text-muted-foreground">Permanent VIP Membership</p>
+            {userData ? (
+                <VipStatus status={userData.vipStatus || 'none'} />
+            ) : (
+                <div className="flex justify-center items-center p-8">
+                    <Loader className="w-8 h-8 animate-spin" />
                 </div>
-                <div>
-                    <label className="text-sm text-muted-foreground">Payment Method</label>
-                    <div className="mt-1 bg-background p-3 rounded-md">
-                        <p className="font-bold text-accent">USDT (BEP-20)</p>
-                        <p className="text-xs text-muted-foreground">Binance Smart Chain Network</p>
-                    </div>
-                </div>
-                 <div>
-                    <label className="text-sm text-muted-foreground">Wallet Address</label>
-                    <div className="relative mt-1">
-                        <Input type="text" readOnly value="0x10FA107AF74434313841FB36F4547ac" className="pr-12 bg-background"/>
-                        <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground">
-                            <Copy className="w-4 h-4"/>
-                        </Button>
-                    </div>
-                </div>
-                <div className="flex flex-col items-center gap-2">
-                    <Image src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=0x10FA107AF74434313841FB36F4547ac" width={150} height={150} alt="QR Code" data-ai-hint="qr code" />
-                    <p className="text-sm text-muted-foreground">Scan QR Code</p>
-                </div>
-              </TabsContent>
-              <TabsContent value="proof" className="mt-6 space-y-4">
-                <div>
-                  <label className="text-sm text-muted-foreground ml-1 mb-1 block">Payment Amount (USDT)</label>
-                  <Input type="text" readOnly value="5" className="bg-background" />
-                </div>
-                <div>
-                  <label className="text-sm text-muted-foreground ml-1 mb-1 block">Transaction ID</label>
-                  <Input type="text" placeholder="Enter transaction hash/ID" className="bg-background" />
-                </div>
-                <Button size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
-                  <Upload className="w-4 h-4 mr-2" />
-                  Submit for Verification
-                </Button>
-              </TabsContent>
-            </Tabs>
+            )}
           </CardContent>
         </Card>
         
