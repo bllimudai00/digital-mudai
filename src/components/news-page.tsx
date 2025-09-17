@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { getNews } from "@/app/actions";
-import { NewsArticle, NewsContentItem } from "@/lib/types";
+import { NewsArticle } from "@/lib/types";
 import { useEffect, useState } from "react";
 import { onSnapshot, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
@@ -54,38 +54,6 @@ function BottomNavItem({
 }
 
 function NewsArticleCard({ article }: { article: NewsArticle }) {
-
-  const renderContentItem = (item: NewsContentItem, index: number) => {
-    const IconComponent = item.icon ? iconMap[item.icon] : null;
-
-    switch(item.type) {
-      case 'heading':
-        return <h4 key={index} className="text-md font-bold text-foreground mt-4 mb-2">{item.text}</h4>;
-      case 'paragraph':
-        return <p key={index}>{item.text}</p>;
-      case 'section':
-        return (
-          <div key={index}>
-              <div className="flex items-center gap-2 font-semibold text-foreground mb-1 mt-4">
-                  {IconComponent && <IconComponent className="w-4 h-4" />}
-                  <h4 className="text-md">{item.title}</h4>
-              </div>
-              <p>{item.text}</p>
-          </div>
-        )
-      case 'coming-soon':
-        return (
-          <p key={index} className="font-semibold text-foreground flex items-center gap-2 mt-4">
-              <Flame className="w-4 h-4 text-orange-400" />
-              <span>{item.text}</span>
-          </p>
-        )
-      default:
-        return null;
-    }
-  }
-
-
   return (
     <Card className="bg-card/80 backdrop-blur-sm">
       <CardContent className="p-4">
@@ -94,8 +62,8 @@ function NewsArticleCard({ article }: { article: NewsArticle }) {
           <Badge variant={article.priority === 'high' ? 'destructive' : article.priority === 'medium' ? 'default' : 'secondary'} className="capitalize">{article.priority}</Badge>
         </div>
         <p className="text-xs text-muted-foreground mb-4">{new Date(article.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-        <div className="text-sm text-muted-foreground space-y-2">
-            {article.content.map(renderContentItem)}
+        <div className="text-sm text-muted-foreground space-y-2 whitespace-pre-wrap">
+            {article.content}
         </div>
       </CardContent>
     </Card>
@@ -164,3 +132,5 @@ export default function NewsPage() {
     </div>
   );
 }
+
+    

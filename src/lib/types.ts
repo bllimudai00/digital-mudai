@@ -58,19 +58,12 @@ export type Task = {
   url?: string;
 };
 
-export type NewsContentItem = {
-  type: 'paragraph' | 'section' | 'coming-soon' | 'heading';
-  text: string;
-  title?: string;
-  icon?: 'Gamepad2' | 'Wallet' | 'Star' | 'Flame';
-};
-
 export type NewsArticle = {
   id: string;
   title: string;
   date: string;
   priority: 'low' | 'medium' | 'high';
-  content: NewsContentItem[];
+  content: string;
 };
 
 export type LeaderboardEntry = {
@@ -102,3 +95,5 @@ export type WhitePaperSection = {
     content: string;
     imageUrl?: string;
 };
+
+    

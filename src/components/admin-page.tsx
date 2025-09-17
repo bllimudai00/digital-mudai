@@ -155,32 +155,6 @@ function NewsManagementSection({ onUpdate }: { onUpdate: () => void }) {
             toast({ title: "Error", description: result.error, variant: "destructive" });
         }
     };
-
-    const parseContent = (content: string): any[] => {
-        const lines = content.split('\n').filter(line => line.trim() !== '');
-        const items: any[] = [];
-
-        for (const line of lines) {
-            if (line.startsWith('# ')) {
-                items.push({ type: 'heading', text: line.substring(2) });
-            } else if (line.startsWith('[COMING-SOON]')) {
-                items.push({ type: 'coming-soon', text: line.substring(14) });
-            } else if (line.startsWith('[ICON:')) {
-                const match = line.match(/\[ICON: (Wallet|Gamepad2|Star|Flame)\]\[TITLE: (.*?)\] (.*)/);
-                if (match) {
-                    items.push({
-                        type: 'section',
-                        icon: match[1] as 'Wallet' | 'Gamepad2' | 'Star' | 'Flame',
-                        title: match[2],
-                        text: match[3],
-                    });
-                }
-            } else {
-                items.push({ type: 'paragraph', text: line });
-            }
-        }
-        return items;
-    };
     
     const handleAddNews = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -191,14 +165,13 @@ function NewsManagementSection({ onUpdate }: { onUpdate: () => void }) {
 
         setIsSubmitting(true);
         
-        const contentItems = parseContent(newContent);
-
         const article = {
             title: newTitle,
             priority: newPriority,
-            content: contentItems,
+            content: newContent,
             date: new Date().toISOString()
         };
+
         const result = await addNews(article);
         if (result.success) {
             toast({ title: "Success", description: "News article added." });
@@ -229,7 +202,7 @@ function NewsManagementSection({ onUpdate }: { onUpdate: () => void }) {
                             className="bg-card"
                         />
                          <Textarea
-                            placeholder="Article Content... Use formatting rules from docs."
+                            placeholder="Article Content..."
                             value={newContent}
                             onChange={(e) => setNewContent(e.target.value)}
                             required
@@ -1183,3 +1156,5 @@ export default function AdminPage() {
         </div>
     );
 }
+
+    
