@@ -15,6 +15,7 @@ import {
   Gift,
   User,
   Loader,
+  ShieldCheck,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -93,19 +94,12 @@ export default function MiningPage() {
     const FAKE_USER_ID = 'user_placeholder_id';
     const userRef = doc(db, 'users', FAKE_USER_ID);
 
-    // Initial fetch
-    getUserData().then(user => {
-      if (user) {
-        setUserData(user);
-      } else {
-        // Handle case where user is created for the first time
-        getUserData().then(newUser => setUserData(newUser));
-      }
-    });
-
     const unsubscribe = onSnapshot(userRef, (doc) => {
         if (doc.exists()) {
             setUserData(doc.data() as UserData);
+        } else {
+            // This case should be handled by the initial creation logic in getUserData
+            getUserData().then(newUser => setUserData(newUser));
         }
     }, (error) => {
         console.error("Error fetching real-time user data:", error);
@@ -114,11 +108,6 @@ export default function MiningPage() {
     return () => unsubscribe();
   }, []);
 
-  async function loadUserData() {
-    const user = await getUserData();
-    setUserData(user);
-    return user;
-  }
 
   useEffect(() => {
     if (!userData) {
@@ -164,7 +153,6 @@ export default function MiningPage() {
     if (!userData || miningState !== 'idle') return;
     setIsActionLoading(true);
     await startMiningSession(userData.id);
-    // No need to call loadUserData due to real-time listener
     setIsActionLoading(false);
   };
 
@@ -172,7 +160,6 @@ export default function MiningPage() {
     if (!userData || miningState !== 'claimable') return;
     setIsActionLoading(true);
     await claimReward(userData.id);
-    // No need to call loadUserData due to real-time listener
     setIsActionLoading(false);
   };
 
@@ -212,6 +199,8 @@ export default function MiningPage() {
     }
   }
 
+  const rewardAmount = userData ? (userData.vip ? 80 : 40) : 40;
+
   const getCardContent = () => {
     switch(miningState){
         case 'mining':
@@ -225,7 +214,7 @@ export default function MiningPage() {
              return (
                 <>
                     <h2 className="text-2xl font-bold">Session Complete</h2>
-                    <p className="text-muted-foreground">Claim your 40.0000 PARI reward!</p>
+                    <p className="text-muted-foreground">Claim your {rewardAmount.toFixed(4)} PARI reward!</p>
                 </>
             );
         default:
@@ -277,6 +266,11 @@ export default function MiningPage() {
                         </div>
                     </div>
                  )}
+                 {userData.vip && (
+                    <div className="absolute -top-1 -right-1 bg-blue-500 rounded-full p-2 border-2 border-background">
+                      <ShieldCheck className="w-5 h-5 text-white" />
+                    </div>
+                 )}
                 <div className="absolute bottom-0 right-0 bg-card rounded-full p-2 border-2 border-primary">
                   <Zap className="w-4 h-4 text-primary" />
                 </div>
@@ -290,37 +284,39 @@ export default function MiningPage() {
         <Card className="bg-card/80 backdrop-blur-sm p-4">
           <CardContent className="p-0">
             <p className="text-sm text-muted-foreground">Next Reward</p>
-            <p className="text-2xl font-bold text-green-400 mt-1">40.0000 PARI</p>
+            <p className="text-2xl font-bold text-green-400 mt-1">{rewardAmount.toFixed(4)} PARI</p>
             <p className="text-xs text-muted-foreground">10 x 1x (Normal) x 1x</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-card/80 backdrop-blur-sm p-4">
-          <CardContent className="p-0">
-            <div className="flex justify-between items-start">
-              <div>
-                <div className="flex items-center gap-2">
-                  <Crown className="w-6 h-6 text-accent" />
-                  <h3 className="text-lg font-bold">Upgrade to VIP</h3>
+        {!userData.vip && (
+            <Card className="bg-card/80 backdrop-blur-sm p-4">
+            <CardContent className="p-0">
+                <div className="flex justify-between items-start">
+                <div>
+                    <div className="flex items-center gap-2">
+                    <Crown className="w-6 h-6 text-accent" />
+                    <h3 className="text-lg font-bold">Upgrade to VIP</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                    Double mining speed + Ad-free experience
+                    </p>
                 </div>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Double mining speed + Ad-free experience
-                </p>
-              </div>
-              <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90">
-                <Link href="/vip">Upgrade</Link>
-              </Button>
-            </div>
-            <div className="mt-4">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                    <Users className="w-4 h-4" />
-                    <span>FCFS Limited Slots</span>
+                <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90">
+                    <Link href="/vip">Upgrade</Link>
+                </Button>
                 </div>
-              <Progress value={7.5} className="h-2 bg-muted" />
-              <div className="text-right text-sm text-muted-foreground mt-1">1500 / 20000</div>
-            </div>
-          </CardContent>
-        </Card>
+                <div className="mt-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                        <Users className="w-4 h-4" />
+                        <span>FCFS Limited Slots</span>
+                    </div>
+                <Progress value={7.5} className="h-2 bg-muted" />
+                <div className="text-right text-sm text-muted-foreground mt-1">1500 / 20000</div>
+                </div>
+            </CardContent>
+            </Card>
+        )}
       </main>
 
       <footer className="fixed bottom-0 left-0 right-0 bg-card/80 backdrop-blur-sm border-t p-2">

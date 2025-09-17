@@ -118,10 +118,17 @@ export default function ProfilePage() {
 
         <Card className="bg-card/80 backdrop-blur-sm p-6">
           <CardContent className="p-0 flex flex-col items-center text-center">
-            <Avatar className="w-24 h-24 mb-4 border-2 border-primary">
-              <AvatarImage src="https://ik.imagekit.io/parinetwork/IMG_20250827_125111.jpg?updatedAt=1756725448569" alt="User Avatar" data-ai-hint="network logo" />
-              <AvatarFallback>{userData.name.substring(0, 2)}</AvatarFallback>
-            </Avatar>
+            <div className="relative">
+              <Avatar className="w-24 h-24 mb-4 border-2 border-primary">
+                <AvatarImage src="https://ik.imagekit.io/parinetwork/IMG_20250827_125111.jpg?updatedAt=1756725448569" alt="User Avatar" data-ai-hint="network logo" />
+                <AvatarFallback>{userData.name.substring(0, 2)}</AvatarFallback>
+              </Avatar>
+              {userData.vip && (
+                <div className="absolute top-0 -right-2 bg-blue-500 rounded-full p-1.5 border-2 border-background">
+                  <ShieldCheck className="w-5 h-5 text-white" />
+                </div>
+              )}
+            </div>
             <h2 className="text-xl font-bold">{userData.name}</h2>
             <div className="flex items-center gap-2 text-muted-foreground text-sm mt-2">
               <Mail className="w-4 h-4" />

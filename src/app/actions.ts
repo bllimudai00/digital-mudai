@@ -23,7 +23,16 @@ export async function getUserData(): Promise<UserData | null> {
     const userSnap = await getDoc(userRef);
 
     if (userSnap.exists()) {
-        return userSnap.data() as UserData;
+        const userData = userSnap.data() as UserData;
+        // Sync vip status
+        if (userData.vipStatus === 'approved' && !userData.vip) {
+            await updateDoc(userRef, { vip: true });
+            userData.vip = true;
+        } else if (userData.vipStatus !== 'approved' && userData.vip) {
+            await updateDoc(userRef, { vip: false });
+            userData.vip = false;
+        }
+        return userData;
     } else {
         // If user doesn't exist, create a new one with default values
         console.log("User not found, creating a new one...");
@@ -77,26 +86,41 @@ export async function getReferrals(referralIds: string[]): Promise<Referral[]> {
     if (!referralIds || referralIds.length === 0) return [];
 
     const referrals: Referral[] = [];
+    // To avoid fetching too many documents at once, let's process in chunks or limit.
+    // For this example, we'll fetch them one by one, but in a real app, batching is better.
     for (const id of referralIds) {
-        const userRef = doc(db, 'users', id);
-        const userSnap = await getDoc(userRef);
-        if (userSnap.exists()) {
-            const userData = userSnap.data();
-            referrals.push({
-                id: id,
-                name: userData.name || `Friend ${id.substring(0, 4)}`,
-                avatar: `https://picsum.photos/seed/${id}/40`
-            });
+        try {
+            const userRef = doc(db, 'users', id);
+            const userSnap = await getDoc(userRef);
+            if (userSnap.exists()) {
+                const userData = userSnap.data();
+                referrals.push({
+                    id: id,
+                    name: userData.name || `Friend ${id.substring(0, 4)}`,
+                    avatar: `https://picsum.photos/seed/${id}/40`
+                });
+            }
+        } catch (error) {
+            console.error(`Failed to fetch referral with id: ${id}`, error);
         }
     }
     return referrals;
 }
 
 export async function getTasks(): Promise<Task[]> {
-    const tasksCollection = collection(db, 'tasks');
-    const tasksSnapshot = await getDocs(tasksCollection);
-    const tasksList = tasksSnapshot.docs.map(doc => doc.data() as Task);
-    return tasksList.sort((a, b) => a.order - b.order);
+    try {
+        const tasksCollection = collection(db, 'tasks');
+        const tasksSnapshot = await getDocs(tasksCollection);
+        if (tasksSnapshot.empty) {
+            console.log("No tasks found, maybe they haven't been created yet.");
+            return [];
+        }
+        const tasksList = tasksSnapshot.docs.map(doc => doc.data() as Task);
+        return tasksList.sort((a, b) => a.order - b.order);
+    } catch (error) {
+        console.error("Error fetching tasks:", error);
+        return [];
+    }
 }
 
 export async function claimTaskReward(userId: string, taskId: string) {
@@ -183,16 +207,18 @@ export async function claimReward(userId: string) {
             }
 
             // In a real app, calculate reward based on hashPower, streak, etc.
-            const reward = 40.0;
-            rewardAmount = reward;
+            const baseReward = 40.0;
+            // VIP users get double reward
+            const finalReward = userData.vip ? baseReward * 2 : baseReward;
+            rewardAmount = finalReward;
 
             const newHistoryItem = {
-                amount: reward,
+                amount: finalReward,
                 claimedAt: Date.now(),
             };
 
             transaction.update(userRef, {
-                pariBalance: increment(reward),
+                pariBalance: increment(finalReward),
                 sessionEndTime: null,
                 miningHistory: arrayUnion(newHistoryItem)
             });
