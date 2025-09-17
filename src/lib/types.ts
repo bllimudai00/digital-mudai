@@ -16,7 +16,7 @@ export type UserData = {
   miningHistory: { amount: number; claimedAt: number }[];
   vipStatus: 'none' | 'pending' | 'approved' | 'rejected';
   vipTransactionId?: string;
-  vipProofSubmittedAt?: Date;
+  vipProofSubmittedAt?: string; // Changed to string to be serializable
   isAdmin?: boolean;
 };
 
@@ -50,3 +50,5 @@ export type NewsArticle = {
   priority: 'low' | 'medium' | 'high';
   content: NewsContentItem[];
 };
+
+    

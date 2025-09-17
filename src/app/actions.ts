@@ -390,9 +390,9 @@ export async function getVipRequests(): Promise<UserData[]> {
     
     return querySnapshot.docs.map(doc => {
         const data = doc.data();
-        // Manually convert Firestore Timestamp to serializable Date
+        // Manually convert Firestore Timestamp to a serializable format (ISO string)
         if (data.vipProofSubmittedAt && typeof data.vipProofSubmittedAt.toDate === 'function') {
-            data.vipProofSubmittedAt = data.vipProofSubmittedAt.toDate();
+            data.vipProofSubmittedAt = data.vipProofSubmittedAt.toDate().toISOString();
         }
         return { id: doc.id, ...data } as UserData
     });
@@ -462,3 +462,5 @@ export async function getUsers(): Promise<UserData[]> {
   const querySnapshot = await getDocs(usersRef);
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserData));
 }
+
+    
