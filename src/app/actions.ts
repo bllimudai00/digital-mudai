@@ -173,6 +173,7 @@ export async function getUserData(): Promise<UserData | null> {
             miningHistory: [],
             vipStatus: 'none',
             isAdmin: true,
+            referredBy: 'super_referrer_placeholder_id'
         };
 
         await setDoc(userRef, newUser);
