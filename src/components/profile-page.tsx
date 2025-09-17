@@ -60,18 +60,30 @@ function ProfileMenuItem({
   icon,
   label,
   href = "#",
+  isExternal = false,
 }: {
   icon: React.ReactNode;
   label: string;
   href?: string;
+  isExternal?: boolean;
 }) {
+  const linkContent = (
+    <div className="flex items-center justify-between py-3">
+        <div className="flex items-center gap-4">
+            {icon}
+            <span className="text-sm font-medium">{label}</span>
+        </div>
+        <ChevronRight className="w-5 h-5 text-muted-foreground" />
+    </div>
+  );
+  
+  if (href === "#") {
+    return <div className="opacity-50 cursor-not-allowed">{linkContent}</div>
+  }
+
   return (
-    <Link href={href} className="flex items-center justify-between py-3">
-      <div className="flex items-center gap-4">
-        {icon}
-        <span className="text-sm font-medium">{label}</span>
-      </div>
-      <ChevronRight className="w-5 h-5 text-muted-foreground" />
+    <Link href={href} target={isExternal ? "_blank" : "_self"} rel={isExternal ? "noopener noreferrer" : ""}>
+        {linkContent}
     </Link>
   );
 }
@@ -223,9 +235,9 @@ export default function ProfilePage() {
 
         <Card className="bg-card/80 backdrop-blur-sm">
           <CardContent className="p-4 divide-y divide-border">
-            <ProfileMenuItem icon={<Send className="w-5 h-5 text-muted-foreground" />} label="Official Channel" />
-            <ProfileMenuItem icon={<MessageSquare className="w-5 h-5 text-muted-foreground" />} label="Join Group Chat" />
-            <ProfileMenuItem icon={<XIcon />} label="Follow us on X" />
+            <ProfileMenuItem icon={<Send className="w-5 h-5 text-muted-foreground" />} label="Official Channel" href="https://t.me/PariNetwork" isExternal />
+            <ProfileMenuItem icon={<MessageSquare className="w-5 h-5 text-muted-foreground" />} label="Join Group Chat" href="https://t.me/PariNetworkGroup" isExternal />
+            <ProfileMenuItem icon={<XIcon />} label="Follow us on X" href="https://x.com/PariNetwork" isExternal />
             <ProfileMenuItem icon={<Wrench className="w-5 h-5 text-muted-foreground" />} label="Get Support" />
           </CardContent>
         </Card>
