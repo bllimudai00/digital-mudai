@@ -3,7 +3,7 @@
 import { doc, updateDoc, arrayUnion, getDoc, runTransaction, increment, collection, getDocs, writeBatch, setDoc, query, where, addDoc, deleteDoc, serverTimestamp, Timestamp, orderBy, limit } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/firebase/firestore';
-import type { UserData, Referral, Task, NewsArticle, GlobalSettings, LeaderboardEntry } from '@/lib/types';
+import type { UserData, Referral, Task, NewsArticle, GlobalSettings, LeaderboardEntry, RoadmapPhase, WhitePaperSection } from '@/lib/types';
 
 // This is a placeholder for a real user ID
 const FAKE_USER_ID = 'user_placeholder_id';
@@ -588,7 +588,7 @@ export async function addTask(taskData: Partial<Task>) {
         const { id, ...data } = taskData;
         const tasksCollection = collection(db, 'tasks');
         const docRef = await addDoc(tasksCollection, data);
-        revalidatePath('/admin/tasks');
+        revalidatePath('/admin');
         revalidatePath('/tasks');
         return { success: true, id: docRef.id };
     } catch (error: any) {
@@ -602,7 +602,7 @@ export async function updateTask(taskId: string, taskData: Partial<Task>) {
         const taskRef = doc(db, 'tasks', taskId);
         const { id, ...data } = taskData;
         await updateDoc(taskRef, data);
-        revalidatePath('/admin/tasks');
+        revalidatePath('/admin');
         revalidatePath('/tasks');
         return { success: true };
     } catch (error: any) {
@@ -615,7 +615,7 @@ export async function deleteTask(taskId: string) {
     try {
         const taskRef = doc(db, 'tasks', taskId);
         await deleteDoc(taskRef);
-        revalidatePath('/admin/tasks');
+        revalidatePath('/admin');
         revalidatePath('/tasks');
         return { success: true };
     } catch (error: any) {
@@ -675,6 +675,59 @@ export async function updateLeaderboardEntry(entry: LeaderboardEntry) {
         revalidatePath('/admin');
         revalidatePath('/refer');
         revalidatePath('/referral-contest');
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+// --- Roadmap and White Paper ---
+export async function getRoadmap(): Promise<RoadmapPhase[]> {
+    const roadmapRef = collection(db, 'roadmap');
+    const q = query(roadmapRef, orderBy('order'));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return [];
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RoadmapPhase));
+}
+
+export async function saveRoadmap(phases: RoadmapPhase[]) {
+    'use server';
+    try {
+        const batch = writeBatch(db);
+        phases.forEach(phase => {
+            const { id, ...data } = phase;
+            const docRef = doc(db, 'roadmap', id || doc(collection(db, 'roadmap')).id);
+            batch.set(docRef, data);
+        });
+        await batch.commit();
+        revalidatePath('/admin');
+        revalidatePath('/roadmap');
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+export async function getWhitePaper(): Promise<WhitePaperSection[]> {
+    const whitepaperRef = collection(db, 'whitepaper');
+    const q = query(whitepaperRef, orderBy('order'));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return [];
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WhitePaperSection));
+}
+
+export async function saveWhitePaper(sections: WhitePaperSection[]) {
+    'use server';
+    try {
+        const batch = writeBatch(db);
+        sections.forEach(section => {
+            const { id, ...data } = section;
+            const docRef = doc(db, 'whitepaper', id || doc(collection(db, 'whitepaper')).id);
+            batch.set(docRef, data);
+        });
+        await batch.commit();
+        revalidatePath('/admin');
+        revalidatePath('/white-paper');
         return { success: true };
     } catch (error: any) {
         return { success: false, error: error.message };

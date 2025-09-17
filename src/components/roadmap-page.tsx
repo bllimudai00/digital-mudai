@@ -3,57 +3,14 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Map, Rocket, CheckCircle2, CircleDashed } from "lucide-react";
+import { ArrowLeft, Map, CheckCircle2, CircleDashed, Loader } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import type { RoadmapPhase } from "@/lib/types";
+import { onSnapshot, collection, query, orderBy } from "firebase/firestore";
+import { db } from "@/lib/firebase/firestore";
 
-const roadmapData = [
-  {
-    phase: "Phase 1",
-    title: "Foundation & Launch",
-    status: "Completed",
-    items: [
-      "Concept and Idea Finalization",
-      "Core Team Formation",
-      "Mobile App Development (Mining, Referrals, Tasks)",
-      "Initial User Onboarding",
-    ],
-  },
-  {
-    phase: "Phase 2",
-    title: "Growth & Engagement",
-    status: "In Progress",
-    items: [
-      "VIP Membership Program Launch",
-      "Referral Contest Implementation",
-      "News & Updates Section",
-      "Admin Panel for Management",
-    ],
-  },
-  {
-    phase: "Phase 3",
-    title: "Ecosystem Expansion",
-    status: "Upcoming",
-    items: [
-      "PARI Token Launch on DEX",
-      "Wallet Integration within App",
-      "Staking Program Introduction",
-      "First Airdrop Event",
-    ],
-  },
-  {
-    phase: "Phase 4",
-    title: "Utility & Governance",
-    status: "Upcoming",
-    items: [
-      "P2P Marketplace for PARI",
-      "Governance Portal for voting",
-      "Partnerships with other projects",
-      "Global Community Events",
-    ],
-  },
-];
-
-function RoadmapPhase({ phase, title, status, items }: (typeof roadmapData)[0]) {
+function RoadmapPhaseCard({ phase, title, status, items }: RoadmapPhase) {
   const isCompleted = status === "Completed";
   return (
     <Card className="bg-card/80 backdrop-blur-sm">
@@ -65,7 +22,11 @@ function RoadmapPhase({ phase, title, status, items }: (typeof roadmapData)[0]) 
           </div>
           <Badge
             variant={isCompleted ? "default" : "secondary"}
-            className={isCompleted ? "bg-green-500/20 text-green-400 border-green-500/30" : ""}
+            className={
+                status === 'Completed' ? "bg-green-500/20 text-green-400 border-green-500/30" 
+              : status === 'In Progress' ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
+              : ""
+            }
           >
             {status}
           </Badge>
@@ -78,7 +39,7 @@ function RoadmapPhase({ phase, title, status, items }: (typeof roadmapData)[0]) 
               ) : (
                 <CircleDashed className="w-4 h-4 text-muted-foreground shrink-0" />
               )}
-              <span className="text-muted-foreground">{item}</span>
+              <span className="text-muted-foreground">{item.text}</span>
             </li>
           ))}
         </ul>
@@ -88,6 +49,20 @@ function RoadmapPhase({ phase, title, status, items }: (typeof roadmapData)[0]) 
 }
 
 export default function RoadmapPage() {
+  const [roadmapData, setRoadmapData] = useState<RoadmapPhase[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const roadmapCollection = collection(db, 'roadmap');
+    const q = query(roadmapCollection, orderBy('order'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const phases = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RoadmapPhase));
+      setRoadmapData(phases);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
   return (
     <div className="bg-background text-foreground min-h-screen flex flex-col font-body">
       <header className="flex items-center p-4 sticky top-0 bg-background/80 backdrop-blur-sm z-10">
@@ -104,9 +79,25 @@ export default function RoadmapPage() {
       </header>
 
       <main className="flex-1 p-4 space-y-6">
-        {roadmapData.map((phase) => (
-          <RoadmapPhase key={phase.phase} {...phase} />
-        ))}
+        {loading ? (
+            <div className="flex justify-center items-center h-64">
+                <Loader className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        ) : roadmapData.length > 0 ? (
+          roadmapData.map((phase) => (
+            <RoadmapPhaseCard key={phase.id} {...phase} />
+          ))
+        ) : (
+            <Card className="bg-card/80 backdrop-blur-sm text-center p-8">
+                <CardContent className="p-0 flex flex-col items-center">
+                    <Map className="w-12 h-12 text-muted-foreground mb-4" />
+                    <h2 className="text-lg font-semibold">Roadmap Not Available</h2>
+                    <p className="text-sm text-muted-foreground mt-1">
+                        The project roadmap will be updated soon.
+                    </p>
+                </CardContent>
+            </Card>
+        )}
       </main>
     </div>
   );

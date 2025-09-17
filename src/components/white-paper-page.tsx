@@ -2,37 +2,29 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FileText } from "lucide-react";
+import { ArrowLeft, FileText, Loader } from "lucide-react";
 import Link from "next/link";
-
-const sections = [
-  {
-    title: "1. Introduction",
-    content: "PARI Network is a pioneering mobile-first platform designed to democratize access to cryptocurrency. Our mission is to build a global, user-centric ecosystem where earning, learning, and participating in the digital economy is simple, intuitive, and rewarding. Through our mobile application, users can mine PARI tokens, engage with tasks, and benefit from a multi-level referral system, fostering a community-driven approach to growth."
-  },
-  {
-    title: "2. Vision & Mission",
-    content: "Our vision is to onboard the next billion users into Web3 by removing the traditional barriers to entry. We aim to create an inclusive financial ecosystem powered by the PARI token. Our mission is to provide a secure, scalable, and user-friendly mobile platform that empowers individuals worldwide to earn cryptocurrency and participate in a decentralized economy without needing expensive hardware or extensive technical knowledge."
-  },
-  {
-    title: "3. Core Features",
-    content: "The PARI Network app is built around three core pillars: Mobile Mining (allowing users to earn PARI tokens with minimal battery impact), Task-based Earnings (offering additional rewards for completing simple tasks), and a two-level Referral System (creating network effects and rewarding community growth). The VIP membership further enhances the user experience by offering benefits like doubled mining speed."
-  },
-  {
-    title: "4. Tokenomics",
-    content: "The PARI token is the native utility token of the ecosystem. The total supply will be capped, with a significant portion allocated to community rewards, including mining, task completion, and referral commissions. Further allocations will be made for ecosystem development, liquidity, and team incentives. A detailed token distribution and vesting schedule will be released prior to the token generation event (TGE)."
-  },
-  {
-    title: "5. Technology",
-    content: "The PARI Network leverages a hybrid on-chain and off-chain architecture to ensure scalability and a smooth user experience. User balances and mining sessions are managed through a secure off-chain ledger for efficiency, with periodic on-chain settlements planned. The platform is built on robust cloud infrastructure, ensuring high availability and security for our users' data and assets."
-  },
-  {
-    title: "6. Roadmap",
-    content: "Our development is structured in phases, moving from the foundational launch to ecosystem expansion. Future phases include the PARI token launch on a decentralized exchange (DEX), wallet integration, staking programs, and the development of a governance portal to give the community a voice in the project's future. Please refer to our live Roadmap page for the latest updates."
-  }
-];
+import { useEffect, useState } from "react";
+import type { WhitePaperSection } from "@/lib/types";
+import { onSnapshot, collection, query, orderBy } from "firebase/firestore";
+import { db } from "@/lib/firebase/firestore";
+import Image from "next/image";
 
 export default function WhitePaperPage() {
+  const [sections, setSections] = useState<WhitePaperSection[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const whitepaperCollection = collection(db, 'whitepaper');
+    const q = query(whitepaperCollection, orderBy('order'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const sectionsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WhitePaperSection));
+      setSections(sectionsList);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
   return (
     <div className="bg-background text-foreground min-h-screen flex flex-col font-body">
       <header className="flex items-center p-4 sticky top-0 bg-background/80 backdrop-blur-sm z-10">
@@ -50,15 +42,40 @@ export default function WhitePaperPage() {
 
       <main className="flex-1 p-4 space-y-6">
         <Card className="bg-card/80 backdrop-blur-sm">
-          <CardContent className="p-6 space-y-6">
-            {sections.map((section, index) => (
-              <div key={index}>
-                <h2 className="text-xl font-bold text-primary mb-2">{section.title}</h2>
-                <p className="text-muted-foreground leading-relaxed">
-                  {section.content}
-                </p>
-              </div>
-            ))}
+          <CardContent className="p-6 space-y-8">
+            {loading ? (
+                <div className="flex justify-center items-center h-64">
+                    <Loader className="w-8 h-8 animate-spin text-primary" />
+                </div>
+            ) : sections.length > 0 ? (
+                sections.map((section) => (
+                <div key={section.id}>
+                    <h2 className="text-xl font-bold text-primary mb-2">{section.title}</h2>
+                    <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                    {section.content}
+                    </p>
+                    {section.imageUrl && (
+                        <div className="mt-4 relative aspect-video">
+                             <Image 
+                                src={section.imageUrl} 
+                                alt={section.title} 
+                                layout="fill" 
+                                objectFit="contain" 
+                                className="rounded-md"
+                              />
+                        </div>
+                    )}
+                </div>
+                ))
+            ) : (
+                <div className="text-center p-8">
+                    <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <h2 className="text-lg font-semibold">White Paper Not Available</h2>
+                    <p className="text-sm text-muted-foreground mt-1">
+                        Content will be updated soon.
+                    </p>
+                </div>
+            )}
           </CardContent>
         </Card>
       </main>

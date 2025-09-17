@@ -74,4 +74,25 @@ export type LeaderboardEntry = {
     referralCount: number;
     prize: number;
     type: 'manual' | 'genuine';
-}
+};
+
+export type RoadmapItem = {
+    text: string;
+};
+
+export type RoadmapPhase = {
+    id: string;
+    order: number;
+    phase: string;
+    title: string;
+    status: 'Completed' | 'In Progress' | 'Upcoming';
+    items: RoadmapItem[];
+};
+
+export type WhitePaperSection = {
+    id: string;
+    order: number;
+    title: string;
+    content: string;
+    imageUrl?: string;
+};

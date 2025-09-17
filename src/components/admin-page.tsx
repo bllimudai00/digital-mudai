@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { UserData, NewsArticle, GlobalSettings, Task, LeaderboardEntry } from "@/lib/types";
-import { getUserData, getVipRequests, updateVipStatus, getNews, addNews, deleteNews, getUsers, updateUserFromAdmin, deleteUser, getGlobalSettings, updateGlobalSettings, getTasks, deleteTask, addTask, updateTask, getLeaderboard, updateLeaderboardEntry } from "@/app/actions";
-import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck, Zap, ListChecks, ExternalLink, Trophy } from "lucide-react";
+import type { UserData, NewsArticle, GlobalSettings, Task, LeaderboardEntry, RoadmapPhase, WhitePaperSection, RoadmapItem } from "@/lib/types";
+import { getUserData, getVipRequests, updateVipStatus, getNews, addNews, deleteNews, getUsers, updateUserFromAdmin, deleteUser, getGlobalSettings, updateGlobalSettings, getTasks, deleteTask, addTask, updateTask, getLeaderboard, updateLeaderboardEntry, saveRoadmap, saveWhitePaper } from "@/app/actions";
+import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck, Zap, ListChecks, ExternalLink, Trophy, Map, FileText, GripVertical, Plus, Image as ImageIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -15,9 +15,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "./ui/dialog";
 import { Label } from "./ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./ui/alert-dialog";
-import { onSnapshot, collection, doc } from "firebase/firestore";
+import { onSnapshot, collection, doc, query, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 
 
 function StatCard({ title, value, icon }: { title: string, value: string | number, icon: React.ReactNode }) {
@@ -877,6 +878,214 @@ function LeaderboardManagementSection({ onUpdate }: { onUpdate: () => void }) {
     );
 }
 
+function RoadmapManagementSection({ onUpdate }: { onUpdate: () => void }) {
+    const [phases, setPhases] = useState<RoadmapPhase[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const { toast } = useToast();
+
+    useEffect(() => {
+        const roadmapCollection = collection(db, 'roadmap');
+        const q = query(roadmapCollection, orderBy('order'));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            if (snapshot.empty) {
+                // Seed initial data if empty
+                const initialPhases: RoadmapPhase[] = [
+                    { id: "1", order: 1, phase: "Phase 1", title: "Foundation & Launch", status: "Completed", items: [{ text: "Concept and Idea Finalization" }, { text: "Core Team Formation" }] },
+                    { id: "2", order: 2, phase: "Phase 2", title: "Growth & Engagement", status: "In Progress", items: [{ text: "VIP Membership Program Launch" }, { text: "Referral Contest Implementation" }] }
+                ];
+                setPhases(initialPhases);
+            } else {
+                const phasesList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RoadmapPhase));
+                setPhases(phasesList);
+            }
+            setLoading(false);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    const handlePhaseChange = (index: number, field: keyof RoadmapPhase, value: any) => {
+        const newPhases = [...phases];
+        (newPhases[index] as any)[field] = value;
+        setPhases(newPhases);
+    };
+
+    const handleItemChange = (phaseIndex: number, itemIndex: number, value: string) => {
+        const newPhases = [...phases];
+        newPhases[phaseIndex].items[itemIndex].text = value;
+        setPhases(newPhases);
+    };
+
+    const addItem = (phaseIndex: number) => {
+        const newPhases = [...phases];
+        newPhases[phaseIndex].items.push({ text: "" });
+        setPhases(newPhases);
+    };
+    
+    const removeItem = (phaseIndex: number, itemIndex: number) => {
+        const newPhases = [...phases];
+        newPhases[phaseIndex].items.splice(itemIndex, 1);
+        setPhases(newPhases);
+    };
+    
+    const addPhase = () => {
+        const newOrder = phases.length > 0 ? Math.max(...phases.map(p => p.order)) + 1 : 1;
+        setPhases([...phases, { id: `new_${Date.now()}`, order: newOrder, phase: `Phase ${newOrder}`, title: "", status: "Upcoming", items: [] }]);
+    };
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        const result = await saveRoadmap(phases);
+        if (result.success) {
+            toast({ title: "Success", description: "Roadmap updated." });
+            onUpdate();
+        } else {
+            toast({ title: "Error", description: result.error, variant: "destructive" });
+        }
+        setIsSaving(false);
+    };
+
+    return (
+        <Card className="bg-card/80 backdrop-blur-sm">
+            <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Roadmap Management</CardTitle>
+                <Button onClick={handleSave} disabled={isSaving || loading}>
+                    {isSaving ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : <Zap className="w-4 h-4 mr-2" />}
+                    Save Roadmap
+                </Button>
+            </CardHeader>
+            <CardContent>
+                {loading ? <div className="flex justify-center p-8"><Loader className="w-6 h-6 animate-spin"/></div> :
+                <Accordion type="multiple" className="w-full space-y-4">
+                    {phases.map((phase, phaseIndex) => (
+                        <AccordionItem value={`item-${phaseIndex}`} key={phase.id} className="bg-background rounded-lg border-none">
+                            <AccordionTrigger className="p-4 hover:no-underline">
+                                <div className="flex items-center gap-2">
+                                    <GripVertical className="w-5 h-5 text-muted-foreground" />
+                                    <span className="font-bold text-lg">{phase.phase}: {phase.title}</span>
+                                </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="p-4 pt-0 space-y-4">
+                                <div className="grid grid-cols-3 gap-4">
+                                    <Input value={phase.phase} onChange={e => handlePhaseChange(phaseIndex, 'phase', e.target.value)} placeholder="Phase (e.g. Phase 1)" />
+                                    <Input value={phase.title} onChange={e => handlePhaseChange(phaseIndex, 'title', e.target.value)} placeholder="Title" />
+                                    <Select value={phase.status} onValueChange={value => handlePhaseChange(phaseIndex, 'status', value)}>
+                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Completed">Completed</SelectItem>
+                                            <SelectItem value="In Progress">In Progress</SelectItem>
+                                            <SelectItem value="Upcoming">Upcoming</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Items</Label>
+                                    {phase.items.map((item, itemIndex) => (
+                                        <div key={itemIndex} className="flex items-center gap-2">
+                                            <Input value={item.text} onChange={e => handleItemChange(phaseIndex, itemIndex, e.target.value)} />
+                                            <Button variant="destructive" size="icon" onClick={() => removeItem(phaseIndex, itemIndex)}><Trash2 className="w-4 h-4" /></Button>
+                                        </div>
+                                    ))}
+                                    <Button variant="outline" size="sm" onClick={() => addItem(phaseIndex)}><Plus className="w-4 h-4 mr-2" />Add Item</Button>
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                    ))}
+                </Accordion>
+                }
+                 <Button variant="secondary" onClick={addPhase} className="mt-4"><PlusCircle className="w-4 h-4 mr-2" />Add Phase</Button>
+            </CardContent>
+        </Card>
+    );
+}
+
+function WhitePaperManagementSection({ onUpdate }: { onUpdate: () => void }) {
+    const [sections, setSections] = useState<WhitePaperSection[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const { toast } = useToast();
+
+    useEffect(() => {
+        const whitepaperCollection = collection(db, 'whitepaper');
+        const q = query(whitepaperCollection, orderBy('order'));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            if (snapshot.empty) {
+                const initialSections: WhitePaperSection[] = [
+                    { id: "1", order: 1, title: "1. Introduction", content: "PARI Network is a pioneering mobile-first platform..." },
+                    { id: "2", order: 2, title: "2. Vision & Mission", content: "Our vision is to onboard the next billion users into Web3..." }
+                ];
+                setSections(initialSections);
+            } else {
+                const sectionsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WhitePaperSection));
+                setSections(sectionsList);
+            }
+            setLoading(false);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    const handleSectionChange = (index: number, field: keyof WhitePaperSection, value: any) => {
+        const newSections = [...sections];
+        (newSections[index] as any)[field] = value;
+        setSections(newSections);
+    };
+
+    const addSection = () => {
+        const newOrder = sections.length > 0 ? Math.max(...sections.map(s => s.order)) + 1 : 1;
+        setSections([...sections, { id: `new_${Date.now()}`, order: newOrder, title: "", content: "" }]);
+    };
+    
+    const removeSection = (index: number) => {
+        const newSections = [...sections];
+        newSections.splice(index, 1);
+        setSections(newSections);
+    }
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        const result = await saveWhitePaper(sections);
+        if (result.success) {
+            toast({ title: "Success", description: "White Paper updated." });
+            onUpdate();
+        } else {
+            toast({ title: "Error", description: result.error, variant: "destructive" });
+        }
+        setIsSaving(false);
+    };
+
+    return (
+        <Card className="bg-card/80 backdrop-blur-sm">
+            <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>White Paper Management</CardTitle>
+                <Button onClick={handleSave} disabled={isSaving || loading}>
+                    {isSaving ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : <Zap className="w-4 h-4 mr-2" />}
+                    Save White Paper
+                </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {loading ? <div className="flex justify-center p-8"><Loader className="w-6 h-6 animate-spin"/></div> :
+                <div className="space-y-6">
+                    {sections.map((section, index) => (
+                        <div key={section.id} className="p-4 bg-background rounded-lg space-y-3 relative">
+                            <div className="flex items-center gap-2">
+                                <GripVertical className="w-5 h-5 text-muted-foreground" />
+                                <Input value={section.title} onChange={e => handleSectionChange(index, 'title', e.target.value)} placeholder="Section Title" className="font-bold text-lg" />
+                            </div>
+                            <Textarea value={section.content} onChange={e => handleSectionChange(index, 'content', e.target.value)} placeholder="Section Content" className="h-32" />
+                            <div className="flex items-center gap-2">
+                                <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                                <Input value={section.imageUrl || ""} onChange={e => handleSectionChange(index, 'imageUrl', e.target.value)} placeholder="Optional Image URL" />
+                            </div>
+                             <Button variant="destructive" size="icon" className="absolute top-2 right-2" onClick={() => removeSection(index)}><Trash2 className="w-4 h-4" /></Button>
+                        </div>
+                    ))}
+                </div>
+                }
+                <Button variant="secondary" onClick={addSection} className="mt-4"><PlusCircle className="w-4 h-4 mr-2" />Add Section</Button>
+            </CardContent>
+        </Card>
+    )
+}
 
 export default function AdminPage() {
     const [currentUser, setCurrentUser] = useState<UserData | null>(null);
@@ -944,8 +1153,10 @@ export default function AdminPage() {
             <LeaderboardManagementSection onUpdate={handleDataUpdate} />
             <UserManagementSection users={allUsers} loading={loading} onUpdate={handleDataUpdate} />
             <VipRequestSection vipRequests={vipRequests} loading={loading} onUpdate={handleDataUpdate} />
-            <NewsManagementSection onUpdate={handleDataUpdate} />
             <TaskManagementSection onUpdate={handleDataUpdate} />
+            <NewsManagementSection onUpdate={handleDataUpdate} />
+            <RoadmapManagementSection onUpdate={handleDataUpdate} />
+            <WhitePaperManagementSection onUpdate={handleDataUpdate} />
 
         </div>
     );
