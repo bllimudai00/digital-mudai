@@ -80,22 +80,22 @@ const WhatsAppIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
 )
 
-function PodiumSpot({ rank, user, heightClass, bgColor, medal }: { rank: number, user: LeaderboardEntry, heightClass: string, bgColor: string, medal: string }) {
+function PodiumSpot({ user, rank, medal, podiumHeight, avatarSize }: { user: LeaderboardEntry, rank: number, medal: string, podiumHeight: string, avatarSize: string }) {
+    if (!user) return <div className={`flex-1 ${podiumHeight}`}></div>;
+
     return (
         <div className="flex-1 flex flex-col items-center justify-end mx-1">
-            <div className="relative mb-2">
-                <Avatar className="w-16 h-16 border-4 border-background">
+            <div className="relative">
+                <p className="absolute -top-4 left-1/2 -translate-x-1/2 text-3xl">{medal}</p>
+                <Avatar className={`${avatarSize} border-4 border-background`}>
                     <AvatarImage src={`https://picsum.photos/seed/${user.userId}/100`} />
-                    <AvatarFallback>{user.name.substring(0, 2)}</AvatarFallback>
+                    <AvatarFallback>{user.name ? user.name.substring(0, 2) : '?'}</AvatarFallback>
                 </Avatar>
-                <div className="absolute -top-3 -right-3 text-3xl">
-                    {medal}
-                </div>
             </div>
-            <p className="font-bold text-white mt-1 text-center text-sm truncate w-20">{user.name}</p>
-            <p className="text-xs text-muted-foreground font-semibold">{user.referralCount} Referrals</p>
-            <div className={`w-full ${heightClass} ${bgColor} rounded-t-lg mt-2 flex items-center justify-center p-2`}>
-                <p className="text-2xl font-bold text-white">{rank}</p>
+            <div className={`w-full ${podiumHeight} bg-card rounded-t-lg mt-2 flex flex-col items-center justify-center p-2 pt-4`}>
+                <p className="font-bold text-white text-center text-sm truncate w-20">{user.name}</p>
+                <p className="text-xs text-muted-foreground font-semibold">{user.referralCount} Referrals</p>
+                <p className="text-lg font-bold text-accent mt-1">{rank}</p>
             </div>
         </div>
     );
@@ -113,11 +113,16 @@ export default function ReferPage() {
     
     const fetchAndSetData = async () => {
         setLoading(true);
-        const initialData = await getInitialUserData();
-        setUserData(initialData.user);
-        setReferrals(initialData.referrals);
-        setLeaderboard(initialData.leaderboard);
-        setLoading(false);
+        try {
+            const [initialData, leaderboardData] = await Promise.all([getInitialUserData(), getLeaderboard()]);
+            setUserData(initialData.user);
+            setReferrals(initialData.referrals);
+            setLeaderboard(leaderboardData);
+        } catch (error) {
+            console.error("Error fetching initial data:", error);
+        } finally {
+            setLoading(false);
+        }
     }
     
     fetchAndSetData();
@@ -138,10 +143,8 @@ export default function ReferPage() {
 
     const leaderboardCollection = collection(db, 'leaderboard');
     const unsubscribeLeaderboard = onSnapshot(leaderboardCollection, async () => {
-        setLoading(true);
         const updatedLeaderboard = await getLeaderboard();
         setLeaderboard(updatedLeaderboard);
-        setLoading(false);
     });
 
     return () => {
@@ -168,7 +171,11 @@ export default function ReferPage() {
 
   const referralLink = userData ? `https://parinetwork.com/join?ref=${userData.referralCode}` : "";
   
-  if (!userData) {
+  const top1 = leaderboard.find(u => u.rank === 1);
+  const top2 = leaderboard.find(u => u.rank === 2);
+  const top3 = leaderboard.find(u => u.rank === 3);
+
+  if (loading && !userData) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader className="w-8 h-8 animate-spin text-primary" />
@@ -176,16 +183,12 @@ export default function ReferPage() {
     );
   }
   
-  const top1 = leaderboard.find(u => u.rank === 1);
-  const top2 = leaderboard.find(u => u.rank === 2);
-  const top3 = leaderboard.find(u => u.rank === 3);
-
   return (
     <div className="bg-background text-foreground min-h-screen flex flex-col font-body">
       <main className="flex-1 p-4 space-y-6 pb-24">
-        <Card className="bg-card/80 backdrop-blur-sm">
+        <Card className="bg-card/80 backdrop-blur-sm overflow-hidden">
           <CardContent className="p-4">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center mb-4">
                  <h2 className="text-xl font-bold flex items-center gap-2"><Trophy className="text-accent"/> Referral Contest</h2>
                  <Button asChild variant="outline" size="sm">
                     <Link href="/referral-contest">View All</Link>
@@ -196,10 +199,10 @@ export default function ReferPage() {
                     <Loader className="w-8 h-8 animate-spin" />
                 </div>
             ) : (
-                <div className="mt-4 flex items-end justify-center min-h-[220px]">
-                    {top2 && <PodiumSpot rank={2} user={top2} heightClass="h-24" bgColor="bg-slate-500" medal="🥈" />}
-                    {top1 && <PodiumSpot rank={1} user={top1} heightClass="h-32" bgColor="bg-amber-500" medal="🥇" />}
-                    {top3 && <PodiumSpot rank={3} user={top3} heightClass="h-20" bgColor="bg-orange-700" medal="🥉" />}
+                <div className="mt-4 flex items-end justify-center min-h-[220px] bg-gradient-to-t from-background to-transparent pt-8 px-2">
+                    {top2 && <PodiumSpot user={top2} rank={2} medal="🥈" podiumHeight="h-24" avatarSize="w-16 h-16" />}
+                    {top1 && <PodiumSpot user={top1} rank={1} medal="🥇" podiumHeight="h-32" avatarSize="w-20 h-20" />}
+                    {top3 && <PodiumSpot user={top3} rank={3} medal="🥉" podiumHeight="h-20" avatarSize="w-14 h-14" />}
                 </div>
             )}
           </CardContent>
