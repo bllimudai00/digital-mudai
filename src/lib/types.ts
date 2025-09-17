@@ -1,6 +1,6 @@
 export type UserData = {
   id: string;
-  pariBalance: number;
+  pariBalance: number | string;
   hashPower: number;
   baseRate: number;
   streak: number;

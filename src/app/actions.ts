@@ -1,6 +1,6 @@
 'use server';
 
-import { doc, updateDoc, arrayUnion, getDoc, runTransaction, increment, collection, getDocs, writeBatch, setDoc, query, where, addDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, getDoc, runTransaction, increment, collection, getDocs, writeBatch, setDoc, query, where, addDoc, deleteDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/firebase/firestore';
 import type { UserData, Referral, Task, NewsArticle } from '@/lib/types';
@@ -142,16 +142,18 @@ function serializeFirestoreTimestamps(data: { [key: string]: any }): { [key: str
     const serializedData: { [key: string]: any } = {};
     for (const key in data) {
         const value = data[key];
-        if (value && typeof value.toDate === 'function') {
-            // It's a Firestore Timestamp, convert it to a string
+        if (value instanceof Timestamp) {
+            serializedData[key] = value.toDate().toISOString();
+        } else if (value && typeof value.toDate === 'function') {
             serializedData[key] = value.toDate().toISOString();
         } else if (Array.isArray(value)) {
-            // If it's an array, recursively serialize its contents
             serializedData[key] = value.map(item =>
                 (item && typeof item === 'object' && !Array.isArray(item))
                     ? serializeFirestoreTimestamps(item)
                     : item
             );
+        } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+            serializedData[key] = serializeFirestoreTimestamps(value);
         } else {
             serializedData[key] = value;
         }
@@ -199,8 +201,11 @@ export async function getUserData(): Promise<UserData | null> {
             referredBy: 'super_referrer_placeholder_id'
         };
 
+        const dataToSet = { ...newUser };
+        delete (dataToSet as any).id; // Don't save the id in the document body
+
         await setDoc(userRef, {
-            ...newUser,
+            ...dataToSet,
             createdAt: serverTimestamp(), // Use server timestamp for creation
         });
         await seedInitialData(); 
@@ -498,4 +503,19 @@ export async function getUsers(): Promise<UserData[]> {
     return users;
 }
 
-    
+export async function updateUserFromAdmin(userId: string, dataToUpdate: Partial<UserData>) {
+    'use server';
+    const userRef = doc(db, 'users', userId);
+
+    // Sanitize data: remove id and any other non-updatable fields
+    const { id, ...updateData } = dataToUpdate;
+
+    try {
+        await updateDoc(userRef, updateData);
+        revalidatePath('/admin');
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error updating user:", error);
+        return { success: false, error: error.message };
+    }
+}

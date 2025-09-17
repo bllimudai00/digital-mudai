@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { UserData, NewsArticle } from "@/lib/types";
-import { getUserData, getVipRequests, updateVipStatus, getNews, addNews, deleteNews, getUsers } from "@/app/actions";
+import { getUserData, getVipRequests, updateVipStatus, getNews, addNews, deleteNews, getUsers, updateUserFromAdmin } from "@/app/actions";
 import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,8 @@ import { format } from "date-fns";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "./ui/dialog";
+import { Label } from "./ui/label";
 
 
 function VipRequestSection() {
@@ -198,18 +200,93 @@ function NewsManagementSection() {
     )
 }
 
+function EditUserDialog({ user, isOpen, onOpenChange, onUserUpdate }: { user: UserData | null, isOpen: boolean, onOpenChange: (open: boolean) => void, onUserUpdate: () => void }) {
+    const [editedUser, setEditedUser] = useState<Partial<UserData>>({});
+    const [isSaving, setIsSaving] = useState(false);
+    const { toast } = useToast();
+
+    useEffect(() => {
+        if (user) {
+            setEditedUser({
+                name: user.name,
+                email: user.email,
+                pariBalance: user.pariBalance,
+            });
+        }
+    }, [user]);
+
+    if (!user) return null;
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setEditedUser(prev => ({ ...prev, [name]: name === 'pariBalance' ? parseFloat(value) || 0 : value }));
+    };
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        const result = await updateUserFromAdmin(user.id, editedUser);
+        setIsSaving(false);
+        if (result.success) {
+            toast({ title: "Success", description: "User updated successfully." });
+            onUserUpdate();
+            onOpenChange(false);
+        } else {
+            toast({ title: "Error", description: result.error || "Failed to update user.", variant: "destructive" });
+        }
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Edit User: {user.name}</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="name" className="text-right">Name</Label>
+                        <Input id="name" name="name" value={editedUser.name || ""} onChange={handleInputChange} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="email" className="text-right">Email</Label>
+                        <Input id="email" name="email" value={editedUser.email || ""} onChange={handleInputChange} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="pariBalance" className="text-right">PARI Balance</Label>
+                        <Input id="pariBalance" name="pariBalance" type="number" value={editedUser.pariBalance || 0} onChange={handleInputChange} className="col-span-3" />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button type="button" variant="secondary">Cancel</Button>
+                    </DialogClose>
+                    <Button type="submit" onClick={handleSave} disabled={isSaving}>
+                        {isSaving ? <Loader className="w-4 h-4 animate-spin" /> : "Save Changes"}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 function UserManagementSection() {
     const [users, setUsers] = useState<UserData[]>([]);
     const [loading, setLoading] = useState(true);
+    const [editingUser, setEditingUser] = useState<UserData | null>(null);
+
+    const fetchUsers = async () => {
+        setLoading(true);
+        const userList = await getUsers();
+        setUsers(userList);
+        setLoading(false);
+    };
 
     useEffect(() => {
-        const fetchUsers = async () => {
-            const userList = await getUsers();
-            setUsers(userList);
-            setLoading(false);
-        };
         fetchUsers();
     }, []);
+
+    const handleEditClick = (user: UserData) => {
+        setEditingUser(user);
+    };
 
     if (loading) {
         return <div className="flex justify-center p-8"><Loader className="w-6 h-6 animate-spin" /></div>;
@@ -249,10 +326,10 @@ function UserManagementSection() {
                                     )}
                                 </TableCell>
                                 <TableCell className="text-right">
-                                    <Button variant="ghost" size="icon">
+                                    <Button variant="ghost" size="icon" onClick={() => handleEditClick(user)}>
                                         <Edit className="w-4 h-4" />
                                     </Button>
-                                    <Button variant="ghost" size="icon" className="text-destructive">
+                                    <Button variant="ghost" size="icon" className="text-destructive" disabled>
                                         <Trash2 className="w-4 h-4" />
                                     </Button>
                                 </TableCell>
@@ -261,6 +338,12 @@ function UserManagementSection() {
                     </TableBody>
                 </Table>
             </CardContent>
+             <EditUserDialog 
+                user={editingUser}
+                isOpen={!!editingUser}
+                onOpenChange={(isOpen) => { if (!isOpen) setEditingUser(null); }}
+                onUserUpdate={fetchUsers}
+            />
         </Card>
     );
 }
