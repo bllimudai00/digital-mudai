@@ -43,6 +43,7 @@ export async function seedInitialData() {
             baseRate: 10.00,
             totalVipSlots: 20000,
             claimedVipSlots: 1500,
+            vipWalletAddress: '0x10FA107AF74434313841FB36F4547ac'
         });
         console.log("Initial global settings seeded.");
     }
@@ -664,4 +665,3 @@ export async function updateLeaderboardEntry(entry: LeaderboardEntry) {
         return { success: false, error: error.message };
     }
 }
-

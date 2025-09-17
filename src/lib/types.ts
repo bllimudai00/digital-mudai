@@ -25,6 +25,7 @@ export type GlobalSettings = {
   baseRate: number;
   totalVipSlots: number;
   claimedVipSlots: number;
+  vipWalletAddress?: string;
 };
 
 export type Referral = {

@@ -491,7 +491,12 @@ function GlobalSettingsSection({ onUpdate }: { onUpdate: () => void}) {
     
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        setSettings(prev => ({ ...prev, [name]: parseFloat(value) || 0 }));
+        // Check if the input is a number field before parsing
+        if (['baseRate', 'totalVipSlots', 'claimedVipSlots'].includes(name)) {
+             setSettings(prev => ({ ...prev, [name]: parseFloat(value) || 0 }));
+        } else {
+             setSettings(prev => ({ ...prev, [name]: value }));
+        }
     };
 
     const handleUpdateSettings = async () => {
@@ -555,6 +560,17 @@ function GlobalSettingsSection({ onUpdate }: { onUpdate: () => void}) {
                             name="claimedVipSlots"
                             type="number"
                             value={settings.claimedVipSlots || 0}
+                            onChange={handleInputChange}
+                            className="mt-2"
+                        />
+                    </div>
+                    <div className="md:col-span-2">
+                        <Label htmlFor="vipWalletAddress">VIP Wallet Address (USDT BEP-20)</Label>
+                        <Input 
+                            id="vipWalletAddress"
+                            name="vipWalletAddress"
+                            type="text"
+                            value={settings.vipWalletAddress || ""}
                             onChange={handleInputChange}
                             className="mt-2"
                         />
