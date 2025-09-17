@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { UserData, NewsArticle, GlobalSettings, NewsContentItem } from "@/lib/types";
-import { getUserData, getVipRequests, updateVipStatus, getNews, addNews, deleteNews, getUsers, updateUserFromAdmin, deleteUser, getGlobalSettings, updateGlobalSettings } from "@/app/actions";
-import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck, Zap } from "lucide-react";
+import type { UserData, NewsArticle, GlobalSettings, NewsContentItem, Task } from "@/lib/types";
+import { getUserData, getVipRequests, updateVipStatus, getNews, addNews, deleteNews, getUsers, updateUserFromAdmin, deleteUser, getGlobalSettings, updateGlobalSettings, getTasks, deleteTask, addTask, updateTask } from "@/app/actions";
+import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck, Zap, ListChecks, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -571,6 +571,205 @@ function GlobalSettingsSection({ onUpdate }: { onUpdate: () => void}) {
     );
 }
 
+function TaskDialog({ task, isOpen, onOpenChange, onTaskUpdate }: { task: Partial<Task> | null, isOpen: boolean, onOpenChange: (open: boolean) => void, onTaskUpdate: () => void }) {
+    const [editedTask, setEditedTask] = useState<Partial<Task>>({});
+    const [isSaving, setIsSaving] = useState(false);
+    const { toast } = useToast();
+
+    useEffect(() => {
+        if (task) {
+            setEditedTask(task);
+        }
+    }, [task]);
+
+    if (!task) return null;
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setEditedTask(prev => ({ ...prev, [name]: ['reward', 'order', 'requiredCount'].includes(name) ? parseFloat(value) || 0 : value }));
+    };
+
+    const handleSelectChange = (value: 'external' | 'referral_milestone') => {
+        setEditedTask(prev => ({...prev, type: value}));
+    }
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        const result = editedTask.id ? await updateTask(editedTask.id, editedTask) : await addTask(editedTask);
+        setIsSaving(false);
+        if (result.success) {
+            toast({ title: "Success", description: `Task ${editedTask.id ? 'updated' : 'added'} successfully.` });
+            onTaskUpdate();
+            onOpenChange(false);
+        } else {
+            toast({ title: "Error", description: result.error || "Failed to save task.", variant: "destructive" });
+        }
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>{task.id ? 'Edit Task' : 'Add New Task'}</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                     <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="title" className="text-right">Title</Label>
+                        <Input id="title" name="title" value={editedTask.title || ""} onChange={handleInputChange} className="col-span-3" />
+                    </div>
+                     <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="reward" className="text-right">Reward</Label>
+                        <Input id="reward" name="reward" type="number" value={editedTask.reward || 0} onChange={handleInputChange} className="col-span-3" />
+                    </div>
+                     <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="order" className="text-right">Order</Label>
+                        <Input id="order" name="order" type="number" value={editedTask.order || 0} onChange={handleInputChange} className="col-span-3" />
+                    </div>
+                     <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="type" className="text-right">Type</Label>
+                         <Select onValueChange={handleSelectChange} value={editedTask.type}>
+                            <SelectTrigger className="col-span-3">
+                                <SelectValue placeholder="Select task type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="external">External Link</SelectItem>
+                                <SelectItem value="referral_milestone">Referral Milestone</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    {editedTask.type === 'external' && (
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="url" className="text-right">URL</Label>
+                            <Input id="url" name="url" value={editedTask.url || ""} onChange={handleInputChange} className="col-span-3" />
+                        </div>
+                    )}
+                     {editedTask.type === 'referral_milestone' && (
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="requiredCount" className="text-right">Required Count</Label>
+                            <Input id="requiredCount" name="requiredCount" type="number" value={editedTask.requiredCount || 0} onChange={handleInputChange} className="col-span-3" />
+                        </div>
+                    )}
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button type="button" variant="secondary">Cancel</Button>
+                    </DialogClose>
+                    <Button type="submit" onClick={handleSave} disabled={isSaving}>
+                        {isSaving ? <Loader className="w-4 h-4 animate-spin" /> : "Save Changes"}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+
+function TaskManagementSection({ onUpdate }: { onUpdate: () => void }) {
+    const [tasks, setTasks] = useState<Task[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [editingTask, setEditingTask] = useState<Partial<Task> | null>(null);
+    const [deletingTask, setDeletingTask] = useState<Task | null>(null);
+    const { toast } = useToast();
+
+    useEffect(() => {
+        const tasksCollection = collection(db, 'tasks');
+        const unsubscribe = onSnapshot(tasksCollection, (snapshot) => {
+            const tasksList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Task);
+            setTasks(tasksList.sort((a, b) => a.order - b.order));
+            setLoading(false);
+        }, (error) => {
+            console.error("Error fetching real-time tasks:", error);
+            setLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, []);
+
+     const handleDelete = async () => {
+        if (!deletingTask) return;
+        const result = await deleteTask(deletingTask.id);
+        if (result.success) {
+            toast({ title: "Success", description: "Task deleted successfully." });
+            setDeletingTask(null);
+            onUpdate();
+        } else {
+            toast({ title: "Error", description: result.error, variant: "destructive" });
+        }
+    };
+    
+    if (loading) {
+        return <div className="flex justify-center p-8"><Loader className="w-6 h-6 animate-spin" /></div>;
+    }
+
+    return (
+        <Card className="bg-card/80 backdrop-blur-sm">
+            <CardHeader className="flex flex-row justify-between items-center">
+                <CardTitle>Task Management</CardTitle>
+                <Button size="sm" onClick={() => setEditingTask({})}>
+                    <PlusCircle className="w-4 h-4 mr-2" />
+                    Add Task
+                </Button>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Order</TableHead>
+                            <TableHead>Title</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead className="text-right">Reward</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {tasks.map((task) => (
+                            <TableRow key={task.id}>
+                                <TableCell>{task.order}</TableCell>
+                                <TableCell className="font-medium">{task.title}</TableCell>
+                                <TableCell>
+                                    <Badge variant={task.type === 'referral_milestone' ? 'default' : 'secondary'}>
+                                        {task.type === 'referral_milestone' ? <Users className="w-3 h-3 mr-1" /> : <ExternalLink className="w-3 h-3 mr-1" />}
+                                        {task.type.replace('_', ' ')}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">{task.reward}</TableCell>
+                                <TableCell className="text-right">
+                                    <Button variant="ghost" size="icon" onClick={() => setEditingTask(task)}>
+                                        <Edit className="w-4 h-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setDeletingTask(task)}>
+                                        <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+             <TaskDialog 
+                task={editingTask}
+                isOpen={!!editingTask}
+                onOpenChange={(isOpen) => { if (!isOpen) setEditingTask(null); }}
+                onTaskUpdate={() => { setEditingTask(null); onUpdate(); }}
+            />
+            <AlertDialog open={!!deletingTask} onOpenChange={(isOpen) => { if (!isOpen) setDeletingTask(null); }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will permanently delete the task: <span className="font-bold">{deletingTask?.title}</span>.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete} className={buttonVariants({ variant: "destructive" })}>Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </Card>
+    );
+}
+
 
 export default function AdminPage() {
     const [currentUser, setCurrentUser] = useState<UserData | null>(null);
@@ -638,6 +837,7 @@ export default function AdminPage() {
             <UserManagementSection users={allUsers} loading={loading} onUpdate={handleDataUpdate} />
             <VipRequestSection vipRequests={vipRequests} loading={loading} onUpdate={handleDataUpdate} />
             <NewsManagementSection onUpdate={handleDataUpdate} />
+            <TaskManagementSection onUpdate={handleDataUpdate} />
 
         </div>
     );

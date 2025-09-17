@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { claimTaskReward, getTasks } from "@/app/actions";
+import { claimTaskReward } from "@/app/actions";
 import type { Task, UserData } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { onSnapshot, doc, collection } from "firebase/firestore";
@@ -192,28 +192,36 @@ export default function TasksPage() {
 
   useEffect(() => {
     const FAKE_USER_ID = 'user_placeholder_id';
+    
+    // Listen for user data
     const userRef = doc(db, 'users', FAKE_USER_ID);
-
     const unsubscribeUser = onSnapshot(userRef, (doc) => {
         if (doc.exists()) {
             setUserData(doc.data() as UserData);
         }
-        if(!tasks.length) { // only fetch tasks once
-             getTasks().then(taskList => {
-                setTasks(taskList);
-                setLoading(false);
-            }).catch(error => {
-                console.error("Error fetching tasks:", error);
-                setLoading(false);
-            });
-        }
+        // Set loading to false for user, but tasks might still be loading
+        if (tasks.length > 0) setLoading(false);
     }, (error) => {
         console.error("Error fetching real-time user data:", error);
         setLoading(false);
     });
     
-    return () => unsubscribeUser();
-  }, [tasks]);
+    // Listen for tasks data
+    const tasksCollection = collection(db, 'tasks');
+    const unsubscribeTasks = onSnapshot(tasksCollection, (snapshot) => {
+        const tasksList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Task);
+        setTasks(tasksList.sort((a,b) => a.order - b.order));
+        if (userData) setLoading(false);
+    }, (error) => {
+        console.error("Error fetching real-time tasks:", error);
+        setLoading(false);
+    });
+
+    return () => {
+        unsubscribeUser();
+        unsubscribeTasks();
+    };
+  }, [userData, tasks]);
 
   const handleClaim = async (taskId: string) => {
     if (!userData) return;
@@ -234,7 +242,7 @@ export default function TasksPage() {
   };
 
 
-  if (loading || !userData) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader className="w-8 h-8 animate-spin text-primary" />
@@ -249,11 +257,23 @@ export default function TasksPage() {
           <ListChecks className="w-6 h-6" />
           <h1>Earn More with Tasks</h1>
         </div>
-        <div className="space-y-4">
-          {tasks.map((task) => (
-            <TaskCard key={task.id} task={task} userData={userData} onClaim={handleClaim} />
-          ))}
-        </div>
+        {tasks.length > 0 ? (
+            <div className="space-y-4">
+            {tasks.map((task) => (
+                <TaskCard key={task.id} task={task} userData={userData} onClaim={handleClaim} />
+            ))}
+            </div>
+        ) : (
+             <Card className="bg-card/80 backdrop-blur-sm text-center p-8">
+                <CardContent className="p-0 flex flex-col items-center">
+                <ListChecks className="w-12 h-12 text-muted-foreground mb-4" />
+                <h2 className="text-lg font-semibold">No Tasks Available</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                    Check back later for more ways to earn.
+                </p>
+                </CardContent>
+            </Card>
+        )}
       </main>
 
       <footer className="fixed bottom-0 left-0 right-0 bg-card/80 backdrop-blur-sm border-t p-2">

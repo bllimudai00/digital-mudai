@@ -204,7 +204,7 @@ export async function getTasks(): Promise<Task[]> {
             console.log("No tasks found, maybe they haven't been created yet.");
             return [];
         }
-        const tasksList = tasksSnapshot.docs.map(doc => doc.data() as Task);
+        const tasksList = tasksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Task);
         return tasksList.sort((a, b) => a.order - b.order);
     } catch (error) {
         console.error("Error fetching tasks:", error);
@@ -542,6 +542,47 @@ export async function deleteUser(userId: string) {
         return { success: true };
     } catch (error: any) {
         console.error("Error deleting user:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function addTask(taskData: Partial<Task>) {
+    'use server';
+    try {
+        const { id, ...data } = taskData;
+        const tasksCollection = collection(db, 'tasks');
+        const docRef = await addDoc(tasksCollection, data);
+        revalidatePath('/admin/tasks');
+        revalidatePath('/tasks');
+        return { success: true, id: docRef.id };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+export async function updateTask(taskId: string, taskData: Partial<Task>) {
+    'use server';
+    try {
+        const taskRef = doc(db, 'tasks', taskId);
+        const { id, ...data } = taskData;
+        await updateDoc(taskRef, data);
+        revalidatePath('/admin/tasks');
+        revalidatePath('/tasks');
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+export async function deleteTask(taskId: string) {
+    'use server';
+    try {
+        const taskRef = doc(db, 'tasks', taskId);
+        await deleteDoc(taskRef);
+        revalidatePath('/admin/tasks');
+        revalidatePath('/tasks');
+        return { success: true };
+    } catch (error: any) {
         return { success: false, error: error.message };
     }
 }
