@@ -29,8 +29,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useEffect, useState } from "react";
 import type { UserData } from "@/lib/types";
-import { doc, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase/firestore";
+import { getUserData } from "@/app/actions";
 
 function BottomNavItem({
   icon,
@@ -84,14 +83,11 @@ export default function ProfilePage() {
   const [userData, setUserData] = useState<UserData | null>(null);
 
   useEffect(() => {
-    const FAKE_USER_ID = 'user_placeholder_id';
-    const unsub = onSnapshot(doc(db, "users", FAKE_USER_ID), (doc) => {
-      if (doc.exists()) {
-        setUserData(doc.data() as UserData);
-      }
-    });
-
-    return () => unsub();
+    async function loadData() {
+        const user = await getUserData();
+        setUserData(user);
+    }
+    loadData();
   }, []);
 
   if (!userData) {

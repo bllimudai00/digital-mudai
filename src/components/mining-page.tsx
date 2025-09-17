@@ -19,10 +19,10 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { claimReward, startMiningSession, getInitialUserData } from "@/app/actions";
+import { claimReward, startMiningSession, getUserData } from "@/app/actions";
 import type { UserData } from "@/lib/types";
-import { doc, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase/firestore";
+import { useRouter } from "next/navigation";
+
 
 function StatCard({
   icon,
@@ -85,23 +85,16 @@ export default function MiningPage() {
   const [miningState, setMiningState] = useState<'idle' | 'mining' | 'claimable' | 'loading'>('loading');
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [isActionLoading, setIsActionLoading] = useState(false);
+  const router = useRouter();
+
+  async function loadUserData() {
+    const user = await getUserData();
+    setUserData(user);
+    return user;
+  }
 
   useEffect(() => {
-    // Let's use a placeholder ID for now
-    const FAKE_USER_ID = 'user_placeholder_id';
-
-    // Set up a real-time listener for user data
-    const unsub = onSnapshot(doc(db, "users", FAKE_USER_ID), async (doc) => {
-      if (doc.exists()) {
-        setUserData(doc.data() as UserData);
-      } else {
-        // If user doesn't exist, create them
-        const data = await getInitialUserData();
-        setUserData(data?.user || null)
-      }
-    });
-
-    return () => unsub();
+    loadUserData();
   }, []);
 
   useEffect(() => {
@@ -147,16 +140,16 @@ export default function MiningPage() {
   const handleStartMining = async () => {
     if (!userData || miningState !== 'idle') return;
     setIsActionLoading(true);
-    const result = await startMiningSession(userData.id);
-    // Real-time listener will update the state, so no need to set it here
+    await startMiningSession(userData.id);
+    await loadUserData();
     setIsActionLoading(false);
   };
 
   const handleClaimReward = async () => {
     if (!userData || miningState !== 'claimable') return;
     setIsActionLoading(true);
-    const result = await claimReward(userData.id);
-    // Real-time listener will update the state
+    await claimReward(userData.id);
+    await loadUserData();
     setIsActionLoading(false);
   };
 

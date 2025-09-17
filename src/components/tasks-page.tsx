@@ -15,11 +15,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getInitialUserData, claimTaskReward } from "@/app/actions";
+import { getInitialUserData, claimTaskReward, getTasks } from "@/app/actions";
 import type { Task, UserData } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { doc, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase/firestore";
 
 function BottomNavItem({
   icon,
@@ -165,24 +163,18 @@ export default function TasksPage() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
-    async function fetchData() {
-        const data = await getInitialUserData();
-        if(data) {
-            setTasks(data.tasks);
-        }
-        setLoading(false);
-    }
-    fetchData();
-
-    const FAKE_USER_ID = 'user_placeholder_id';
-    const unsub = onSnapshot(doc(db, "users", FAKE_USER_ID), (doc) => {
-      if (doc.exists()) {
-        setUserData(doc.data() as UserData);
+  async function loadInitialData() {
+      setLoading(true);
+      const [user, taskList] = await Promise.all([getInitialUserData(), getTasks()]);
+      if(user) {
+          setUserData(user.user);
       }
-    });
+      setTasks(taskList);
+      setLoading(false);
+  }
 
-    return () => unsub();
+  useEffect(() => {
+    loadInitialData();
   }, []);
 
   const handleClaim = async (taskId: string) => {
@@ -193,6 +185,9 @@ export default function TasksPage() {
         title: "Reward Claimed!",
         description: `You've received +${result.reward} PARI.`,
       });
+      // Refresh data
+      const user = await getUserData();
+      setUserData(user);
     } else {
       toast({
         title: "Error",
