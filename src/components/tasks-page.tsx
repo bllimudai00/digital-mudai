@@ -55,12 +55,11 @@ function TaskCard({ task, userData, onClaim }: { task: Task, userData: UserData 
     const referralCount = userData?.referrals?.length || 0;
 
     let buttonState: 'claim' | 'completed' | 'go_to_refer' | 'loading' | 'requirement_not_met' | 'external_verify' | 'external_initial' = 'external_initial';
-    let buttonLabel = "Go";
-    let buttonIcon = <ExternalLink className="w-4 h-4 mr-1" />;
-    let isDisabled = false;
-
+    
     if (isCompleted) {
         buttonState = 'completed';
+    } else if (isLoading) {
+        buttonState = 'loading';
     } else if (task.type === 'referral_milestone') {
         if (referralCount >= (task.requiredCount || 0)) {
             buttonState = 'claim';
@@ -74,7 +73,6 @@ function TaskCard({ task, userData, onClaim }: { task: Task, userData: UserData 
             buttonState = 'external_initial';
         }
     }
-
 
     const handleClaim = async () => {
         setIsLoading(true);
@@ -100,41 +98,32 @@ function TaskCard({ task, userData, onClaim }: { task: Task, userData: UserData 
         }
     }
 
-    switch(buttonState) {
-        case 'completed':
-            buttonLabel = "Claimed";
-            buttonIcon = <CheckCircle2 className="w-4 h-4 mr-1" />;
-            isDisabled = true;
-            break;
-        case 'claim':
-            buttonLabel = "Claim Reward";
-            buttonIcon = <Gift className="w-4 h-4 mr-1" />;
-            break;
-        case 'go_to_refer':
-            buttonLabel = "Go to Refer";
-            buttonIcon = <Users className="w-4 h-4 mr-1" />;
-            break;
-        case 'external_initial':
-            buttonLabel = "Go";
-            buttonIcon = <ExternalLink className="w-4 h-4 mr-1" />;
-            break;
-        case 'external_verify':
-            buttonLabel = "Verify";
-            buttonIcon = <BadgeCheck className="w-4 h-4 mr-1" />;
-            break;
-    }
-    
-    if (isLoading) {
-        buttonLabel = "Claiming...";
-        buttonIcon = <Loader className="w-4 h-4 mr-1 animate-spin" />;
-        isDisabled = true;
+    const getButtonContent = () => {
+        switch(buttonState) {
+            case 'completed':
+                return { label: "Claimed", icon: <CheckCircle2 className="w-4 h-4 mr-1" />, disabled: true };
+            case 'loading':
+                return { label: "Claiming...", icon: <Loader className="w-4 h-4 mr-1 animate-spin" />, disabled: true };
+            case 'claim':
+                return { label: "Claim Reward", icon: <Gift className="w-4 h-4 mr-1" />, disabled: false };
+            case 'go_to_refer':
+                return { label: "Go to Refer", icon: <Users className="w-4 h-4 mr-1" />, disabled: false };
+            case 'external_initial':
+                return { label: "Go", icon: <ExternalLink className="w-4 h-4 mr-1" />, disabled: false };
+            case 'external_verify':
+                return { label: "Verify", icon: <BadgeCheck className="w-4 h-4 mr-1" />, disabled: false };
+            default:
+                 return { label: "Go", icon: <ExternalLink className="w-4 h-4 mr-1" />, disabled: false };
+        }
     }
 
+    const { label, icon, disabled } = getButtonContent();
+    
     const description = task.type === 'referral_milestone' && task.requiredCount
         ? `Invite ${task.requiredCount} friends to join Pari Network.`
         : task.title;
 
-    const icon = task.type === 'referral_milestone' 
+    const taskIcon = task.type === 'referral_milestone' 
         ? <Users className="w-5 h-5 text-primary" /> 
         : <Gift className="w-5 h-5 text-accent" />;
 
@@ -154,9 +143,9 @@ function TaskCard({ task, userData, onClaim }: { task: Task, userData: UserData 
     const progressValue = (task.requiredCount && referralCount) ? (referralCount / task.requiredCount) * 100 : 0;
 
     const ButtonComponent = (
-        <Button size="sm" onClick={handleButtonClick} disabled={isDisabled} className={isCompleted ? "bg-green-500/20 text-green-400 cursor-not-allowed hover:bg-green-500/20" : ""}>
-            {buttonIcon}
-            {buttonLabel}
+        <Button size="sm" onClick={handleButtonClick} disabled={disabled} className={isCompleted ? "bg-green-500/20 text-green-400 cursor-not-allowed hover:bg-green-500/20" : ""}>
+            {icon}
+            {label}
         </Button>
     );
 
@@ -166,10 +155,10 @@ function TaskCard({ task, userData, onClaim }: { task: Task, userData: UserData 
         <div className="flex justify-between items-center">
             <div className="flex-1 pr-4">
                 <div className="flex items-center gap-2 mb-1">
-                    {icon}
+                    {taskIcon}
                     <h3 className="text-md font-bold">{task.title}</h3>
                 </div>
-                {task.type === 'referral_milestone' && task.requiredCount &&
+                {task.type === 'referral_milestone' && task.requiredCount && !isCompleted &&
                     <>
                         <p className="text-xs text-muted-foreground mb-2">{description}</p>
                         <div className="flex items-center gap-2">
@@ -177,6 +166,9 @@ function TaskCard({ task, userData, onClaim }: { task: Task, userData: UserData 
                            <span className="text-xs font-semibold text-muted-foreground">{referralCount}/{task.requiredCount}</span>
                         </div>
                     </>
+                }
+                 {task.type === 'referral_milestone' && isCompleted &&
+                    <p className="text-xs text-muted-foreground mb-2">Requirement met: {task.requiredCount} referrals</p>
                 }
                 <p className="text-green-400 font-bold text-sm mt-2">+{task.reward} PARI</p>
             </div>
@@ -218,9 +210,10 @@ export default function TasksPage() {
     
     // Listen for tasks data
     const tasksCollection = collection(db, 'tasks');
-    const unsubscribeTasks = onSnapshot(tasksCollection, (snapshot) => {
+    const q = query(tasksCollection, orderBy("order"));
+    const unsubscribeTasks = onSnapshot(q, (snapshot) => {
         const tasksList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Task);
-        setTasks(tasksList.sort((a,b) => a.order - b.order));
+        setTasks(tasksList);
         setDataLoaded(prev => ({...prev, tasks: true}));
     }, (error) => {
         console.error("Error fetching real-time tasks:", error);

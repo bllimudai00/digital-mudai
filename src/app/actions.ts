@@ -216,13 +216,14 @@ export async function getReferrals(referralIds: string[]): Promise<Referral[]> {
 export async function getTasks(): Promise<Task[]> {
     try {
         const tasksCollection = collection(db, 'tasks');
-        const tasksSnapshot = await getDocs(tasksCollection);
+        const q = query(tasksCollection, orderBy('order'));
+        const tasksSnapshot = await getDocs(q);
         if (tasksSnapshot.empty) {
             console.log("No tasks found, maybe they haven't been created yet.");
             return [];
         }
         const tasksList = tasksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Task);
-        return tasksList.sort((a, b) => a.order - b.order);
+        return tasksList;
     } catch (error) {
         console.error("Error fetching tasks:", error);
         return [];

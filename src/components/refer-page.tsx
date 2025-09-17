@@ -83,19 +83,25 @@ const WhatsAppIcon = () => (
 function PodiumSpot({ user, rank, medal, podiumHeight, avatarSize }: { user: LeaderboardEntry, rank: number, medal: string, podiumHeight: string, avatarSize: string }) {
     if (!user) return <div className={`flex-1 ${podiumHeight}`}></div>;
 
+    const rankColors = {
+        1: 'bg-yellow-400/80', // Gold
+        2: 'bg-slate-400/80', // Silver
+        3: 'bg-orange-400/80', // Bronze
+    };
+
     return (
         <div className="flex-1 flex flex-col items-center justify-end mx-1">
-            <div className="relative">
+            <div className="relative mb-2">
                 <p className="absolute -top-4 left-1/2 -translate-x-1/2 text-3xl">{medal}</p>
-                <Avatar className={`${avatarSize} border-4 border-background`}>
+                <Avatar className={`${avatarSize} border-4 border-background shadow-lg`}>
                     <AvatarImage src={`https://picsum.photos/seed/${user.userId}/100`} />
                     <AvatarFallback>{user.name ? user.name.substring(0, 2) : '?'}</AvatarFallback>
                 </Avatar>
             </div>
-            <div className={`w-full ${podiumHeight} bg-card rounded-t-lg mt-2 flex flex-col items-center justify-center p-2 pt-4`}>
-                <p className="font-bold text-white text-center text-sm truncate w-20">{user.name}</p>
-                <p className="text-xs text-muted-foreground font-semibold">{user.referralCount} Referrals</p>
-                <p className="text-lg font-bold text-accent mt-1">{rank}</p>
+            <div className={`w-full ${podiumHeight} ${rankColors[rank as keyof typeof rankColors]} rounded-t-lg flex flex-col items-center justify-center p-2 pt-4 text-center`}>
+                <p className="font-bold text-black text-sm truncate w-20">{user.name}</p>
+                <p className="text-xs text-black/80 font-semibold">{user.referralCount} Referrals</p>
+                <p className="text-lg font-bold text-black/70 mt-1">#{rank}</p>
             </div>
         </div>
     );
@@ -175,7 +181,7 @@ export default function ReferPage() {
   const top2 = leaderboard.find(u => u.rank === 2);
   const top3 = leaderboard.find(u => u.rank === 3);
 
-  if (loading && !userData) {
+  if (!userData) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader className="w-8 h-8 animate-spin text-primary" />
@@ -195,14 +201,19 @@ export default function ReferPage() {
                  </Button>
             </div>
             {loading ? (
-                <div className="flex justify-center items-center min-h-[220px]">
+                <div className="flex justify-center items-center min-h-[250px]">
                     <Loader className="w-8 h-8 animate-spin" />
                 </div>
+            ) : top1 && top2 && top3 ? (
+                <div className="mt-4 flex items-end justify-center min-h-[250px] bg-gradient-to-t from-background/50 to-transparent pt-8 px-2">
+                    <PodiumSpot user={top2} rank={2} medal="🥈" podiumHeight="h-24" avatarSize="w-16 h-16" />
+                    <PodiumSpot user={top1} rank={1} medal="🥇" podiumHeight="h-32" avatarSize="w-20 h-20" />
+                    <PodiumSpot user={top3} rank={3} medal="🥉" podiumHeight="h-20" avatarSize="w-14 h-14" />
+                </div>
             ) : (
-                <div className="mt-4 flex items-end justify-center min-h-[220px] bg-gradient-to-t from-background to-transparent pt-8 px-2">
-                    {top2 && <PodiumSpot user={top2} rank={2} medal="🥈" podiumHeight="h-24" avatarSize="w-16 h-16" />}
-                    {top1 && <PodiumSpot user={top1} rank={1} medal="🥇" podiumHeight="h-32" avatarSize="w-20 h-20" />}
-                    {top3 && <PodiumSpot user={top3} rank={3} medal="🥉" podiumHeight="h-20" avatarSize="w-14 h-14" />}
+                 <div className="flex flex-col items-center justify-center min-h-[250px] text-muted-foreground">
+                    <Trophy className="w-10 h-10 mb-2"/>
+                    <p>Leaderboard is being prepared.</p>
                 </div>
             )}
           </CardContent>
