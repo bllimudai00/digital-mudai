@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import type { UserData, NewsArticle } from "@/lib/types";
-import { getUserData, getVipRequests, updateVipStatus, getNews, addNews, deleteNews } from "@/app/actions";
-import { Loader, Shield, UserCheck, UserX, Newspaper as NewsIcon, Trash2, PlusCircle } from "lucide-react";
+import { getUserData, getVipRequests, updateVipStatus, getNews, addNews, deleteNews, getUsers } from "@/app/actions";
+import { Loader, Shield, UserCheck, UserX, Newspaper as NewsIcon, Trash2, PlusCircle, Users, Badge, Edit } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -11,6 +11,8 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
+
 
 function VipRequestSection() {
     const [vipRequests, setVipRequests] = useState<UserData[]>([]);
@@ -195,6 +197,73 @@ function NewsManagementSection() {
     )
 }
 
+function UserManagementSection() {
+    const [users, setUsers] = useState<UserData[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchUsers = async () => {
+            const userList = await getUsers();
+            setUsers(userList);
+            setLoading(false);
+        };
+        fetchUsers();
+    }, []);
+
+    if (loading) {
+        return <div className="flex justify-center p-8"><Loader className="w-6 h-6 animate-spin" /></div>;
+    }
+
+    return (
+        <Card className="bg-card/80 backdrop-blur-sm">
+            <CardHeader>
+                <CardTitle>User Management</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="mb-4 p-4 bg-background rounded-lg">
+                    <p className="text-sm text-muted-foreground">Total Users</p>
+                    <p className="text-3xl font-bold">{users.length}</p>
+                </div>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Email</TableHead>
+                            <TableHead className="text-right">Balance</TableHead>
+                            <TableHead className="text-center">VIP</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {users.map((user) => (
+                            <TableRow key={user.id}>
+                                <TableCell className="font-medium">{user.name}</TableCell>
+                                <TableCell>{user.email}</TableCell>
+                                <TableCell className="text-right">{user.pariBalance.toFixed(4)}</TableCell>
+                                <TableCell className="text-center">
+                                    {user.vip ? (
+                                        <Badge className="bg-green-500 text-white">Yes</Badge>
+                                    ) : (
+                                        <Badge variant="secondary">No</Badge>
+                                    )}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    <Button variant="ghost" size="icon">
+                                        <Edit className="w-4 h-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="text-destructive">
+                                        <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    );
+}
+
 
 export default function AdminPage() {
     const [currentUser, setCurrentUser] = useState<UserData | null>(null);
@@ -242,6 +311,7 @@ export default function AdminPage() {
                 </Button>
             </header>
             
+            <UserManagementSection />
             <VipRequestSection />
             <NewsManagementSection />
 

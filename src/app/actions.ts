@@ -442,3 +442,9 @@ export async function deleteNews(articleId: string) {
         return { success: false, error: error.message };
     }
 }
+
+export async function getUsers(): Promise<UserData[]> {
+  const usersRef = collection(db, 'users');
+  const querySnapshot = await getDocs(usersRef);
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserData));
+}
