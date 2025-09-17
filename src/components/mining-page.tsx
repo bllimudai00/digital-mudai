@@ -121,7 +121,9 @@ export default function MiningPage() {
                   Double mining speed + Ad-free experience
                 </p>
               </div>
-              <Button className="bg-accent text-accent-foreground hover:bg-accent/90">Upgrade</Button>
+              <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90">
+                <Link href="/vip">Upgrade</Link>
+              </Button>
             </div>
             <div className="mt-4">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
