@@ -268,8 +268,8 @@ export default function MiningPage() {
                  {miningState === 'mining' && (
                     <div className="absolute inset-0 rounded-full overflow-hidden">
                         <div className="relative w-full h-full">
-                            <div className="absolute top-1/2 left-0 h-0.5 w-full bg-primary/70 animate-line-across-blue" />
-                            <div className="absolute top-1/2 left-0 h-0.5 w-full bg-accent/70 animate-line-across-orange" />
+                            <div className="absolute top-1/2 left-0 h-0.5 w-full bg-primary/70 animate-line-across" />
+                            <div className="absolute top-1/2 left-0 h-0.5 w-full bg-accent/70 animate-line-across-reverse" />
                         </div>
                     </div>
                  )}
