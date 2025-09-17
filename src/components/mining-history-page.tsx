@@ -11,17 +11,40 @@ import { format } from "date-fns";
 import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 
+function serializeTimestampInHistory(history: any[]) {
+    return history.map(item => ({
+        ...item,
+        claimedAt: item.claimedAt && typeof (item.claimedAt as any).toDate === 'function' 
+            ? (item.claimedAt as any).toDate().toISOString()
+            : item.claimedAt,
+    })).sort((a, b) => new Date(b.claimedAt).getTime() - new Date(a.claimedAt).getTime());
+}
+
 export default function MiningHistoryPage() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const FAKE_USER_ID = 'user_placeholder_id';
-    const userRef = doc(db, 'users', FAKE_USER_ID);
 
+    // Initial fetch for SSR and to handle user creation
+    getUserData().then(user => {
+      if (user) {
+        setUserData(user);
+      }
+      setLoading(false);
+    }).catch(() => setLoading(false));
+    
+    // Real-time listener for client-side updates
+    const userRef = doc(db, 'users', FAKE_USER_ID);
     const unsubscribe = onSnapshot(userRef, (doc) => {
         if (doc.exists()) {
-            setUserData(doc.data() as UserData);
+            const user = doc.data() as UserData;
+            // The snapshot might return Timestamps, so we need to handle them
+            if (user.miningHistory) {
+                user.miningHistory = serializeTimestampInHistory(user.miningHistory);
+            }
+            setUserData(user);
         }
         setLoading(false);
     }, (error) => {
@@ -32,7 +55,7 @@ export default function MiningHistoryPage() {
     return () => unsubscribe();
   }, []);
 
-  const history = userData?.miningHistory?.sort((a, b) => b.claimedAt - a.claimedAt) || [];
+  const history = userData?.miningHistory || [];
 
   return (
     <div className="bg-background text-foreground min-h-screen flex flex-col font-body">
@@ -62,7 +85,7 @@ export default function MiningHistoryPage() {
                         <div>
                             <p className="font-semibold text-green-400">+{item.amount.toFixed(4)} PARI</p>
                             <p className="text-xs text-muted-foreground">
-                                {format(new Date(item.claimedAt), "PPP p")}
+                                {format(new Date(item.claimedAt as string), "PPP p")}
                             </p>
                         </div>
                     </div>

@@ -161,21 +161,23 @@ export async function getInitialUserData() {
 function serializeFirestoreTimestamps(data: { [key: string]: any }): { [key: string]: any } {
     const serializedData: { [key: string]: any } = {};
     for (const key in data) {
-        const value = data[key];
-        if (value instanceof Timestamp) {
-            serializedData[key] = value.toDate().toISOString();
-        } else if (value && typeof value.toDate === 'function') { // Fallback for other timestamp-like objects
-            serializedData[key] = value.toDate().toISOString();
-        } else if (Array.isArray(value)) {
-            serializedData[key] = value.map(item =>
-                (item && typeof item === 'object' && !Array.isArray(item))
-                    ? serializeFirestoreTimestamps(item)
-                    : item
-            );
-        } else if (value && typeof value === 'object' && !Array.isArray(value)) {
-            serializedData[key] = serializeFirestoreTimestamps(value);
-        } else {
-            serializedData[key] = value;
+        if (Object.prototype.hasOwnProperty.call(data, key)) {
+            const value = data[key];
+            if (value instanceof Timestamp) {
+                serializedData[key] = value.toDate().toISOString();
+            } else if (value && typeof value.toDate === 'function') { // Fallback for other timestamp-like objects
+                serializedData[key] = value.toDate().toISOString();
+            } else if (Array.isArray(value)) {
+                serializedData[key] = value.map(item =>
+                    (item && typeof item === 'object' && !Array.isArray(item))
+                        ? serializeFirestoreTimestamps(item)
+                        : item
+                );
+            } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+                serializedData[key] = serializeFirestoreTimestamps(value);
+            } else {
+                serializedData[key] = value;
+            }
         }
     }
     return serializedData;
@@ -188,21 +190,30 @@ export async function getUserData(): Promise<UserData | null> {
 
     if (userSnap.exists()) {
         const data = userSnap.data();
-        const settings = await getGlobalSettings();
-        const userData = serializeFirestoreTimestamps(data) as UserData;
+        let userData = serializeFirestoreTimestamps(data) as UserData;
+        
         // Sync vip status
+        let needsUpdate = false;
+        const updates: Partial<UserData> = {};
+
         if (userData.vipStatus === 'approved' && !userData.vip) {
-            await updateDoc(userRef, { vip: true });
-            userData.vip = true;
+            updates.vip = true;
+            needsUpdate = true;
         } else if (userData.vipStatus !== 'approved' && userData.vip) {
-            await updateDoc(userRef, { vip: false });
-            userData.vip = false;
+            updates.vip = false;
+            needsUpdate = true;
         }
         
         // Sync baseRate with global settings
+        const settings = await getGlobalSettings();
         if (settings && userData.baseRate !== settings.baseRate) {
-            await updateDoc(userRef, { baseRate: settings.baseRate });
-            userData.baseRate = settings.baseRate;
+            updates.baseRate = settings.baseRate;
+            needsUpdate = true;
+        }
+        
+        if (needsUpdate) {
+            await updateDoc(userRef, updates);
+            userData = { ...userData, ...updates };
         }
 
         return { ...userData, id: userSnap.id };
@@ -211,8 +222,7 @@ export async function getUserData(): Promise<UserData | null> {
         // If user doesn't exist, create a new one with default values
         console.log("User not found, creating a new one...");
         const settings = await getGlobalSettings();
-        const newUser: UserData = {
-            id: FAKE_USER_ID,
+        const newUser: Omit<UserData, 'id'> = {
             pariBalance: 10,
             baseRate: settings?.baseRate || 10.00,
             referrals: [],
@@ -229,20 +239,20 @@ export async function getUserData(): Promise<UserData | null> {
             referredBy: 'super_referrer_placeholder_id'
         };
 
-        const dataToSet = { ...newUser };
-        delete (dataToSet as any).id; // Don't save the id in the document body
-
         await setDoc(userRef, {
-            ...dataToSet,
-            createdAt: serverTimestamp(), // Use server timestamp for creation
+            ...newUser,
+            createdAt: serverTimestamp(),
         });
         await seedInitialData(); 
         console.log("New user and initial data seeded successfully.");
         
-        // After setting, we need to get the data again to have the server timestamp
+        // After setting, get the data again to have the server timestamp
         const newUserSnap = await getDoc(userRef);
-        const newUserData = newUserSnap.data();
-        return serializeFirestoreTimestamps({id: newUserSnap.id, ...newUserData}) as UserData;
+        if (newUserSnap.exists()) {
+             const newUserData = newUserSnap.data();
+             return serializeFirestoreTimestamps({id: newUserSnap.id, ...newUserData}) as UserData;
+        }
+       return null;
     }
 }
 
@@ -382,7 +392,7 @@ export async function claimReward(userId: string) {
             // Update user's balance and history
             const newHistoryItem = {
                 amount: finalReward,
-                claimedAt: serverTimestamp(),
+                claimedAt: new Date().toISOString(),
             };
 
             transaction.update(userRef, {
@@ -569,7 +579,7 @@ export async function updateUserFromAdmin(userId: string, dataToUpdate: Partial<
     const { id, baseRate, ...updateData } = dataToUpdate; // baseRate is global, so don't update it per user.
 
     try {
-        await updateDoc(userRef, updateData);
+        await updateDoc(userRef, updateData as any);
         revalidatePath('/admin');
         return { success: true };
     } catch (error: any) {

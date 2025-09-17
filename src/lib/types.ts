@@ -1,3 +1,5 @@
+import { Timestamp } from "firebase/firestore";
+
 export type UserData = {
   id: string;
   pariBalance: number;
@@ -9,12 +11,12 @@ export type UserData = {
   referredBy?: string;
   name: string;
   email: string;
-  createdAt: string; // Changed to string for serializability
+  createdAt: string | Timestamp; // Allow both for server/client
   sessionEndTime: number | null;
-  miningHistory: { amount: number; claimedAt: number | string }[]; // Allow string for serialization
+  miningHistory: { amount: number; claimedAt: string | Timestamp }[]; // Allow both for server/client
   vipStatus: 'none' | 'pending' | 'approved' | 'rejected';
   vipTransactionId?: string;
-  vipProofSubmittedAt?: string; // Changed to string to be serializable
+  vipProofSubmittedAt?: string | Timestamp; // Allow both for server/client
   isAdmin?: boolean;
 };
 
@@ -48,5 +50,3 @@ export type NewsArticle = {
   priority: 'low' | 'medium' | 'high';
   content: NewsContentItem[];
 };
-
-    

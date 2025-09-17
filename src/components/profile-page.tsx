@@ -82,6 +82,38 @@ const XIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
 )
 
+function serializeNestedTimestamps(obj: any): any {
+    if (obj === null || typeof obj !== 'object') {
+        return obj;
+    }
+
+    if (Array.isArray(obj)) {
+        return obj.map(serializeNestedTimestamps);
+    }
+
+    if (obj.toDate && typeof obj.toDate === 'function') {
+        return obj.toDate().toISOString();
+    }
+    
+    if (typeof obj === 'object') {
+        const newObj: { [key: string]: any } = {};
+        for (const key in obj) {
+            if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                const value = obj[key];
+                 if (value && value.toDate && typeof value.toDate === 'function') {
+                    newObj[key] = value.toDate().toISOString();
+                } else {
+                    newObj[key] = serializeNestedTimestamps(value);
+                }
+            }
+        }
+        return newObj;
+    }
+    
+    return obj;
+}
+
+
 export default function ProfilePage() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -101,23 +133,15 @@ export default function ProfilePage() {
     const userRef = doc(db, 'users', FAKE_USER_ID);
     const unsubscribe = onSnapshot(userRef, (doc) => {
         if (doc.exists()) {
-            const user = doc.data() as UserData;
-            if (user.vipStatus === 'approved' && !user.vip) {
-                user.vip = true;
-            } else if (user.vipStatus !== 'approved' && user.vip) {
-                user.vip = false;
+            const user = doc.data();
+            const clientSideSerializedUser = serializeNestedTimestamps(user) as UserData;
+            
+            if (clientSideSerializedUser.vipStatus === 'approved' && !clientSideSerializedUser.vip) {
+                clientSideSerializedUser.vip = true;
+            } else if (clientSideSerializedUser.vipStatus !== 'approved' && clientSideSerializedUser.vip) {
+                clientSideSerializedUser.vip = false;
             }
-             // Convert timestamps on the client side for real-time updates
-            const clientSideSerializedUser = {
-                ...user,
-                createdAt: user.createdAt && typeof (user.createdAt as any).toDate === 'function' ? (user.createdAt as any).toDate().toISOString() : user.createdAt,
-                vipProofSubmittedAt: user.vipProofSubmittedAt && typeof (user.vipProofSubmittedAt as any).toDate === 'function' ? (user.vipProofSubmittedAt as any).toDate().toISOString() : user.vipProofSubmittedAt,
-                miningHistory: user.miningHistory.map(h => ({
-                    ...h,
-                    claimedAt: h.claimedAt && typeof (h.claimedAt as any).toDate === 'function' ? (h.claimedAt as any).toDate().toISOString() : h.claimedAt,
-                }))
-            };
-            setUserData(clientSideSerializedUser as UserData);
+            setUserData(clientSideSerializedUser);
         }
         setLoading(false);
     }, (error) => {
@@ -161,7 +185,9 @@ export default function ProfilePage() {
             </div>
             <div className="flex items-center gap-2 text-muted-foreground text-sm mt-1">
               <Calendar className="w-4 h-4" />
-              <span>Member since {new Date(userData.createdAt).toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
+              {userData.createdAt && 
+                <span>Member since {new Date(userData.createdAt).toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
+              }
             </div>
           </CardContent>
         </Card>
@@ -231,5 +257,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    
