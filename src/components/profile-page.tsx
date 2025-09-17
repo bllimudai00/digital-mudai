@@ -59,7 +59,7 @@ function BottomNavItem({
 function ProfileMenuItem({
   icon,
   label,
-  href = "#",
+  href,
   isExternal = false,
 }: {
   icon: React.ReactNode;
@@ -77,12 +77,12 @@ function ProfileMenuItem({
     </div>
   );
   
-  if (href === "#" || !href) {
+  if (href === undefined) {
     return <div className="opacity-50 cursor-not-allowed">{linkContent}</div>
   }
 
   return (
-    <Link href={href} target={isExternal ? "_blank" : "_self"} rel={isExternal ? "noopener noreferrer" : ""}>
+    <Link href={href || "#"} target={isExternal ? "_blank" : "_self"} rel={isExternal ? "noopener noreferrer" : ""}>
         {linkContent}
     </Link>
   );
@@ -249,9 +249,9 @@ export default function ProfilePage() {
 
         <Card className="bg-card/80 backdrop-blur-sm">
           <CardContent className="p-4 divide-y divide-border">
-            <ProfileMenuItem icon={<Send className="w-5 h-5 text-muted-foreground" />} label="Official Channel" href={settings?.telegramChannelUrl} isExternal />
-            <ProfileMenuItem icon={<MessageSquare className="w-5 h-5 text-muted-foreground" />} label="Join Group Chat" href={settings?.telegramGroupUrl} isExternal />
-            <ProfileMenuItem icon={<XIcon />} label="Follow us on X" href={settings?.xUrl} isExternal />
+            <ProfileMenuItem icon={<Send className="w-5 h-5 text-muted-foreground" />} label="Official Channel" href={settings?.telegramChannelUrl || ""} isExternal />
+            <ProfileMenuItem icon={<MessageSquare className="w-5 h-5 text-muted-foreground" />} label="Join Group Chat" href={settings?.telegramGroupUrl || ""} isExternal />
+            <ProfileMenuItem icon={<XIcon />} label="Follow us on X" href={settings?.xUrl || ""} isExternal />
             <ProfileMenuItem icon={<Wrench className="w-5 h-5 text-muted-foreground" />} label="Get Support" href="/support" />
           </CardContent>
         </Card>
