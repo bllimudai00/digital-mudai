@@ -38,6 +38,7 @@ export type GlobalSettings = {
   telegramGroupUrl?: string;
   xUrl?: string;
   supportEmail?: string;
+  supportTelegramUsername?: string;
 };
 
 export type Referral = {

@@ -82,7 +82,7 @@ function ProfileMenuItem({
   }
 
   return (
-    <Link href={href || "#"} target={isExternal ? "_blank" : "_self"} rel={isExternal ? "noopener noreferrer" : ""}>
+    <Link href={href || ""} target={isExternal ? "_blank" : "_self"} rel={isExternal ? "noopener noreferrer" : ""}>
         {linkContent}
     </Link>
   );
@@ -176,6 +176,10 @@ export default function ProfilePage() {
     };
   }, []);
 
+  const supportTelegramLink = settings?.supportTelegramUsername
+    ? `https://t.me/${settings.supportTelegramUsername}`
+    : "";
+
   if (loading || !userData) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
@@ -252,7 +256,7 @@ export default function ProfilePage() {
             <ProfileMenuItem icon={<Send className="w-5 h-5 text-muted-foreground" />} label="Official Channel" href={settings?.telegramChannelUrl || ""} isExternal />
             <ProfileMenuItem icon={<MessageSquare className="w-5 h-5 text-muted-foreground" />} label="Join Group Chat" href={settings?.telegramGroupUrl || ""} isExternal />
             <ProfileMenuItem icon={<XIcon />} label="Follow us on X" href={settings?.xUrl || ""} isExternal />
-            <ProfileMenuItem icon={<Wrench className="w-5 h-5 text-muted-foreground" />} label="Get Support" href="/support" />
+            <ProfileMenuItem icon={<Wrench className="w-5 h-5 text-muted-foreground" />} label="Get Support" href={supportTelegramLink} isExternal={!!supportTelegramLink} />
           </CardContent>
         </Card>
       </main>

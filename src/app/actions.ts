@@ -48,7 +48,8 @@ export async function seedInitialData() {
             telegramChannelUrl: 'https://t.me/PariNetwork',
             telegramGroupUrl: 'https://t.me/PariNetworkGroup',
             xUrl: 'https://x.com/PariNetwork',
-            supportEmail: 'seemarajput8540@gmail.com'
+            supportEmail: 'seemarajput8540@gmail.com',
+            supportTelegramUsername: 'PariSupport'
         });
         console.log("Initial global settings seeded.");
     }
@@ -430,7 +431,7 @@ export async function updateGlobalSettings(settings: Partial<GlobalSettings>) {
         revalidatePath('/admin');
         revalidatePath('/'); // Revalidate home page to reflect new rate
         revalidatePath('/profile');
-        revalidatePath('/support');
+        
         return { success: true };
     } catch (error: any) {
         console.error("Error updating global settings:", error);

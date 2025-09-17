@@ -604,6 +604,10 @@ function GlobalSettingsSection({ onUpdate }: { onUpdate: () => void}) {
                             <Label htmlFor="supportEmail">Support Email</Label>
                             <Input id="supportEmail" name="supportEmail" type="email" value={settings.supportEmail || ""} onChange={handleInputChange} className="mt-1" />
                         </div>
+                         <div>
+                            <Label htmlFor="supportTelegramUsername">1-to-1 Support (Telegram Username)</Label>
+                            <Input id="supportTelegramUsername" name="supportTelegramUsername" placeholder="e.g. PariSupport (without @)" value={settings.supportTelegramUsername || ""} onChange={handleInputChange} className="mt-1" />
+                        </div>
                     </div>
                 </div>
                  <div className="flex justify-end mt-4">
