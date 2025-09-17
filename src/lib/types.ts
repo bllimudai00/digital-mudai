@@ -50,5 +50,3 @@ export type NewsArticle = {
   priority: 'low' | 'medium' | 'high';
   content: NewsContentItem[];
 };
-
-    

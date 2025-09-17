@@ -20,6 +20,7 @@ function VipRequestSection() {
     const { toast } = useToast();
 
     const fetchRequests = async () => {
+        setLoading(true);
         const requests = await getVipRequests();
         setVipRequests(requests);
         setLoading(false);
@@ -318,5 +319,3 @@ export default function AdminPage() {
         </div>
     );
 }
-
-    
