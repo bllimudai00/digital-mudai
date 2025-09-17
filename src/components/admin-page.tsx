@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { UserData, NewsArticle, GlobalSettings } from "@/lib/types";
+import type { UserData, NewsArticle, GlobalSettings, NewsContentItem } from "@/lib/types";
 import { getUserData, getVipRequests, updateVipStatus, getNews, addNews, deleteNews, getUsers, updateUserFromAdmin, deleteUser, getGlobalSettings, updateGlobalSettings } from "@/app/actions";
 import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck, Zap } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "./ui/dialog";
 import { Label } from "./ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./ui/alert-dialog";
+import { onSnapshot, collection } from "firebase/firestore";
+import { db } from "@/lib/firebase/firestore";
 
 
 function StatCard({ title, value, icon }: { title: string, value: string | number, icon: React.ReactNode }) {
@@ -116,22 +118,26 @@ function NewsManagementSection({ onUpdate }: { onUpdate: () => void }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { toast } = useToast();
 
-    const fetchNews = async () => {
-        setLoading(true);
-        const newsList = await getNews();
-        setNews(newsList);
-        setLoading(false);
-    };
-
     useEffect(() => {
-        fetchNews();
+        const newsCollection = collection(db, 'news');
+        const unsubscribe = onSnapshot(newsCollection, (snapshot) => {
+            const newsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as NewsArticle);
+            const sortedNews = newsList.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            setNews(sortedNews);
+            setLoading(false);
+        }, (error) => {
+            console.error("Error fetching real-time news:", error);
+            setLoading(false);
+        });
+
+        return () => unsubscribe();
     }, []);
 
     const handleDelete = async (articleId: string) => {
         const result = await deleteNews(articleId);
         if (result.success) {
             toast({ title: "Success", description: "News article deleted." });
-            fetchNews();
+            onUpdate(); // Trigger global refresh if needed
         } else {
             toast({ title: "Error", description: result.error, variant: "destructive" });
         }
@@ -139,11 +145,24 @@ function NewsManagementSection({ onUpdate }: { onUpdate: () => void }) {
 
     const handleAddNews = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!newTitle || !newContent) {
+            toast({ title: "Error", description: "Title and content are required.", variant: "destructive" });
+            return;
+        }
+
         setIsSubmitting(true);
+        
+        const contentItems: NewsContentItem[] = newContent.split('\n').filter(line => line.trim() !== '').map(line => {
+            if (line.startsWith('# ')) {
+                return { type: 'heading', text: line.substring(2) };
+            }
+            return { type: 'paragraph', text: line };
+        });
+
         const article = {
             title: newTitle,
             priority: 'low' as 'low',
-            content: [{ type: 'paragraph' as 'paragraph', text: newContent }],
+            content: contentItems,
             date: new Date().toISOString()
         };
         const result = await addNews(article);
@@ -151,16 +170,12 @@ function NewsManagementSection({ onUpdate }: { onUpdate: () => void }) {
             toast({ title: "Success", description: "News article added." });
             setNewTitle("");
             setNewContent("");
-            fetchNews();
+            onUpdate();
         } else {
             toast({ title: "Error", description: result.error, variant: "destructive" });
         }
         setIsSubmitting(false);
     };
-
-    if(loading) {
-        return <div className="flex justify-center p-8"><Loader className="w-6 h-6 animate-spin"/></div>
-    }
 
     return (
         <Card className="bg-card/80 backdrop-blur-sm">
@@ -179,11 +194,11 @@ function NewsManagementSection({ onUpdate }: { onUpdate: () => void }) {
                             className="bg-card"
                         />
                         <Textarea
-                            placeholder="Article Content (simple text only for now)"
+                            placeholder="Article Content. Use '# ' for headings. Each new line is a new paragraph."
                             value={newContent}
                             onChange={(e) => setNewContent(e.target.value)}
                             required
-                            className="bg-card"
+                            className="bg-card h-32"
                         />
                         <Button type="submit" disabled={isSubmitting}>
                             {isSubmitting ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : <PlusCircle className="w-4 h-4 mr-2" />}
@@ -193,7 +208,9 @@ function NewsManagementSection({ onUpdate }: { onUpdate: () => void }) {
                 </div>
                  <div>
                     <h3 className="text-lg font-semibold mb-4">Existing Articles</h3>
-                    {news.length > 0 ? (
+                    {loading ? (
+                        <div className="flex justify-center p-8"><Loader className="w-6 h-6 animate-spin"/></div>
+                    ) : news.length > 0 ? (
                         <ul className="space-y-3">
                             {news.map((article) => (
                                 <li key={article.id} className="p-3 bg-background rounded-lg flex justify-between items-center gap-4">
@@ -227,7 +244,6 @@ function EditUserDialog({ user, isOpen, onOpenChange, onUserUpdate }: { user: Us
                 name: user.name,
                 email: user.email,
                 pariBalance: user.pariBalance,
-                baseRate: user.baseRate,
             });
         }
     }, [user]);
@@ -236,7 +252,7 @@ function EditUserDialog({ user, isOpen, onOpenChange, onUserUpdate }: { user: Us
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        setEditedUser(prev => ({ ...prev, [name]: name === 'pariBalance' || name === 'baseRate' ? parseFloat(value) || 0 : value }));
+        setEditedUser(prev => ({ ...prev, [name]: name === 'pariBalance' ? parseFloat(value) || 0 : value }));
     };
 
     const handleSave = async () => {

@@ -8,84 +8,6 @@ import type { UserData, Referral, Task, NewsArticle, GlobalSettings } from '@/li
 // This is a placeholder for a real user ID
 const FAKE_USER_ID = 'user_placeholder_id';
 
-const hardcodedNewsData = [
-  {
-    id: 'news_1',
-    title: "🔥 New Fighting Game Coming Soon to Pari Network! 🔥",
-    date: "Sep 4, 2025",
-    priority: "low",
-    content: [
-      {
-        type: 'paragraph',
-        text: 'Pari Network will soon launch a new fighting game that will be directly available inside the app. This game will be easy and fun for everyone.'
-      },
-      {
-        type: 'section',
-        title: "Simple and Fun Gameplay",
-        icon: 'Gamepad2',
-        text: "Choose your favorite character and fight against other players or smart bots. The game will be fast and exciting!",
-      },
-      {
-        type: 'section',
-        title: "Earn Crypto Tokens While You Play",
-        icon: 'Wallet',
-        text: "Win battles and earn Pari Network crypto tokens as rewards. Your earnings will be safe and secured by smart contracts.",
-      },
-      {
-        type: 'section',
-        title: "What's Next?",
-        icon: 'Star',
-        text: "Soon, new features like tournaments and ranking systems will be added to make the game even more enjoyable.",
-      },
-      {
-        type: 'coming-soon',
-        text: "Coming soon!",
-      }
-    ],
-  },
-  {
-    id: 'news_2',
-    title: "Our Launching Plan: Bringing Innovation to You",
-    date: "Sep 1, 2025",
-    priority: "low",
-    content: [
-      {
-        type: 'paragraph',
-        text: "We are excited to announce that the launch of our project is on the horizon. Our plan is to introduce the application in phases, ensuring thorough testing, user feedback, and continuous improvements."
-      },
-      {
-        type: 'paragraph',
-        text: "The launch will include a special campaign to engage users, share exclusive previews, and highlight the unique features powered by AI, gaming, Web 3.0, and Pari blockchain. We aim to provide a seamless and impactful experience from day one."
-      },
-      {
-        type: 'paragraph',
-        text: "Stay tuned for updates and be ready to explore a new era of digital innovation with us!"
-      }
-    ]
-  },
-  {
-    id: 'news_3',
-    title: "Pari Blockchain Integration in Our Project",
-    date: "Sep 1, 2025",
-    priority: "low",
-    content: [
-        {
-            type: 'paragraph',
-            text: "Our project incorporates the cutting-edge Pari blockchain to power secure, scalable, and decentralized digital solutions. Pari blockchain offers enhanced speed, low transaction costs, and high security, making it ideal for gaming, AI, and Web 3.0 applications."
-        },
-        {
-            type: 'paragraph',
-            text: "By leveraging Pari blockchain, we provide users with true ownership of digital assets, transparent smart contract automation, and reliable data integrity. This integration boosts trust and efficiency in both virtual and real-world use cases."
-        },
-        {
-            type: 'paragraph',
-            text: "Pari blockchain's advanced technology strengthens our project's mission to deliver innovative, user-centric, and future-proof digital experiences."
-        }
-    ]
-  },
-];
-
-
 // --- Firebase Actions ---
 
 export async function seedInitialData() {
@@ -113,20 +35,8 @@ export async function seedInitialData() {
         console.log("Initial tasks seeded.");
     }
     
-    // Seed news
-    const newsRef = collection(db, 'news');
-    const newsSnapshot = await getDocs(newsRef);
-    if (newsSnapshot.empty) {
-        console.log("No news found, seeding initial news...");
-        const batch = writeBatch(db);
-        hardcodedNewsData.forEach(article => {
-            const articleRef = doc(newsRef, article.id);
-            batch.set(articleRef, article);
-        });
-        await batch.commit();
-        console.log("Initial news seeded.");
-    }
-
+    // Seed news - no longer needed as it will be managed from admin panel
+    
     // Seed global settings
     const settingsRef = doc(db, 'settings', 'global');
     const settingsSnapshot = await getDoc(settingsRef);

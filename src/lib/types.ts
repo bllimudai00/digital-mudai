@@ -43,7 +43,7 @@ export type Task = {
 };
 
 export type NewsContentItem = {
-  type: 'paragraph' | 'section' | 'coming-soon';
+  type: 'paragraph' | 'section' | 'coming-soon' | 'heading';
   text: string;
   title?: string;
   icon?: 'Gamepad2' | 'Wallet' | 'Star' | 'Flame';
