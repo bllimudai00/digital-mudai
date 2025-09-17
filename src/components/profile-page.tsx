@@ -26,8 +26,8 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useEffect, useState } from "react";
-import type { UserData } from "@/lib/types";
-import { getUserData } from "@/app/actions";
+import type { UserData, GlobalSettings } from "@/lib/types";
+import { getGlobalSettings, getUserData } from "@/app/actions";
 import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 
@@ -77,7 +77,7 @@ function ProfileMenuItem({
     </div>
   );
   
-  if (href === "#") {
+  if (href === "#" || !href) {
     return <div className="opacity-50 cursor-not-allowed">{linkContent}</div>
   }
 
@@ -126,22 +126,25 @@ function serializeNestedTimestamps(obj: any): any {
 
 export default function ProfilePage() {
   const [userData, setUserData] = useState<UserData | null>(null);
+  const [settings, setSettings] = useState<GlobalSettings | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const FAKE_USER_ID = 'user_placeholder_id';
     
-    // Initial fetch from server action to handle user creation and get serialized data
-    getUserData().then(user => {
-      if (user) {
-        setUserData(user);
-      }
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    const fetchData = async () => {
+        const user = await getUserData();
+        const globalSettings = await getGlobalSettings();
+        if (user) setUserData(user);
+        if (globalSettings) setSettings(globalSettings);
+        setLoading(false);
+    }
+
+    fetchData();
 
     // Real-time updates from client-side snapshot listener
     const userRef = doc(db, 'users', FAKE_USER_ID);
-    const unsubscribe = onSnapshot(userRef, (doc) => {
+    const unsubscribeUser = onSnapshot(userRef, (doc) => {
         if (doc.exists()) {
             const user = doc.data();
             const clientSideSerializedUser = serializeNestedTimestamps(user) as UserData;
@@ -156,10 +159,21 @@ export default function ProfilePage() {
         setLoading(false);
     }, (error) => {
         console.error("Error fetching real-time user data:", error);
-        setLoading(false);
     });
 
-    return () => unsubscribe();
+    const settingsRef = doc(db, 'settings', 'global');
+    const unsubscribeSettings = onSnapshot(settingsRef, (doc) => {
+        if (doc.exists()) {
+            setSettings(doc.data() as GlobalSettings);
+        }
+    }, (error) => {
+        console.error("Error fetching real-time settings:", error);
+    });
+
+    return () => {
+        unsubscribeUser();
+        unsubscribeSettings();
+    };
   }, []);
 
   if (loading || !userData) {
@@ -235,9 +249,9 @@ export default function ProfilePage() {
 
         <Card className="bg-card/80 backdrop-blur-sm">
           <CardContent className="p-4 divide-y divide-border">
-            <ProfileMenuItem icon={<Send className="w-5 h-5 text-muted-foreground" />} label="Official Channel" href="https://t.me/PariNetwork" isExternal />
-            <ProfileMenuItem icon={<MessageSquare className="w-5 h-5 text-muted-foreground" />} label="Join Group Chat" href="https://t.me/PariNetworkGroup" isExternal />
-            <ProfileMenuItem icon={<XIcon />} label="Follow us on X" href="https://x.com/PariNetwork" isExternal />
+            <ProfileMenuItem icon={<Send className="w-5 h-5 text-muted-foreground" />} label="Official Channel" href={settings?.telegramChannelUrl} isExternal />
+            <ProfileMenuItem icon={<MessageSquare className="w-5 h-5 text-muted-foreground" />} label="Join Group Chat" href={settings?.telegramGroupUrl} isExternal />
+            <ProfileMenuItem icon={<XIcon />} label="Follow us on X" href={settings?.xUrl} isExternal />
             <ProfileMenuItem icon={<Wrench className="w-5 h-5 text-muted-foreground" />} label="Get Support" href="/support" />
           </CardContent>
         </Card>

@@ -44,7 +44,11 @@ export async function seedInitialData() {
             totalVipSlots: 20000,
             claimedVipSlots: 1500,
             vipWalletAddress: '0x10FA107AF74434313841FB36F4547ac',
-            vipPrice: 5
+            vipPrice: 5,
+            telegramChannelUrl: 'https://t.me/PariNetwork',
+            telegramGroupUrl: 'https://t.me/PariNetworkGroup',
+            xUrl: 'https://x.com/PariNetwork',
+            supportEmail: 'seemarajput8540@gmail.com'
         });
         console.log("Initial global settings seeded.");
     }
@@ -425,6 +429,8 @@ export async function updateGlobalSettings(settings: Partial<GlobalSettings>) {
         await updateDoc(settingsRef, settings);
         revalidatePath('/admin');
         revalidatePath('/'); // Revalidate home page to reflect new rate
+        revalidatePath('/profile');
+        revalidatePath('/support');
         return { success: true };
     } catch (error: any) {
         console.error("Error updating global settings:", error);

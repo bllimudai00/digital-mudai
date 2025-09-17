@@ -34,6 +34,10 @@ export type GlobalSettings = {
   claimedVipSlots: number;
   vipWalletAddress?: string;
   vipPrice?: number;
+  telegramChannelUrl?: string;
+  telegramGroupUrl?: string;
+  xUrl?: string;
+  supportEmail?: string;
 };
 
 export type Referral = {

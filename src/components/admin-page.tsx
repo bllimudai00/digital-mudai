@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { UserData, NewsArticle, GlobalSettings, Task, LeaderboardEntry, RoadmapPhase, WhitePaperSection, RoadmapItem } from "@/lib/types";
 import { getUserData, getVipRequests, updateVipStatus, getNews, addNews, deleteNews, getUsers, updateUserFromAdmin, deleteUser, getGlobalSettings, updateGlobalSettings, getTasks, deleteTask, addTask, updateTask, getLeaderboard, updateLeaderboardEntry, saveRoadmap, saveWhitePaper } from "@/app/actions";
-import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck, Zap, ListChecks, ExternalLink, Trophy, Map, FileText, GripVertical, Plus, Image as ImageIcon } from "lucide-react";
+import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck, Zap, ListChecks, ExternalLink, Trophy, Map, FileText, GripVertical, Plus, Image as ImageIcon, Link as LinkIcon, Mail } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -492,7 +492,6 @@ function GlobalSettingsSection({ onUpdate }: { onUpdate: () => void}) {
     
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        // Check if the input is a number field before parsing
         if (['baseRate', 'totalVipSlots', 'claimedVipSlots', 'vipPrice'].includes(name)) {
              setSettings(prev => ({ ...prev, [name]: parseFloat(value) || 0 }));
         } else {
@@ -586,6 +585,25 @@ function GlobalSettingsSection({ onUpdate }: { onUpdate: () => void}) {
                             onChange={handleInputChange}
                             className="mt-2"
                         />
+                    </div>
+                    <div className="md:col-span-2 space-y-4">
+                        <h3 className="text-lg font-semibold border-t pt-6 mt-4">Social & Support Links</h3>
+                         <div>
+                            <Label htmlFor="telegramChannelUrl">Telegram Channel URL</Label>
+                            <Input id="telegramChannelUrl" name="telegramChannelUrl" value={settings.telegramChannelUrl || ""} onChange={handleInputChange} className="mt-1" />
+                        </div>
+                        <div>
+                            <Label htmlFor="telegramGroupUrl">Telegram Group URL</Label>
+                            <Input id="telegramGroupUrl" name="telegramGroupUrl" value={settings.telegramGroupUrl || ""} onChange={handleInputChange} className="mt-1" />
+                        </div>
+                        <div>
+                            <Label htmlFor="xUrl">X (Twitter) URL</Label>
+                            <Input id="xUrl" name="xUrl" value={settings.xUrl || ""} onChange={handleInputChange} className="mt-1" />
+                        </div>
+                        <div>
+                            <Label htmlFor="supportEmail">Support Email</Label>
+                            <Input id="supportEmail" name="supportEmail" type="email" value={settings.supportEmail || ""} onChange={handleInputChange} className="mt-1" />
+                        </div>
                     </div>
                 </div>
                  <div className="flex justify-end mt-4">
