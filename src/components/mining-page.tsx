@@ -31,13 +31,15 @@ function StatCard({
   icon,
   label,
   value,
+  className,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
+  className?: string;
 }) {
   return (
-    <Card className="bg-card/80 backdrop-blur-sm p-3">
+    <Card className={`bg-card/80 backdrop-blur-sm p-3 ${className}`}>
       <CardContent className="p-0">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           {icon}
@@ -247,8 +249,7 @@ export default function MiningPage() {
     <div className="bg-background text-foreground min-h-screen flex flex-col font-body">
       <main className="flex-1 p-4 space-y-6 pb-24">
         <div className="grid grid-cols-2 gap-4">
-          <StatCard icon={<LinkIcon className="w-4 h-4" />} label="PARI Balance" value={userData.pariBalance.toFixed(4)} />
-          <StatCard icon={<TrendingUp className="w-4 h-4 text-green-400" />} label="Hash Power" value={`${userData.hashPower}x`} />
+          <StatCard icon={<LinkIcon className="w-4 h-4" />} label="PARI Balance" value={(userData.pariBalance as number).toFixed(4)} className="col-span-2" />
           <StatCard icon={<Zap className="w-4 h-4" />} label="Base Rate" value={`${userData.baseRate.toFixed(2)}/hr`} />
           <StatCard icon={<Flame className="w-4 h-4 text-orange-400" />} label="Streak" value={userData.streak.toString()} />
         </div>
@@ -276,11 +277,11 @@ export default function MiningPage() {
               </div>
             </div>
             {getCardContent()}
-             {miningState === 'mining' && (
-                <div className="relative w-full h-2 overflow-hidden my-2">
-                    <div className="absolute top-1/2 left-0 h-0.5 w-full bg-primary/70 animate-line-across" />
-                    <div className="absolute top-1/2 left-0 h-0.5 w-full bg-accent/70 animate-line-across-reverse" />
-                </div>
+            {miningState === 'mining' && (
+              <div className="relative w-full my-2 h-2 overflow-hidden">
+                  <div className="absolute top-1/2 left-0 h-0.5 w-full bg-primary/70 animate-line-across" />
+                  <div className="absolute top-1/2 left-0 h-0.5 w-full bg-accent/70 animate-line-across-reverse" />
+              </div>
             )}
             <MiningButton />
           </CardContent>
@@ -336,5 +337,3 @@ export default function MiningPage() {
     </div>
   );
 }
-
-    

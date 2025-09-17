@@ -1,6 +1,6 @@
 export type UserData = {
   id: string;
-  pariBalance: number | string;
+  pariBalance: number;
   hashPower: number;
   baseRate: number;
   streak: number;
@@ -50,5 +50,3 @@ export type NewsArticle = {
   priority: 'low' | 'medium' | 'high';
   content: NewsContentItem[];
 };
-
-    
