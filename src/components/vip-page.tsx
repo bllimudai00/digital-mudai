@@ -110,10 +110,6 @@ function UpgradeToVipForm({ userId, vipPrice }: { userId: string, vipPrice: numb
     return (
          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <div>
-              <label className="text-sm text-muted-foreground ml-1 mb-1 block">Payment Amount (USDT)</label>
-              <Input type="text" readOnly value={vipPrice} className="bg-background" />
-            </div>
-            <div>
               <label className="text-sm text-muted-foreground ml-1 mb-1 block">Transaction ID</label>
               <Input 
                 type="text" 
@@ -200,7 +196,7 @@ function VipStatus({ status, userId, walletAddress, vipPrice }: { status: 'none'
                     <p className="text-sm text-muted-foreground">Scan QR Code</p>
                 </div>
             )}
-             <p className="text-xs text-muted-foreground text-center">After payment, go to the "Upgrade" tab to submit your transaction ID.</p>
+             <p className="text-xs text-muted-foreground text-center">After payment, submit your transaction ID for verification.</p>
              <UpgradeToVipForm userId={userId} vipPrice={vipPrice} />
         </div>
     );
