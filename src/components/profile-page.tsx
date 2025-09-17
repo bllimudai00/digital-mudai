@@ -84,6 +84,7 @@ const XIcon = () => (
 
 export default function ProfilePage() {
   const [userData, setUserData] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const FAKE_USER_ID = 'user_placeholder_id';
@@ -92,25 +93,31 @@ export default function ProfilePage() {
     const unsubscribe = onSnapshot(userRef, (doc) => {
         if (doc.exists()) {
             const user = doc.data() as UserData;
-            // This is the sync logic from actions.ts, duplicated for real-time updates
             if (user.vipStatus === 'approved' && !user.vip) {
                 user.vip = true;
             } else if (user.vipStatus !== 'approved' && user.vip) {
                 user.vip = false;
             }
             setUserData(user);
-        } else {
-            // This case should be handled by the initial creation logic in getUserData
-            getUserData().then(newUser => setUserData(newUser));
         }
+        setLoading(false);
     }, (error) => {
         console.error("Error fetching real-time user data:", error);
+        setLoading(false);
+    });
+
+    // Also fetch initial data which handles user creation
+    getUserData().then(user => {
+      if (!userData) { // only set if snapshot hasn't returned yet
+          setUserData(user);
+      }
+      setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
-  if (!userData) {
+  if (loading || !userData) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader className="w-8 h-8 animate-spin text-primary" />

@@ -327,13 +327,27 @@ export async function claimReward(userId: string) {
 
             // Handle referral commission for Level 1
             if (userData.referredBy) {
-                const referrerRef = doc(db, "users", userData.referredBy);
-                const referrerDoc = await transaction.get(referrerRef);
-                if (referrerDoc.exists()) {
+                const referrerRefL1 = doc(db, "users", userData.referredBy);
+                const referrerL1Doc = await transaction.get(referrerRefL1);
+                
+                if (referrerL1Doc.exists()) {
                     const commissionAmountL1 = finalReward * 0.10; // 10% commission
-                    transaction.update(referrerRef, {
+                    transaction.update(referrerRefL1, {
                         pariBalance: increment(commissionAmountL1)
                     });
+
+                    // Handle referral commission for Level 2
+                    const referrerL1Data = referrerL1Doc.data() as UserData;
+                    if (referrerL1Data.referredBy) {
+                        const referrerRefL2 = doc(db, "users", referrerL1Data.referredBy);
+                        const referrerL2Doc = await transaction.get(referrerRefL2);
+                        if(referrerL2Doc.exists()) {
+                            const commissionAmountL2 = finalReward * 0.05; // 5% commission
+                            transaction.update(referrerRefL2, {
+                                pariBalance: increment(commissionAmountL2)
+                            });
+                        }
+                    }
                 }
             }
 
