@@ -59,24 +59,25 @@ function NewsArticleCard({ article }: { article: NewsArticle }) {
     const IconComponent = item.icon ? iconMap[item.icon] : null;
 
     switch(item.type) {
+      case 'heading':
+        return <h4 key={index} className="text-md font-bold text-foreground mt-4 mb-2">{item.text}</h4>;
       case 'paragraph':
         return <p key={index}>{item.text}</p>;
       case 'section':
         return (
           <div key={index}>
-              <div className="flex items-center gap-2 font-semibold text-foreground mb-1">
+              <div className="flex items-center gap-2 font-semibold text-foreground mb-1 mt-4">
                   {IconComponent && <IconComponent className="w-4 h-4" />}
-                  <h4>{item.title}</h4>
-                  {IconComponent && <IconComponent className="w-4 h-4" />}
+                  <h4 className="text-md">{item.title}</h4>
               </div>
               <p>{item.text}</p>
           </div>
         )
       case 'coming-soon':
         return (
-          <p key={index} className="font-semibold text-foreground flex items-center gap-2">
-              <span>{item.text}</span>
+          <p key={index} className="font-semibold text-foreground flex items-center gap-2 mt-4">
               <Flame className="w-4 h-4 text-orange-400" />
+              <span>{item.text}</span>
           </p>
         )
       default:
@@ -90,10 +91,10 @@ function NewsArticleCard({ article }: { article: NewsArticle }) {
       <CardContent className="p-4">
         <div className="flex justify-between items-start mb-2">
           <h3 className="text-lg font-bold pr-2">{article.title}</h3>
-          <Badge variant="outline" className="text-xs capitalize">{article.priority}</Badge>
+          <Badge variant={article.priority === 'high' ? 'destructive' : article.priority === 'medium' ? 'default' : 'secondary'} className="capitalize">{article.priority}</Badge>
         </div>
         <p className="text-xs text-muted-foreground mb-4">{new Date(article.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-        <div className="text-sm text-muted-foreground space-y-4">
+        <div className="text-sm text-muted-foreground space-y-2">
             {article.content.map(renderContentItem)}
         </div>
       </CardContent>
@@ -110,7 +111,17 @@ export default function NewsPage() {
     const newsCollection = collection(db, 'news');
     const unsubscribe = onSnapshot(newsCollection, (snapshot) => {
         const newsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as NewsArticle);
-        const sortedNews = newsList.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        
+        const priorityOrder = { 'high': 1, 'medium': 2, 'low': 3 };
+        const sortedNews = newsList.sort((a, b) => {
+            const priorityA = priorityOrder[a.priority] || 4;
+            const priorityB = priorityOrder[b.priority] || 4;
+            if (priorityA !== priorityB) {
+                return priorityA - priorityB;
+            }
+            return new Date(b.date).getTime() - new Date(a.date).getTime();
+        });
+
         setNews(sortedNews);
         setLoading(false);
     }, (error) => {

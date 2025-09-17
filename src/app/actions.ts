@@ -3,7 +3,7 @@
 import { doc, updateDoc, arrayUnion, getDoc, runTransaction, increment, collection, getDocs, writeBatch, setDoc, query, where, addDoc, deleteDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/firebase/firestore';
-import type { UserData, Referral, Task, NewsArticle, GlobalSettings } from '@/lib/types';
+import type { UserData, Referral, Task, NewsArticle, GlobalSettings, NewsContentItem } from '@/lib/types';
 
 // This is a placeholder for a real user ID
 const FAKE_USER_ID = 'user_placeholder_id';
@@ -112,7 +112,7 @@ export async function getUserData(): Promise<UserData | null> {
 
         if (userData.vipStatus === 'approved' && !userData.vip) {
             updates.vip = true;
-            needsUpdate = true;
+needsUpdate = true;
         } else if (userData.vipStatus !== 'approved' && userData.vip) {
             updates.vip = false;
             needsUpdate = true;
@@ -453,9 +453,18 @@ export async function getNews(): Promise<NewsArticle[]> {
             return [];
         }
         const newsList = newsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as NewsArticle);
-        // Sort by date if needed, assuming date format is sortable (e.g., YYYY-MM-DD)
-        // For "Sep 4, 2025" format, a custom sort is needed.
-        return newsList.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        
+        // Sort by priority then date
+        const priorityOrder = { 'high': 1, 'medium': 2, 'low': 3 };
+        return newsList.sort((a, b) => {
+            const priorityA = priorityOrder[a.priority] || 4;
+            const priorityB = priorityOrder[b.priority] || 4;
+            if (priorityA !== priorityB) {
+                return priorityA - priorityB;
+            }
+            return new Date(b.date).getTime() - new Date(a.date).getTime();
+        });
+
     } catch (error) {
         console.error("Error fetching news:", error);
         return [];

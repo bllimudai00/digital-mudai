@@ -17,6 +17,7 @@ import { Label } from "./ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./ui/alert-dialog";
 import { onSnapshot, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 
 function StatCard({ title, value, icon }: { title: string, value: string | number, icon: React.ReactNode }) {
@@ -115,6 +116,7 @@ function NewsManagementSection({ onUpdate }: { onUpdate: () => void }) {
     const [loading, setLoading] = useState(true);
     const [newTitle, setNewTitle] = useState("");
     const [newContent, setNewContent] = useState("");
+    const [newPriority, setNewPriority] = useState<'low' | 'medium' | 'high'>('low');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { toast } = useToast();
 
@@ -122,7 +124,17 @@ function NewsManagementSection({ onUpdate }: { onUpdate: () => void }) {
         const newsCollection = collection(db, 'news');
         const unsubscribe = onSnapshot(newsCollection, (snapshot) => {
             const newsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as NewsArticle);
-            const sortedNews = newsList.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            
+            const priorityOrder = { 'high': 1, 'medium': 2, 'low': 3 };
+            const sortedNews = newsList.sort((a, b) => {
+                const priorityA = priorityOrder[a.priority] || 4;
+                const priorityB = priorityOrder[b.priority] || 4;
+                if (priorityA !== priorityB) {
+                    return priorityA - priorityB;
+                }
+                return new Date(b.date).getTime() - new Date(a.date).getTime();
+            });
+
             setNews(sortedNews);
             setLoading(false);
         }, (error) => {
@@ -137,12 +149,38 @@ function NewsManagementSection({ onUpdate }: { onUpdate: () => void }) {
         const result = await deleteNews(articleId);
         if (result.success) {
             toast({ title: "Success", description: "News article deleted." });
-            onUpdate(); // Trigger global refresh if needed
+            onUpdate(); 
         } else {
             toast({ title: "Error", description: result.error, variant: "destructive" });
         }
     };
 
+    const parseContent = (content: string): NewsContentItem[] => {
+        const lines = content.split('\n').filter(line => line.trim() !== '');
+        const items: NewsContentItem[] = [];
+
+        for (const line of lines) {
+            if (line.startsWith('# ')) {
+                items.push({ type: 'heading', text: line.substring(2) });
+            } else if (line.startsWith('[COMING-SOON]')) {
+                items.push({ type: 'coming-soon', text: line.substring(14) });
+            } else if (line.startsWith('[ICON:')) {
+                const match = line.match(/\[ICON: (Wallet|Gamepad2|Star|Flame)\]\[TITLE: (.*?)\] (.*)/);
+                if (match) {
+                    items.push({
+                        type: 'section',
+                        icon: match[1] as 'Wallet' | 'Gamepad2' | 'Star' | 'Flame',
+                        title: match[2],
+                        text: match[3],
+                    });
+                }
+            } else {
+                items.push({ type: 'paragraph', text: line });
+            }
+        }
+        return items;
+    };
+    
     const handleAddNews = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newTitle || !newContent) {
@@ -152,16 +190,11 @@ function NewsManagementSection({ onUpdate }: { onUpdate: () => void }) {
 
         setIsSubmitting(true);
         
-        const contentItems: NewsContentItem[] = newContent.split('\n').filter(line => line.trim() !== '').map(line => {
-            if (line.startsWith('# ')) {
-                return { type: 'heading', text: line.substring(2) };
-            }
-            return { type: 'paragraph', text: line };
-        });
+        const contentItems = parseContent(newContent);
 
         const article = {
             title: newTitle,
-            priority: 'low' as 'low',
+            priority: newPriority,
             content: contentItems,
             date: new Date().toISOString()
         };
@@ -170,6 +203,7 @@ function NewsManagementSection({ onUpdate }: { onUpdate: () => void }) {
             toast({ title: "Success", description: "News article added." });
             setNewTitle("");
             setNewContent("");
+            setNewPriority("low");
             onUpdate();
         } else {
             toast({ title: "Error", description: result.error, variant: "destructive" });
@@ -193,13 +227,24 @@ function NewsManagementSection({ onUpdate }: { onUpdate: () => void }) {
                             required
                             className="bg-card"
                         />
-                        <Textarea
-                            placeholder="Article Content. Use '# ' for headings. Each new line is a new paragraph."
+                         <Textarea
+                            placeholder="Article Content... Use formatting rules from docs."
                             value={newContent}
                             onChange={(e) => setNewContent(e.target.value)}
                             required
-                            className="bg-card h-32"
+                            className="bg-card h-40"
                         />
+                         <Select onValueChange={(value: 'low' | 'medium' | 'high') => setNewPriority(value)} defaultValue="low">
+                            <SelectTrigger>
+                                <SelectValue placeholder="Set priority" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="low">Low Priority</SelectItem>
+                                <SelectItem value="medium">Medium Priority</SelectItem>
+                                <SelectItem value="high">High Priority</SelectItem>
+                            </SelectContent>
+                        </Select>
+
                         <Button type="submit" disabled={isSubmitting}>
                             {isSubmitting ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : <PlusCircle className="w-4 h-4 mr-2" />}
                             {isSubmitting ? "Adding..." : "Add Article"}
@@ -215,7 +260,10 @@ function NewsManagementSection({ onUpdate }: { onUpdate: () => void }) {
                             {news.map((article) => (
                                 <li key={article.id} className="p-3 bg-background rounded-lg flex justify-between items-center gap-4">
                                     <div>
-                                        <p className="font-bold">{article.title}</p>
+                                        <p className="font-bold flex items-center gap-2">
+                                            {article.title}
+                                            <Badge variant={article.priority === 'high' ? 'destructive' : article.priority === 'medium' ? 'default' : 'secondary'} className="capitalize">{article.priority}</Badge>
+                                        </p>
                                         <p className="text-xs text-muted-foreground">{new Date(article.date).toLocaleDateString()}</p>
                                     </div>
                                     <Button size="icon" variant="destructive" onClick={() => handleDelete(article.id)}>
