@@ -246,8 +246,8 @@ export default function ProfilePage() {
 
         <Card className="bg-card/80 backdrop-blur-sm">
           <CardContent className="p-4 divide-y divide-border">
-            <ProfileMenuItem icon={<Shield className="w-5 h-5 text-muted-foreground" />} label="Privacy Policy" />
-            <ProfileMenuItem icon={<FileJson className="w-5 h-5 text-muted-foreground" />} label="Terms of Service" />
+            <ProfileMenuItem icon={<Shield className="w-5 h-5 text-muted-foreground" />} label="Privacy Policy" href="/privacy-policy" />
+            <ProfileMenuItem icon={<FileJson className="w-5 h-5 text-muted-foreground" />} label="Terms of Service" href="/terms-of-service" />
           </CardContent>
         </Card>
 
