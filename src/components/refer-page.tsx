@@ -160,7 +160,7 @@ export default function ReferPage() {
           <StatCard
             icon={<Users className="w-8 h-8 text-primary" />}
             label="Active Referrals"
-            value={referrals.length.toString()}
+            value={(userData?.referrals?.length || 0).toString()}
           />
           <StatCard
             icon={<BarChart className="w-8 h-8 text-accent" />}
@@ -292,3 +292,4 @@ export default function ReferPage() {
       </footer>
     </div>
   );
+}
