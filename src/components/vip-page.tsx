@@ -322,8 +322,8 @@ export default function VipPage() {
             />
             <BenefitCard
               icon={<Droplets className="w-6 h-6 text-purple-400" />}
-              title="Extra Airdrop Allocation"
-              description="Priority support and special airdrop allocation"
+              title="Early Airdrop Access"
+              description="Early access & special allocation in future airdrops"
               className="bg-purple-900/30 border-purple-500/30"
             />
              <Card className="bg-card/80 backdrop-blur-sm p-4">
