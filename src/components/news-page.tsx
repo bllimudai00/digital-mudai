@@ -170,7 +170,7 @@ export default function NewsPage() {
           <BottomNavItem icon={<Zap className="w-6 h-6" />} label="Mining" href="/" />
           <BottomNavItem icon={<Newspaper className="w-6 h-6" />} label="News" href="/news" isActive />
           <BottomNavItem icon={<ListChecks className="w-6 h-6" />} label="Tasks" href="/tasks" />
-          <BottomNavItem icon={<Gift className="w-6 h-6" />} label="Refer" href="#" />
+          <BottomNavItem icon={<Gift className="w-6 h-6" />} label="Refer" href="/refer" />
           <BottomNavItem icon={<User className="w-6 h-6" />} label="Profile" href="#" />
         </div>
       </footer>

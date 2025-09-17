@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 function StatCard({
   icon,
@@ -139,7 +140,7 @@ export default function MiningPage() {
           <BottomNavItem icon={<Zap className="w-6 h-6" />} label="Mining" href="/" isActive />
           <BottomNavItem icon={<Newspaper className="w-6 h-6" />} label="News" href="/news" />
           <BottomNavItem icon={<ListChecks className="w-6 h-6" />} label="Tasks" href="/tasks" />
-          <BottomNavItem icon={<Gift className="w-6 h-6" />} label="Refer" href="#" />
+          <BottomNavItem icon={<Gift className="w-6 h-6" />} label="Refer" href="/refer" />
           <BottomNavItem icon={<User className="w-6 h-6" />} label="Profile" href="#" />
         </div>
       </footer>
