@@ -27,6 +27,7 @@ import {
   ListChecks,
   Gift,
   User,
+  Upload,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -182,8 +183,19 @@ export default function VipPage() {
                     <p className="text-sm text-muted-foreground">Scan QR Code</p>
                 </div>
               </TabsContent>
-              <TabsContent value="proof" className="mt-6">
-                <p className="text-center text-muted-foreground">Submit proof of payment here.</p>
+              <TabsContent value="proof" className="mt-6 space-y-4">
+                <div>
+                  <label className="text-sm text-muted-foreground ml-1 mb-1 block">Payment Amount (USDT)</label>
+                  <Input type="text" readOnly value="5" className="bg-background" />
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground ml-1 mb-1 block">Transaction ID</label>
+                  <Input type="text" placeholder="Enter transaction hash/ID" className="bg-background" />
+                </div>
+                <Button size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
+                  <Upload className="w-4 h-4 mr-2" />
+                  Submit for Verification
+                </Button>
               </TabsContent>
             </Tabs>
           </CardContent>
