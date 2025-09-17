@@ -492,7 +492,7 @@ function GlobalSettingsSection({ onUpdate }: { onUpdate: () => void}) {
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         // Check if the input is a number field before parsing
-        if (['baseRate', 'totalVipSlots', 'claimedVipSlots'].includes(name)) {
+        if (['baseRate', 'totalVipSlots', 'claimedVipSlots', 'vipPrice'].includes(name)) {
              setSettings(prev => ({ ...prev, [name]: parseFloat(value) || 0 }));
         } else {
              setSettings(prev => ({ ...prev, [name]: value }));
@@ -538,6 +538,17 @@ function GlobalSettingsSection({ onUpdate }: { onUpdate: () => void}) {
                             name="baseRate"
                             type="number"
                             value={settings.baseRate || 0}
+                            onChange={handleInputChange}
+                            className="mt-2"
+                        />
+                    </div>
+                     <div>
+                        <Label htmlFor="vipPrice">VIP Price (USDT)</Label>
+                        <Input 
+                            id="vipPrice"
+                            name="vipPrice"
+                            type="number"
+                            value={settings.vipPrice || 0}
                             onChange={handleInputChange}
                             className="mt-2"
                         />

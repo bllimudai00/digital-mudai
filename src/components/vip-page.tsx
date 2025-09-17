@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Bell,
   Star,
   ShieldCheck,
   Zap,
@@ -23,51 +22,24 @@ import {
   Crown,
   Copy,
   HelpCircle,
-  Newspaper,
-  ListChecks,
-  Gift,
-  User,
   Upload,
   Loader,
   BadgeCheck,
   Clock,
   XCircle,
   Users,
+  ArrowLeft
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Input } from "./ui/input";
 import React, { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { submitVipProof, getGlobalSettings } from "@/app/actions";
+import { submitVipProof } from "@/app/actions";
 import { UserData, GlobalSettings } from "@/lib/types";
 import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 import { Progress } from "./ui/progress";
-
-function BottomNavItem({
-  icon,
-  label,
-  href,
-  isActive = false,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  href: string;
-  isActive?: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      className={`flex flex-col items-center gap-1 ${
-        isActive ? "text-primary" : "text-muted-foreground"
-      }`}
-    >
-      {icon}
-      <span className="text-xs">{label}</span>
-    </Link>
-  );
-}
 
 function BenefitCard({
   icon,
@@ -96,7 +68,7 @@ function BenefitCard({
 const faqData = [
     {
         question: "How do I upgrade to VIP?",
-        answer: "Send the specified USDT amount to the wallet address above, then submit your Transaction ID for manual verification."
+        answer: "Send the specified USDT amount to the wallet address, then come back to the 'Upgrade' tab and submit your Transaction ID for manual verification."
     },
     {
         question: "How long does verification take?",
@@ -112,7 +84,7 @@ const faqData = [
     }
 ]
 
-function UpgradeToVipForm({ userId }: { userId: string }) {
+function UpgradeToVipForm({ userId, vipPrice }: { userId: string, vipPrice: number }) {
     const [transactionId, setTransactionId] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
@@ -139,7 +111,7 @@ function UpgradeToVipForm({ userId }: { userId: string }) {
          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <div>
               <label className="text-sm text-muted-foreground ml-1 mb-1 block">Payment Amount (USDT)</label>
-              <Input type="text" readOnly value="5" className="bg-background" />
+              <Input type="text" readOnly value={vipPrice} className="bg-background" />
             </div>
             <div>
               <label className="text-sm text-muted-foreground ml-1 mb-1 block">Transaction ID</label>
@@ -160,7 +132,7 @@ function UpgradeToVipForm({ userId }: { userId: string }) {
     )
 }
 
-function VipStatus({ status, userId, walletAddress }: { status: 'none' | 'pending' | 'approved' | 'rejected', userId: string, walletAddress: string }) {
+function VipStatus({ status, userId, walletAddress, vipPrice }: { status: 'none' | 'pending' | 'approved' | 'rejected', userId: string, walletAddress: string, vipPrice: number }) {
     
     const { toast } = useToast();
     const copyToClipboard = (text: string) => {
@@ -195,14 +167,9 @@ function VipStatus({ status, userId, walletAddress }: { status: 'none' | 'pendin
 
     // Default view for 'none' or 'rejected'
     return (
-        <Tabs defaultValue="payment">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="payment">Payment</TabsTrigger>
-            <TabsTrigger value="proof">Submit Proof</TabsTrigger>
-          </TabsList>
-          <TabsContent value="payment" className="mt-6 space-y-6">
+        <div className="space-y-6">
             <div className="text-center bg-muted/50 p-4 rounded-lg">
-                <p className="text-3xl font-bold text-accent">$5 USDT</p>
+                <p className="text-3xl font-bold text-accent">${vipPrice} USDT</p>
                 <p className="text-sm text-muted-foreground">Permanent VIP Membership</p>
             </div>
             {status === 'rejected' && (
@@ -233,11 +200,9 @@ function VipStatus({ status, userId, walletAddress }: { status: 'none' | 'pendin
                     <p className="text-sm text-muted-foreground">Scan QR Code</p>
                 </div>
             )}
-          </TabsContent>
-          <TabsContent value="proof">
-            <UpgradeToVipForm userId={userId} />
-          </TabsContent>
-        </Tabs>
+             <p className="text-xs text-muted-foreground text-center">After payment, go to the "Upgrade" tab to submit your transaction ID.</p>
+             <UpgradeToVipForm userId={userId} vipPrice={vipPrice} />
+        </div>
     );
 }
 
@@ -285,116 +250,88 @@ export default function VipPage() {
   const totalSlots = settings?.totalVipSlots || 1;
   const progressPercentage = (claimedSlots / totalSlots) * 100;
   const walletAddress = settings?.vipWalletAddress || "0x10FA107AF74434313841FB36F4547ac";
+  const vipPrice = settings?.vipPrice || 5;
 
   return (
     <div className="bg-background text-foreground min-h-screen flex flex-col font-body">
-        <header className="flex justify-between items-center p-4">
-            <div className="flex items-center gap-2">
-                <Zap className="w-6 h-6 text-primary" />
-                <h1 className="text-xl font-bold">PARI NETWORK</h1>
-            </div>
-            <Button variant="outline" size="sm">
-                <Bell className="w-4 h-4 mr-2" />
-                Alerts On
-            </Button>
-        </header>
+        <header className="flex items-center p-4 sticky top-0 bg-background/80 backdrop-blur-sm z-10">
+          <Button asChild variant="ghost" size="icon">
+            <Link href="/">
+              <ArrowLeft />
+            </Link>
+          </Button>
+          <h1 className="text-xl font-bold text-center flex-1">VIP Membership</h1>
+          <div className="w-8"></div>
+      </header>
 
-      <main className="flex-1 p-4 space-y-6 pb-24">
-        <Card className="bg-transparent border-0 shadow-none">
-          <CardHeader className="p-0 mb-4">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Star className="w-5 h-5 text-accent" />
-              VIP Benefits
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0 space-y-3">
-            <BenefitCard
+      <main className="flex-1 p-4 space-y-6">
+        <Tabs defaultValue="benefits">
+          <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="benefits">Benefits</TabsTrigger>
+              <TabsTrigger value="upgrade">Upgrade</TabsTrigger>
+              <TabsTrigger value="faq">FAQ</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="benefits" className="mt-6 space-y-3">
+              <BenefitCard
               icon={<ShieldCheck className="w-6 h-6 text-blue-400" />}
               title="Verified Status"
               description="Blue tick with profile"
               className="bg-blue-900/30 border-blue-500/30"
-            />
-            <BenefitCard
-              icon={<Zap className="w-6 h-6 text-green-400" />}
-              title="Double Mining Speed"
-              description="Double your mining rewards permanently"
-              className="bg-green-900/30 border-green-500/30"
-            />
-            <BenefitCard
-              icon={<Droplets className="w-6 h-6 text-purple-400" />}
-              title="Early Airdrop Access"
-              description="Early access & special allocation in future airdrops"
-              className="bg-purple-900/30 border-purple-500/30"
-            />
-             <Card className="bg-card/80 backdrop-blur-sm p-4">
-                <CardContent className="p-0">
-                    <div className="mt-4">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                            <Users className="w-4 h-4" />
-                            <span>FCFS Limited Slots</span>
-                        </div>
-                    <Progress value={progressPercentage} className="h-2 bg-muted" />
-                    <div className="text-right text-sm text-muted-foreground mt-1">{claimedSlots} / {totalSlots}</div>
-                    </div>
-                </CardContent>
-            </Card>
-          </CardContent>
-        </Card>
+              />
+              <BenefitCard
+                  icon={<Zap className="w-6 h-6 text-green-400" />}
+                  title="Double Mining Speed"
+                  description="Double your mining rewards permanently"
+                  className="bg-green-900/30 border-green-500/30"
+              />
+              <BenefitCard
+                  icon={<Droplets className="w-6 h-6 text-purple-400" />}
+                  title="Early Airdrop Access"
+                  description="Early access & special allocation in future airdrops"
+                  className="bg-purple-900/30 border-purple-500/30"
+              />
+              <Card className="bg-card/80 backdrop-blur-sm p-4">
+                  <CardContent className="p-0">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                          <Users className="w-4 h-4" />
+                          <span>FCFS Limited Slots</span>
+                      </div>
+                      <Progress value={progressPercentage} className="h-2 bg-muted" />
+                      <div className="text-right text-sm text-muted-foreground mt-1">{claimedSlots} / {totalSlots}</div>
+                  </CardContent>
+              </Card>
+          </TabsContent>
 
-        <Card className="bg-card/80 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Crown className="w-5 h-5 text-accent" />
-              Upgrade to VIP
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {userData && settings ? (
-                <VipStatus 
-                    status={userData.vipStatus || 'none'} 
-                    userId={userData.id}
-                    walletAddress={walletAddress}
-                />
-            ) : (
-                <div className="flex justify-center items-center p-8">
-                    <Loader className="w-8 h-8 animate-spin" />
-                </div>
-            )}
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-card/80 backdrop-blur-sm">
-            <CardHeader>
-                 <CardTitle className="flex items-center gap-2 text-lg">
-                    <HelpCircle className="w-5 h-5 text-primary" />
-                    VIP FAQ & Support
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-                <Accordion type="single" collapsible>
-                    {faqData.map((item, index) => (
-                        <AccordionItem key={index} value={`item-${index}`}>
-                            <AccordionTrigger className="text-green-400 text-left">{item.question}</AccordionTrigger>
-                            <AccordionContent className="text-muted-foreground">
-                                {item.answer}
-                            </AccordionContent>
-                        </AccordionItem>
-                    ))}
-                </Accordion>
-            </CardContent>
-        </Card>
-
+          <TabsContent value="upgrade" className="mt-6">
+              {userData && settings ? (
+                  <VipStatus 
+                      status={userData.vipStatus || 'none'} 
+                      userId={userData.id}
+                      walletAddress={walletAddress}
+                      vipPrice={vipPrice}
+                  />
+              ) : (
+                  <div className="flex justify-center items-center p-8">
+                      <Loader className="w-8 h-8 animate-spin" />
+                  </div>
+              )}
+          </TabsContent>
+          
+          <TabsContent value="faq" className="mt-6">
+              <Accordion type="single" collapsible>
+                  {faqData.map((item, index) => (
+                      <AccordionItem key={index} value={`item-${index}`}>
+                          <AccordionTrigger className="text-primary text-left">{item.question}</AccordionTrigger>
+                          <AccordionContent className="text-muted-foreground">
+                              {item.answer}
+                          </AccordionContent>
+                      </AccordionItem>
+                  ))}
+              </Accordion>
+          </TabsContent>
+        </Tabs>
       </main>
-
-      <footer className="fixed bottom-0 left-0 right-0 bg-card/80 backdrop-blur-sm border-t p-2">
-        <div className="flex justify-around">
-          <BottomNavItem icon={<Zap className="w-6 h-6" />} label="Mining" href="/" />
-          <BottomNavItem icon={<Newspaper className="w-6 h-6" />} label="News" href="/news" />
-          <BottomNavItem icon={<ListChecks className="w-6 h-6" />} label="Tasks" href="/tasks" />
-          <BottomNavItem icon={<Gift className="w-6 h-6" />} label="Refer" href="/refer" />
-          <BottomNavItem icon={<User className="w-6 h-6" />} label="Profile" href="/profile" />
-        </div>
-      </footer>
     </div>
   );
 }
