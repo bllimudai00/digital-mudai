@@ -227,6 +227,7 @@ function EditUserDialog({ user, isOpen, onOpenChange, onUserUpdate }: { user: Us
                 name: user.name,
                 email: user.email,
                 pariBalance: user.pariBalance,
+                baseRate: user.baseRate,
             });
         }
     }, [user]);
@@ -235,7 +236,7 @@ function EditUserDialog({ user, isOpen, onOpenChange, onUserUpdate }: { user: Us
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        setEditedUser(prev => ({ ...prev, [name]: name === 'pariBalance' ? parseFloat(value) || 0 : value }));
+        setEditedUser(prev => ({ ...prev, [name]: name === 'pariBalance' || name === 'baseRate' ? parseFloat(value) || 0 : value }));
     };
 
     const handleSave = async () => {
@@ -270,6 +271,10 @@ function EditUserDialog({ user, isOpen, onOpenChange, onUserUpdate }: { user: Us
                         <Label htmlFor="pariBalance" className="text-right">PARI Balance</Label>
                         <Input id="pariBalance" name="pariBalance" type="number" value={editedUser.pariBalance || 0} onChange={handleInputChange} className="col-span-3" />
                     </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="baseRate" className="text-right">Base Rate</Label>
+                        <Input id="baseRate" name="baseRate" type="number" value={editedUser.baseRate || 0} onChange={handleInputChange} className="col-span-3" />
+                    </div>
                 </div>
                 <DialogFooter>
                     <DialogClose asChild>
@@ -297,9 +302,9 @@ function DeleteUserDialog({ user, isOpen, onOpenChange, onUserDelete }: { user: 
         if (result.success) {
             toast({ title: "Success", description: "User deleted successfully." });
             onUserDelete();
+            onOpenChange(false);
         } else {
             toast({ title: "Error", description: result.error || "Failed to delete user.", variant: "destructive" });
-            onOpenChange(false);
         }
     };
 
