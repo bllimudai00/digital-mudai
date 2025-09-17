@@ -81,11 +81,9 @@ const WhatsAppIcon = () => (
 )
 
 function PodiumSpot({ rank, user, heightClass, bgColor, medal }: { rank: number, user: LeaderboardEntry, heightClass: string, bgColor: string, medal: string }) {
-    if (!user) return <div className={`flex-1 ${heightClass}`}></div>;
-
     return (
-        <div className="flex-1 flex flex-col items-center justify-end">
-            <div className="relative">
+        <div className="flex-1 flex flex-col items-center justify-end mx-1">
+            <div className="relative mb-2">
                 <Avatar className="w-16 h-16 border-4 border-background">
                     <AvatarImage src={`https://picsum.photos/seed/${user.userId}/100`} />
                     <AvatarFallback>{user.name.substring(0, 2)}</AvatarFallback>
@@ -94,13 +92,13 @@ function PodiumSpot({ rank, user, heightClass, bgColor, medal }: { rank: number,
                     {medal}
                 </div>
             </div>
-            <p className="font-bold text-white mt-2 text-center text-sm">{user.name}</p>
+            <p className="font-bold text-white mt-1 text-center text-sm truncate w-20">{user.name}</p>
             <p className="text-xs text-muted-foreground font-semibold">{user.referralCount} Referrals</p>
             <div className={`w-full ${heightClass} ${bgColor} rounded-t-lg mt-2 flex items-center justify-center p-2`}>
                 <p className="text-2xl font-bold text-white">{rank}</p>
             </div>
         </div>
-    )
+    );
 }
 
 export default function ReferPage() {
@@ -113,16 +111,16 @@ export default function ReferPage() {
   useEffect(() => {
     const FAKE_USER_ID = 'user_placeholder_id';
     
-    const fetchInitialData = async () => {
+    const fetchAndSetData = async () => {
         setLoading(true);
-        const data = await getInitialUserData();
-        setUserData(data.user);
-        setReferrals(data.referrals);
-        setLeaderboard(data.leaderboard);
+        const initialData = await getInitialUserData();
+        setUserData(initialData.user);
+        setReferrals(initialData.referrals);
+        setLeaderboard(initialData.leaderboard);
         setLoading(false);
     }
     
-    fetchInitialData();
+    fetchAndSetData();
 
     const userRef = doc(db, 'users', FAKE_USER_ID);
     const unsubscribeUser = onSnapshot(userRef, async (doc) => {
@@ -140,8 +138,10 @@ export default function ReferPage() {
 
     const leaderboardCollection = collection(db, 'leaderboard');
     const unsubscribeLeaderboard = onSnapshot(leaderboardCollection, async () => {
+        setLoading(true);
         const updatedLeaderboard = await getLeaderboard();
         setLeaderboard(updatedLeaderboard);
+        setLoading(false);
     });
 
     return () => {
@@ -168,7 +168,7 @@ export default function ReferPage() {
 
   const referralLink = userData ? `https://parinetwork.com/join?ref=${userData.referralCode}` : "";
   
-  if (loading) {
+  if (!userData) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader className="w-8 h-8 animate-spin text-primary" />
@@ -191,11 +191,17 @@ export default function ReferPage() {
                     <Link href="/referral-contest">View All</Link>
                  </Button>
             </div>
-            <div className="mt-4 flex gap-2 items-end justify-center min-h-[220px]">
-                {top2 && <PodiumSpot rank={2} user={top2} heightClass="h-24" bgColor="bg-slate-500" medal="🥈" />}
-                {top1 && <PodiumSpot rank={1} user={top1} heightClass="h-32" bgColor="bg-amber-500" medal="🥇" />}
-                {top3 && <PodiumSpot rank={3} user={top3} heightClass="h-20" bgColor="bg-orange-700" medal="🥉" />}
-            </div>
+            {loading ? (
+                <div className="flex justify-center items-center min-h-[220px]">
+                    <Loader className="w-8 h-8 animate-spin" />
+                </div>
+            ) : (
+                <div className="mt-4 flex items-end justify-center min-h-[220px]">
+                    {top2 && <PodiumSpot rank={2} user={top2} heightClass="h-24" bgColor="bg-slate-500" medal="🥈" />}
+                    {top1 && <PodiumSpot rank={1} user={top1} heightClass="h-32" bgColor="bg-amber-500" medal="🥇" />}
+                    {top3 && <PodiumSpot rank={3} user={top3} heightClass="h-20" bgColor="bg-orange-700" medal="🥉" />}
+                </div>
+            )}
           </CardContent>
         </Card>
 
@@ -354,5 +360,3 @@ export default function ReferPage() {
     </div>
   );
 }
-
-    
