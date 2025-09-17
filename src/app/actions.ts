@@ -185,9 +185,7 @@ export async function getUserData(): Promise<UserData | null> {
         const newUser: UserData = {
             id: FAKE_USER_ID,
             pariBalance: 10.00,
-            hashPower: 1,
             baseRate: 10.00,
-            streak: 16,
             referrals: [],
             tasks: [],
             vip: false,
@@ -540,5 +538,7 @@ export async function deleteUser(userId: string) {
         return { success: false, error: error.message };
     }
 }
+
+    
 
     
