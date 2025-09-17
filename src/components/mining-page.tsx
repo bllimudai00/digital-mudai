@@ -295,7 +295,7 @@ export default function MiningPage() {
         <div className="grid grid-cols-2 gap-4">
           <StatCard icon={<LinkIcon className="w-4 h-4" />} label="PARI Balance" value={(userData.pariBalance as number).toFixed(4)} className="col-span-2" />
           <StatCard icon={<Zap className="w-4 h-4" />} label="Base Rate" value={`${userData.baseRate.toFixed(2)}/hr`} />
-          <StatCard icon={<TrendingUp className="w-4 h-4 text-orange-400" />} label="Sessions" value={(userData.miningHistory?.length || 0).toString()} />
+          <StatCard icon={<TrendingUp className="w-4 h-4 text-orange-400" />} label="Sessions" value={(userData.history?.filter(h => h.type === 'mining').length || 0).toString()} />
         </div>
 
         <Card className="bg-card/80 backdrop-blur-sm text-center p-6 space-y-4">

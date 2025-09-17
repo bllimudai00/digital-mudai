@@ -201,7 +201,7 @@ export default function ProfilePage() {
           <CardContent className="p-4 divide-y divide-border">
             <ProfileMenuItem icon={<Trophy className="w-5 h-5 text-primary" />} label="Referral Contest" href="/referral-contest" />
             <ProfileMenuItem icon={<ShieldCheck className="w-5 h-5 text-primary" />} label="VIP Membership" href="/vip" />
-            <ProfileMenuItem icon={<History className="w-5 h-5 text-primary" />} label="Mining History" href="/mining-history" />
+            <ProfileMenuItem icon={<History className="w-5 h-5 text-primary" />} label="History" href="/history" />
             <ProfileMenuItem icon={<Users className="w-5 h-5 text-primary" />} label="My Referrals" href="/refer" />
             <ProfileMenuItem icon={<Settings className="w-5 h-5 text-primary" />} label="Account Settings" />
           </CardContent>

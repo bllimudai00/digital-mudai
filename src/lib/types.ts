@@ -1,5 +1,12 @@
 import { Timestamp } from "firebase/firestore";
 
+export type Transaction = {
+    type: 'mining' | 'task';
+    title: string;
+    amount: number;
+    claimedAt: string | Timestamp;
+};
+
 export type UserData = {
   id: string;
   pariBalance: number;
@@ -14,7 +21,7 @@ export type UserData = {
   email: string;
   createdAt: string | Timestamp; // Allow both for server/client
   sessionEndTime: number | null;
-  miningHistory: { amount: number; claimedAt: string | Timestamp }[]; // Allow both for server/client
+  history: Transaction[]; 
   vipStatus: 'none' | 'pending' | 'approved' | 'rejected';
   vipTransactionId?: string;
   vipProofSubmittedAt?: string | Timestamp; // Allow both for server/client

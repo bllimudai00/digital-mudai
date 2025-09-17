@@ -167,7 +167,7 @@ needsUpdate = true;
             email: 'seemarajput8540@gmail.com',
             createdAt: new Date().toISOString(),
             sessionEndTime: null,
-            miningHistory: [],
+            history: [],
             vipStatus: 'none',
             isAdmin: true,
             referredBy: 'super_referrer_placeholder_id'
@@ -240,6 +240,7 @@ export async function claimTaskReward(userId: string, taskId: string) {
 
     try {
         let reward = 0;
+        let taskTitle = "";
 
         const error = await runTransaction(db, async (transaction) => {
             const userDoc = await transaction.get(userRef);
@@ -252,6 +253,7 @@ export async function claimTaskReward(userId: string, taskId: string) {
             const userData = userDoc.data() as UserData;
             const taskData = taskDoc.data() as Task;
             reward = taskData.reward;
+            taskTitle = taskData.title;
 
             if (userData.tasks.includes(taskId)) {
                 return "Task already completed.";
@@ -264,10 +266,18 @@ export async function claimTaskReward(userId: string, taskId: string) {
                 }
             }
             
+            const newHistoryItem = {
+                type: 'task',
+                title: taskTitle,
+                amount: reward,
+                claimedAt: new Date().toISOString()
+            };
+
             // If all checks pass, update user document
             transaction.update(userRef, {
-                pariBalance: increment(taskData.reward),
-                tasks: arrayUnion(taskId)
+                pariBalance: increment(reward),
+                tasks: arrayUnion(taskId),
+                history: arrayUnion(newHistoryItem)
             });
             
             return null; // No error
@@ -279,6 +289,8 @@ export async function claimTaskReward(userId: string, taskId: string) {
 
         revalidatePath('/tasks');
         revalidatePath('/');
+        revalidatePath('/history');
+
         return { success: true, reward };
 
     } catch (e: any) {
@@ -326,6 +338,8 @@ export async function claimReward(userId: string) {
 
             // Update user's balance and history
             const newHistoryItem = {
+                type: 'mining',
+                title: 'Mining Session Reward',
                 amount: finalReward,
                 claimedAt: new Date().toISOString(),
             };
@@ -333,7 +347,7 @@ export async function claimReward(userId: string) {
             transaction.update(userRef, {
                 pariBalance: increment(finalReward),
                 sessionEndTime: null,
-                miningHistory: arrayUnion(newHistoryItem)
+                history: arrayUnion(newHistoryItem)
             });
 
             // Handle referral commission for Level 1
@@ -370,7 +384,7 @@ export async function claimReward(userId: string) {
         }
 
         revalidatePath('/');
-        revalidatePath('/mining-history');
+        revalidatePath('/history');
         return { success: true, reward: rewardAmount };
 
     } catch (e: any) {

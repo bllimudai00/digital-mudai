@@ -2,11 +2,11 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, History, Loader, Coins } from "lucide-react";
+import { ArrowLeft, History, Loader, Coins, ListChecks, Zap } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getUserData } from "@/app/actions";
-import type { UserData } from "@/lib/types";
+import type { UserData, Transaction } from "@/lib/types";
 import { format } from "date-fns";
 import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
@@ -20,14 +20,45 @@ function serializeTimestampInHistory(history: any[]) {
     })).sort((a, b) => new Date(b.claimedAt).getTime() - new Date(a.claimedAt).getTime());
 }
 
-export default function MiningHistoryPage() {
+const transactionIcons = {
+  mining: <Zap className="w-6 h-6 text-orange-400" />,
+  task: <ListChecks className="w-6 h-6 text-blue-400" />,
+};
+
+const transactionColors = {
+    mining: 'bg-orange-500/10',
+    task: 'bg-blue-500/10',
+}
+
+function HistoryItem({ item }: { item: Transaction }) {
+    const Icon = transactionIcons[item.type] || <Coins className="w-6 h-6 text-green-400" />;
+    const bgColor = transactionColors[item.type] || 'bg-green-500/10';
+
+    return (
+        <li className="p-4 flex justify-between items-center">
+            <div className="flex items-center gap-4">
+                <div className={`p-2 ${bgColor} rounded-full`}>
+                    {Icon}
+                </div>
+                <div>
+                    <p className="font-semibold text-foreground">{item.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                        {format(new Date(item.claimedAt as string), "PPP p")}
+                    </p>
+                </div>
+            </div>
+             <p className="text-sm font-medium text-green-400">+{item.amount.toFixed(4)} PARI</p>
+        </li>
+    );
+}
+
+export default function HistoryPage() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const FAKE_USER_ID = 'user_placeholder_id';
 
-    // Initial fetch for SSR and to handle user creation
     getUserData().then(user => {
       if (user) {
         setUserData(user);
@@ -35,14 +66,12 @@ export default function MiningHistoryPage() {
       setLoading(false);
     }).catch(() => setLoading(false));
     
-    // Real-time listener for client-side updates
     const userRef = doc(db, 'users', FAKE_USER_ID);
     const unsubscribe = onSnapshot(userRef, (doc) => {
         if (doc.exists()) {
             const user = doc.data() as UserData;
-            // The snapshot might return Timestamps, so we need to handle them
-            if (user.miningHistory) {
-                user.miningHistory = serializeTimestampInHistory(user.miningHistory);
+            if (user.history) {
+                user.history = serializeTimestampInHistory(user.history);
             }
             setUserData(user);
         }
@@ -55,7 +84,7 @@ export default function MiningHistoryPage() {
     return () => unsubscribe();
   }, []);
 
-  const history = userData?.miningHistory || [];
+  const history = userData?.history || [];
 
   return (
     <div className="bg-background text-foreground min-h-screen flex flex-col font-body">
@@ -67,7 +96,7 @@ export default function MiningHistoryPage() {
         </Button>
         <h1 className="text-xl font-bold text-center flex-1 flex items-center justify-center gap-2">
             <History className="w-5 h-5"/>
-            Mining History
+            History
         </h1>
         <div className="w-8"></div>
       </header>
@@ -82,20 +111,7 @@ export default function MiningHistoryPage() {
             <CardContent className="p-0">
               <ul className="divide-y divide-border">
                 {history.map((item, index) => (
-                  <li key={index} className="p-4 flex justify-between items-center">
-                    <div className="flex items-center gap-4">
-                        <div className="p-2 bg-green-500/10 rounded-full">
-                            <Coins className="w-6 h-6 text-green-400" />
-                        </div>
-                        <div>
-                            <p className="font-semibold text-green-400">+{item.amount.toFixed(4)} PARI</p>
-                            <p className="text-xs text-muted-foreground">
-                                {format(new Date(item.claimedAt as string), "PPP p")}
-                            </p>
-                        </div>
-                    </div>
-                    <p className="text-sm font-medium text-foreground bg-secondary px-2 py-1 rounded-md">Claimed</p>
-                  </li>
+                    <HistoryItem key={index} item={item} />
                 ))}
               </ul>
             </CardContent>
@@ -106,7 +122,7 @@ export default function MiningHistoryPage() {
               <History className="w-12 h-12 text-muted-foreground mb-4" />
               <h2 className="text-lg font-semibold">No History Yet</h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Start a mining session to see your rewards here.
+                Your claimed rewards from mining and tasks will appear here.
               </p>
             </CardContent>
           </Card>
