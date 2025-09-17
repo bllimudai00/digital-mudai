@@ -126,6 +126,14 @@ export async function seedInitialData() {
         await batch.commit();
         console.log("Initial news seeded.");
     }
+
+    // Seed global settings
+    const settingsRef = doc(db, 'settings', 'global');
+    const settingsSnapshot = await getDoc(settingsRef);
+    if (!settingsSnapshot.exists()) {
+        await setDoc(settingsRef, { baseRate: 10.00 });
+        console.log("Initial global settings seeded.");
+    }
 }
 
 
@@ -135,7 +143,19 @@ export async function getInitialUserData() {
     const referrals = await getReferrals(user?.referrals || []);
     const tasks = await getTasks();
     const news = await getNews();
-    return { user, referrals, tasks, news };
+    const settings = await getGlobalSettings();
+    
+    let finalUser = user;
+    if (user && settings) {
+        // Ensure user's baseRate is synced with global settings
+        if (user.baseRate !== settings.baseRate) {
+            const userRef = doc(db, 'users', user.id);
+            await updateDoc(userRef, { baseRate: settings.baseRate });
+            finalUser = { ...user, baseRate: settings.baseRate };
+        }
+    }
+
+    return { user: finalUser, referrals, tasks, news };
 }
 
 function serializeFirestoreTimestamps(data: { [key: string]: any }): { [key: string]: any } {
@@ -168,6 +188,7 @@ export async function getUserData(): Promise<UserData | null> {
 
     if (userSnap.exists()) {
         const data = userSnap.data();
+        const settings = await getGlobalSettings();
         const userData = serializeFirestoreTimestamps(data) as UserData;
         // Sync vip status
         if (userData.vipStatus === 'approved' && !userData.vip) {
@@ -177,15 +198,23 @@ export async function getUserData(): Promise<UserData | null> {
             await updateDoc(userRef, { vip: false });
             userData.vip = false;
         }
+        
+        // Sync baseRate with global settings
+        if (settings && userData.baseRate !== settings.baseRate) {
+            await updateDoc(userRef, { baseRate: settings.baseRate });
+            userData.baseRate = settings.baseRate;
+        }
+
         return { ...userData, id: userSnap.id };
 
     } else {
         // If user doesn't exist, create a new one with default values
         console.log("User not found, creating a new one...");
+        const settings = await getGlobalSettings();
         const newUser: UserData = {
             id: FAKE_USER_ID,
-            pariBalance: 10.00,
-            baseRate: 10.00,
+            pariBalance: 10,
+            baseRate: settings?.baseRate || 10.00,
             referrals: [],
             tasks: [],
             vip: false,
@@ -341,9 +370,12 @@ export async function claimReward(userId: string) {
             if (!userData.sessionEndTime || userData.sessionEndTime > Date.now()) {
                 return "Mining session not yet complete.";
             }
+            
+            const settings = await getGlobalSettings();
+            const baseRate = settings?.baseRate || 10.0;
 
             // Calculate reward
-            const baseReward = 40.0;
+            const baseReward = baseRate * 4; // 4 hours session
             const finalReward = userData.vip ? baseReward * 2 : baseReward;
             rewardAmount = finalReward;
 
@@ -417,6 +449,29 @@ export async function submitVipProof(userId: string, transactionId: string) {
 
 
 // --- Admin Actions ---
+
+export async function getGlobalSettings(): Promise<{ baseRate: number } | null> {
+    const settingsRef = doc(db, 'settings', 'global');
+    const settingsSnap = await getDoc(settingsRef);
+    if (settingsSnap.exists()) {
+        return settingsSnap.data() as { baseRate: number };
+    }
+    return null;
+}
+
+export async function updateGlobalSettings(settings: { baseRate: number }) {
+    'use server';
+    const settingsRef = doc(db, 'settings', 'global');
+    try {
+        await updateDoc(settingsRef, settings);
+        revalidatePath('/admin');
+        revalidatePath('/'); // Revalidate home page to reflect new rate
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error updating global settings:", error);
+        return { success: false, error: error.message };
+    }
+}
 
 export async function getVipRequests(): Promise<UserData[]> {
     const usersRef = collection(db, 'users');
@@ -511,7 +566,7 @@ export async function updateUserFromAdmin(userId: string, dataToUpdate: Partial<
     const userRef = doc(db, 'users', userId);
 
     // Sanitize data: remove id and any other non-updatable fields
-    const { id, ...updateData } = dataToUpdate;
+    const { id, baseRate, ...updateData } = dataToUpdate; // baseRate is global, so don't update it per-user.
 
     try {
         await updateDoc(userRef, updateData);
@@ -538,7 +593,3 @@ export async function deleteUser(userId: string) {
         return { success: false, error: error.message };
     }
 }
-
-    
-
-    

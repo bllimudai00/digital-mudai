@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import type { UserData, NewsArticle } from "@/lib/types";
-import { getUserData, getVipRequests, updateVipStatus, getNews, addNews, deleteNews, getUsers, updateUserFromAdmin, deleteUser } from "@/app/actions";
-import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck } from "lucide-react";
+import { getUserData, getVipRequests, updateVipStatus, getNews, addNews, deleteNews, getUsers, updateUserFromAdmin, deleteUser, getGlobalSettings, updateGlobalSettings } from "@/app/actions";
+import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck, Zap } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -108,7 +108,7 @@ function VipRequestSection({ vipRequests, loading, onUpdate }: { vipRequests: Us
     );
 }
 
-function NewsManagementSection() {
+function NewsManagementSection({ onUpdate }: { onUpdate: () => void }) {
     const [news, setNews] = useState<NewsArticle[]>([]);
     const [loading, setLoading] = useState(true);
     const [newTitle, setNewTitle] = useState("");
@@ -227,7 +227,7 @@ function EditUserDialog({ user, isOpen, onOpenChange, onUserUpdate }: { user: Us
                 name: user.name,
                 email: user.email,
                 pariBalance: user.pariBalance,
-                baseRate: user.baseRate,
+                // baseRate is now global, so we don't edit it per user
             });
         }
     }, [user]);
@@ -236,7 +236,7 @@ function EditUserDialog({ user, isOpen, onOpenChange, onUserUpdate }: { user: Us
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        setEditedUser(prev => ({ ...prev, [name]: name === 'pariBalance' || name === 'baseRate' ? parseFloat(value) || 0 : value }));
+        setEditedUser(prev => ({ ...prev, [name]: name === 'pariBalance' ? parseFloat(value) || 0 : value }));
     };
 
     const handleSave = async () => {
@@ -270,10 +270,6 @@ function EditUserDialog({ user, isOpen, onOpenChange, onUserUpdate }: { user: Us
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="pariBalance" className="text-right">PARI Balance</Label>
                         <Input id="pariBalance" name="pariBalance" type="number" value={editedUser.pariBalance || 0} onChange={handleInputChange} className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="baseRate" className="text-right">Base Rate</Label>
-                        <Input id="baseRate" name="baseRate" type="number" value={editedUser.baseRate || 0} onChange={handleInputChange} className="col-span-3" />
                     </div>
                 </div>
                 <DialogFooter>
@@ -411,16 +407,87 @@ function UserManagementSection({ users, loading, onUpdate }: { users: UserData[]
     );
 }
 
+function GlobalSettingsSection({ onUpdate }: { onUpdate: () => void}) {
+    const [baseRate, setBaseRate] = useState<number>(10.00);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const { toast } = useToast();
+
+    useEffect(() => {
+        const fetchSettings = async () => {
+            setIsLoading(true);
+            const settings = await getGlobalSettings();
+            if (settings) {
+                setBaseRate(settings.baseRate);
+            }
+            setIsLoading(false);
+        };
+        fetchSettings();
+    }, []);
+
+    const handleUpdateRate = async () => {
+        setIsSaving(true);
+        const result = await updateGlobalSettings({ baseRate });
+        if (result.success) {
+            toast({ title: "Success", description: "Global base rate updated." });
+            onUpdate();
+        } else {
+            toast({ title: "Error", description: result.error || "Failed to update base rate.", variant: "destructive" });
+        }
+        setIsSaving(false);
+    };
+
+    if (isLoading) {
+         return (
+            <Card className="bg-card/80 backdrop-blur-sm">
+                <CardHeader>
+                    <CardTitle>Global Mining Settings</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex justify-center p-8"><Loader className="w-6 h-6 animate-spin"/></div>
+                </CardContent>
+            </Card>
+         )
+    }
+
+    return (
+        <Card className="bg-card/80 backdrop-blur-sm">
+            <CardHeader>
+                <CardTitle>Global Mining Settings</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                 <div>
+                    <Label htmlFor="baseRate">Global Base Rate (/hr)</Label>
+                    <div className="flex gap-4 items-center mt-2">
+                        <Input 
+                            id="baseRate"
+                            type="number"
+                            value={baseRate}
+                            onChange={(e) => setBaseRate(parseFloat(e.target.value) || 0)}
+                            className="max-w-xs"
+                        />
+                        <Button onClick={handleUpdateRate} disabled={isSaving}>
+                            {isSaving ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : <Zap className="w-4 h-4 mr-2" />}
+                            Update Rate
+                        </Button>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 
 export default function AdminPage() {
     const [currentUser, setCurrentUser] = useState<UserData | null>(null);
     const [allUsers, setAllUsers] = useState<UserData[]>([]);
     const [vipRequests, setVipRequests] = useState<UserData[]>([]);
     const [loading, setLoading] = useState(true);
+    const [refreshKey, setRefreshKey] = useState(0);
 
     const fetchData = async () => {
         // Set loading to true only if it's not the initial load to prevent flickering
-        setLoading(prev => prev ? true : false);
+        setLoading(prev => !prev ? false : true);
         const [user, users, requests] = await Promise.all([
             getUserData(),
             getUsers(),
@@ -431,10 +498,14 @@ export default function AdminPage() {
         setVipRequests(requests);
         setLoading(false);
     };
+    
+    const handleDataUpdate = () => {
+        setRefreshKey(prev => prev + 1);
+    }
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [refreshKey]);
 
     if (loading && !currentUser) {
         return (
@@ -469,9 +540,10 @@ export default function AdminPage() {
             </header>
             
             <DashboardStatsSection users={allUsers} vipRequests={vipRequests} />
-            <UserManagementSection users={allUsers} loading={loading} onUpdate={fetchData} />
-            <VipRequestSection vipRequests={vipRequests} loading={loading} onUpdate={fetchData} />
-            <NewsManagementSection />
+            <UserManagementSection users={allUsers} loading={loading} onUpdate={handleDataUpdate} />
+            <GlobalSettingsSection onUpdate={handleDataUpdate} />
+            <VipRequestSection vipRequests={vipRequests} loading={loading} onUpdate={handleDataUpdate} />
+            <NewsManagementSection onUpdate={handleDataUpdate} />
 
         </div>
     );

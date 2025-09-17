@@ -20,10 +20,10 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { claimReward, startMiningSession, getUserData } from "@/app/actions";
+import { claimReward, startMiningSession, getUserData, getGlobalSettings } from "@/app/actions";
 import type { UserData } from "@/lib/types";
 import { useRouter } from "next/navigation";
-import { onSnapshot, doc } from "firebase/firestore";
+import { onSnapshot, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 
 
@@ -106,17 +106,28 @@ export default function MiningPage() {
   useEffect(() => {
     const FAKE_USER_ID = 'user_placeholder_id';
     const userRef = doc(db, 'users', FAKE_USER_ID);
+    const settingsRef = doc(db, 'settings', 'global');
 
-    const unsubscribe = onSnapshot(userRef, (doc) => {
+    const syncUserData = (userDoc: any, settingsDoc: any) => {
+        let user = userDoc.data() as UserData;
+        const settings = settingsDoc.data();
+        // This is the sync logic from actions.ts, duplicated for real-time updates
+        if (user.vipStatus === 'approved' && !user.vip) {
+            user.vip = true;
+        } else if (user.vipStatus !== 'approved' && user.vip) {
+            user.vip = false;
+        }
+
+        if(settings && user.baseRate !== settings.baseRate) {
+            user.baseRate = settings.baseRate;
+        }
+        setUserData(user);
+    }
+
+    const unsubscribeUser = onSnapshot(userRef, async (doc) => {
         if (doc.exists()) {
-            const user = doc.data() as UserData;
-            // This is the sync logic from actions.ts, duplicated for real-time updates
-             if (user.vipStatus === 'approved' && !user.vip) {
-                user.vip = true;
-            } else if (user.vipStatus !== 'approved' && user.vip) {
-                user.vip = false;
-            }
-            setUserData(user);
+            const settingsDoc = await getDoc(settingsRef);
+            syncUserData(doc, settingsDoc);
         } else {
             // This case should be handled by the initial creation logic in getUserData
             getUserData().then(newUser => setUserData(newUser));
@@ -125,7 +136,17 @@ export default function MiningPage() {
         console.error("Error fetching real-time user data:", error);
     });
 
-    return () => unsubscribe();
+    const unsubscribeSettings = onSnapshot(settingsRef, async (doc) => {
+        if (doc.exists() && userData) {
+             const userDoc = await getDoc(userRef);
+             syncUserData(userDoc, doc);
+        }
+    });
+
+    return () => {
+        unsubscribeUser();
+        unsubscribeSettings();
+    };
   }, []);
 
 
@@ -219,7 +240,7 @@ export default function MiningPage() {
     }
   }
 
-  const rewardAmount = userData ? (userData.vip ? 80 : 40) : 40;
+  const rewardAmount = userData ? (userData.baseRate * 4 * (userData.vip ? 2 : 1)) : 40;
 
   const getCardContent = () => {
     switch(miningState){
@@ -291,7 +312,7 @@ export default function MiningPage() {
             {miningState === 'mining' && (
               <div className="relative w-full my-2 h-2 overflow-hidden">
                   <div className="absolute top-1/2 left-0 h-0.5 w-full bg-primary/70 animate-line-across" />
-                  <div className="absolute top-1/2 left-0 h-0.5 w-full bg-primary/70 animate-line-across-reverse" />
+                  <div className="absolute top-1/2 left-0 h-0.5 w-full bg-accent/70 animate-line-across-reverse" />
               </div>
             )}
             <MiningButton />
@@ -302,7 +323,7 @@ export default function MiningPage() {
           <CardContent className="p-0">
             <p className="text-sm text-muted-foreground">Next Reward</p>
             <p className="text-2xl font-bold text-green-400 mt-1">{rewardAmount.toFixed(4)} PARI</p>
-            <p className="text-xs text-muted-foreground">10 x 1x ({userData.vip ? "VIP 2x" : "Normal"}) x 1x</p>
+            <p className="text-xs text-muted-foreground">{userData.baseRate.toFixed(2)} x 4h x 1x ({userData.vip ? "VIP 2x" : "Normal"})</p>
           </CardContent>
         </Card>
 
@@ -348,5 +369,3 @@ export default function MiningPage() {
     </div>
   );
 }
-
-    
