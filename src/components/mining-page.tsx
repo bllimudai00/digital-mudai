@@ -101,6 +101,9 @@ export default function MiningPage() {
   const [miningState, setMiningState] = useState<'idle' | 'mining' | 'claimable' | 'loading'>('loading');
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [isActionLoading, setIsActionLoading] = useState(false);
+  const [showFloatingText, setShowFloatingText] = useState(false);
+  const [claimedAmount, setClaimedAmount] = useState(0);
+
   const router = useRouter();
 
   useEffect(() => {
@@ -184,7 +187,12 @@ export default function MiningPage() {
   const handleClaimReward = async () => {
     if (!userData || miningState !== 'claimable') return;
     setIsActionLoading(true);
-    await claimReward(userData.id);
+    const result = await claimReward(userData.id);
+    if(result.success && result.reward) {
+        setClaimedAmount(result.reward);
+        setShowFloatingText(true);
+        setTimeout(() => setShowFloatingText(false), 2000);
+    }
     setIsActionLoading(false);
   };
 
@@ -214,7 +222,7 @@ export default function MiningPage() {
         );
       case 'claimable':
         return (
-          <Button size="lg" className="w-full bg-gradient-to-r from-green-500 to-teal-500 text-white mt-4" onClick={handleClaimReward}>
+          <Button size="lg" className="relative overflow-hidden w-full bg-gradient-to-r from-green-500 to-teal-500 text-white mt-4" onClick={handleClaimReward}>
             <Gift className="w-4 h-4 mr-2" />
             Claim Reward
           </Button>
@@ -272,7 +280,12 @@ export default function MiningPage() {
 
         <Card className="bg-card/80 backdrop-blur-sm text-center p-6 space-y-4">
           <CardContent className="p-0">
-            <div className="flex justify-center items-center mb-4">
+            <div className="flex justify-center items-center mb-4 relative">
+               {showFloatingText && (
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-2xl font-bold text-green-400 animate-float-up z-20">
+                        +{claimedAmount.toFixed(4)} PARI
+                    </div>
+                )}
               <div className="relative w-32 h-32">
                 <Image
                   src="https://ik.imagekit.io/parinetwork/IMG_20250827_125111.jpg?updatedAt=1756725448569"
