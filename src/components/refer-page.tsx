@@ -9,7 +9,6 @@ import {
   BarChart,
   Clipboard,
   Link as LinkIcon,
-  MessageCircle,
   Send,
   Smartphone,
   Mail,
@@ -18,8 +17,17 @@ import {
   Newspaper,
   ListChecks,
   User,
+  Loader
 } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { getReferrals } from "@/app/actions";
+import type { UserData, Referral } from "@/lib/types";
+import { onSnapshot, doc } from "firebase/firestore";
+import { db } from "@/lib/firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
 
 function BottomNavItem({
   icon,
@@ -73,6 +81,61 @@ const WhatsAppIcon = () => (
 
 
 export default function ReferPage() {
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [referrals, setReferrals] = useState<Referral[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const FAKE_USER_ID = 'user_placeholder_id';
+    const userRef = doc(db, 'users', FAKE_USER_ID);
+
+    const unsubscribe = onSnapshot(userRef, async (doc) => {
+        if (doc.exists()) {
+            const user = doc.data() as UserData;
+            setUserData(user);
+            if (user.referrals && user.referrals.length > 0) {
+                const referralData = await getReferrals(user.referrals);
+                setReferrals(referralData);
+            } else {
+                setReferrals([]);
+            }
+        }
+        setLoading(false);
+    }, (error) => {
+        console.error("Error fetching real-time user data:", error);
+        setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      toast({
+        title: "Copied to clipboard",
+        description: `${label} has been copied.`,
+      });
+    }).catch(err => {
+      console.error('Failed to copy: ', err);
+       toast({
+        title: "Error",
+        description: `Failed to copy ${label}.`,
+        variant: "destructive",
+      });
+    });
+  };
+
+  const referralLink = userData ? `https://parinetwork.com/join?ref=${userData.referralCode}` : "";
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <Loader className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="bg-background text-foreground min-h-screen flex flex-col font-body">
       <main className="flex-1 p-4 space-y-6 pb-24">
@@ -97,7 +160,7 @@ export default function ReferPage() {
           <StatCard
             icon={<Users className="w-8 h-8 text-primary" />}
             label="Active Referrals"
-            value="0"
+            value={referrals.length.toString()}
           />
           <StatCard
             icon={<BarChart className="w-8 h-8 text-accent" />}
@@ -115,11 +178,13 @@ export default function ReferPage() {
               <Input
                 type="text"
                 readOnly
+                value={userData?.referralCode || ""}
                 className="pr-12 bg-card/80 border-border"
               />
               <Button
                 variant="ghost"
                 size="icon"
+                onClick={() => copyToClipboard(userData?.referralCode || "", "Referral Code")}
                 className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground"
               >
                 <Clipboard className="w-4 h-4" />
@@ -134,11 +199,13 @@ export default function ReferPage() {
               <Input
                 type="text"
                 readOnly
+                value={referralLink}
                 className="pr-12 bg-card/80 border-border"
               />
               <Button
                 variant="ghost"
                 size="icon"
+                onClick={() => copyToClipboard(referralLink, "Referral Link")}
                 className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground"
               >
                 <LinkIcon className="w-4 h-4" />
@@ -166,16 +233,30 @@ export default function ReferPage() {
           </Button>
         </div>
 
-        <Card className="bg-card/80 backdrop-blur-sm text-center p-6 space-y-4">
-          <CardContent className="p-0 flex flex-col items-center justify-center">
-            <Users className="w-8 h-8 text-primary mb-4" />
-            <h3 className="text-lg font-bold">Your Referred Users</h3>
-            <div className="flex flex-col items-center text-center text-muted-foreground mt-4">
-                <Info className="w-8 h-8 mb-2" />
-                <p>You haven't referred anyone yet.</p>
-                <p>Share your code to start earning!</p>
-            </div>
-          </CardContent>
+        <Card className="bg-card/80 backdrop-blur-sm p-6 space-y-4">
+           <CardContent className="p-0 flex flex-col items-center justify-center">
+             <Users className="w-8 h-8 text-primary mb-2" />
+             <h3 className="text-lg font-bold">Your Referred Users</h3>
+           </CardContent>
+            {referrals.length > 0 ? (
+                <ul className="space-y-3">
+                    {referrals.map(ref => (
+                        <li key={ref.id} className="flex items-center gap-4 bg-background p-3 rounded-lg">
+                           <Avatar>
+                                <AvatarImage src={ref.avatar} alt={ref.name} />
+                                <AvatarFallback>{ref.name.substring(0, 2)}</AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium">{ref.name}</span>
+                        </li>
+                    ))}
+                </ul>
+            ) : (
+                <div className="flex flex-col items-center text-center text-muted-foreground mt-4">
+                    <Info className="w-8 h-8 mb-2" />
+                    <p>You haven't referred anyone yet.</p>
+                    <p>Share your code to start earning!</p>
+                </div>
+            )}
         </Card>
       </main>
 
@@ -211,4 +292,3 @@ export default function ReferPage() {
       </footer>
     </div>
   );
-}
