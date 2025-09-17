@@ -472,5 +472,21 @@ export async function deleteNews(articleId: string) {
 export async function getUsers(): Promise<UserData[]> {
   const usersRef = collection(db, 'users');
   const querySnapshot = await getDocs(usersRef);
-  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserData));
+  const users = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        const docId = doc.id;
+        const serializedData: { [key: string]: any } = { id: docId };
+
+        for (const key in data) {
+            const value = data[key];
+            if (value && typeof value.toDate === 'function') {
+                serializedData[key] = value.toDate().toISOString();
+            } else {
+                serializedData[key] = value;
+            }
+        }
+        return serializedData as UserData;
+    });
+
+    return users;
 }
