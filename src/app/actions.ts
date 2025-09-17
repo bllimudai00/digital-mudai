@@ -1,6 +1,6 @@
 'use server';
 
-import { doc, updateDoc, arrayUnion, getDoc, runTransaction, increment, collection, getDocs, writeBatch, setDoc } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, getDoc, runTransaction, increment, collection, getDocs, writeBatch, setDoc, query, where } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/firebase/firestore';
 import type { UserData, Referral, Task } from '@/lib/types';
@@ -63,6 +63,7 @@ export async function getUserData(): Promise<UserData | null> {
             sessionEndTime: null,
             miningHistory: [],
             vipStatus: 'none',
+            isAdmin: true,
         };
 
         // Create user document and tasks collection in a batch
@@ -262,4 +263,33 @@ export async function submitVipProof(userId: string, transactionId: string) {
 
     revalidatePath('/vip');
     return { success: true, message: "Proof submitted successfully!" };
+}
+
+
+// --- Admin Actions ---
+
+export async function getVipRequests(): Promise<UserData[]> {
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, where('vipStatus', '==', 'pending'));
+    const querySnapshot = await getDocs(q);
+    
+    return querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        // Manually convert Firestore Timestamp to serializable Date
+        if (data.vipProofSubmittedAt && typeof data.vipProofSubmittedAt.toDate === 'function') {
+            data.vipProofSubmittedAt = data.vipProofSubmittedAt.toDate();
+        }
+        return { id: doc.id, ...data } as UserData
+    });
+}
+
+export async function updateVipStatus(userId: string, status: 'approved' | 'rejected') {
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+        vipStatus: status,
+    });
+    revalidatePath('/admin');
+    revalidatePath(`/vip`); 
+    // The user's page will update in real-time due to snapshot listeners.
+    return { success: true };
 }

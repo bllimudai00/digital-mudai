@@ -154,6 +154,20 @@ export default function ProfilePage() {
             </CardContent>
         </Card>
 
+        {userData.isAdmin && (
+            <Card className="bg-primary/20 border-primary/50">
+                <CardContent className="p-0">
+                    <Link href="/admin" className="flex items-center justify-between p-4">
+                        <div className="flex items-center gap-4">
+                            <Shield className="w-5 h-5 text-primary" />
+                            <span className="text-sm font-bold">Admin Panel</span>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                    </Link>
+                </CardContent>
+            </Card>
+        )}
+
         <Card className="bg-card/80 backdrop-blur-sm">
           <CardContent className="p-4 divide-y divide-border">
             <ProfileMenuItem icon={<ShieldCheck className="w-5 h-5 text-primary" />} label="VIP Membership" href="/vip" />

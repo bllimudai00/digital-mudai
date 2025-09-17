@@ -17,6 +17,7 @@ export type UserData = {
   vipStatus: 'none' | 'pending' | 'approved' | 'rejected';
   vipTransactionId?: string;
   vipProofSubmittedAt?: Date;
+  isAdmin?: boolean;
 };
 
 export type Referral = {
