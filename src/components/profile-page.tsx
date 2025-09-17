@@ -30,6 +30,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useEffect, useState } from "react";
 import type { UserData } from "@/lib/types";
 import { getUserData } from "@/app/actions";
+import { onSnapshot, doc } from "firebase/firestore";
+import { db } from "@/lib/firebase/firestore";
+
 
 function BottomNavItem({
   icon,
@@ -83,11 +86,21 @@ export default function ProfilePage() {
   const [userData, setUserData] = useState<UserData | null>(null);
 
   useEffect(() => {
-    async function loadData() {
-        const user = await getUserData();
-        setUserData(user);
-    }
-    loadData();
+    const FAKE_USER_ID = 'user_placeholder_id';
+    const userRef = doc(db, 'users', FAKE_USER_ID);
+
+    const unsubscribe = onSnapshot(userRef, (doc) => {
+        if (doc.exists()) {
+            setUserData(doc.data() as UserData);
+        } else {
+            // This case should be handled by the initial creation logic in getUserData
+            getUserData().then(newUser => setUserData(newUser));
+        }
+    }, (error) => {
+        console.error("Error fetching real-time user data:", error);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   if (!userData) {

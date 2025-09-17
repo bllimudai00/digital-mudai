@@ -39,6 +39,8 @@ import React, { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { submitVipProof, getUserData } from "@/app/actions";
 import { UserData } from "@/lib/types";
+import { onSnapshot, doc } from "firebase/firestore";
+import { db } from "@/lib/firebase/firestore";
 
 function BottomNavItem({
   icon,
@@ -107,7 +109,7 @@ const faqData = [
     }
 ]
 
-function UpgradeToVipForm({ onProofSubmit }: { onProofSubmit: () => void }) {
+function UpgradeToVipForm({ userId, onProofSubmit }: { userId: string, onProofSubmit: () => void }) {
     const [transactionId, setTransactionId] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
@@ -119,8 +121,7 @@ function UpgradeToVipForm({ onProofSubmit }: { onProofSubmit: () => void }) {
             return;
         }
         setIsLoading(true);
-        // We're using a placeholder user ID for now
-        const result = await submitVipProof('user_placeholder_id', transactionId);
+        const result = await submitVipProof(userId, transactionId);
         setIsLoading(false);
 
         if (result.success) {
@@ -157,7 +158,7 @@ function UpgradeToVipForm({ onProofSubmit }: { onProofSubmit: () => void }) {
     )
 }
 
-function VipStatus({ status, onProofSubmit }: { status: 'none' | 'pending' | 'approved' | 'rejected', onProofSubmit: () => void }) {
+function VipStatus({ status, userId, onProofSubmit }: { status: 'none' | 'pending' | 'approved' | 'rejected', userId: string, onProofSubmit: () => void }) {
     if (status === 'approved') {
         return (
             <div className="text-center bg-green-900/30 border border-green-500/50 p-4 rounded-lg flex flex-col items-center gap-2">
@@ -214,7 +215,7 @@ function VipStatus({ status, onProofSubmit }: { status: 'none' | 'pending' | 'ap
             </div>
           </TabsContent>
           <TabsContent value="proof">
-            <UpgradeToVipForm onProofSubmit={onProofSubmit} />
+            <UpgradeToVipForm userId={userId} onProofSubmit={onProofSubmit} />
           </TabsContent>
         </Tabs>
     );
@@ -229,7 +230,21 @@ export default function VipPage() {
   }
 
   useEffect(() => {
-    loadData();
+    const FAKE_USER_ID = 'user_placeholder_id';
+    const userRef = doc(db, 'users', FAKE_USER_ID);
+
+    const unsubscribe = onSnapshot(userRef, (doc) => {
+        if (doc.exists()) {
+            setUserData(doc.data() as UserData);
+        } else {
+             // This may be the first run, try to create the user
+            loadData();
+        }
+    }, (error) => {
+        console.error("Error fetching real-time user data:", error);
+    });
+    
+    return () => unsubscribe();
   }, []);
 
   return (
@@ -284,7 +299,7 @@ export default function VipPage() {
           </CardHeader>
           <CardContent>
             {userData ? (
-                <VipStatus status={userData.vipStatus || 'none'} onProofSubmit={loadData} />
+                <VipStatus status={userData.vipStatus || 'none'} userId={userData.id} onProofSubmit={loadData} />
             ) : (
                 <div className="flex justify-center items-center p-8">
                     <Loader className="w-8 h-8 animate-spin" />

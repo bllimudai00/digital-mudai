@@ -12,12 +12,15 @@ import {
   User,
   CheckCircle2,
   Loader,
+  BadgeCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getUserData, claimTaskReward, getTasks } from "@/app/actions";
 import type { Task, UserData } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { onSnapshot, doc } from "firebase/firestore";
+import { db } from "@/lib/firebase/firestore";
 
 function BottomNavItem({
   icon,
@@ -44,13 +47,15 @@ function BottomNavItem({
 
 function TaskCard({ task, userData, onClaim }: { task: Task, userData: UserData | null, onClaim: (taskId: string) => void }) {
     const [isLoading, setIsLoading] = useState(false);
+    const [isExternalTaskPending, setIsExternalTaskPending] = useState(false);
+    const { toast } = useToast();
+
     const isCompleted = userData?.tasks?.includes(task.id);
     const referralCount = userData?.referrals?.length || 0;
 
-    let buttonState: 'claim' | 'completed' | 'go_to_refer' | 'loading' | 'requirement_not_met' | 'external' = 'external';
-    let buttonLabel = "Complete Task";
+    let buttonState: 'claim' | 'completed' | 'go_to_refer' | 'loading' | 'requirement_not_met' | 'external_verify' | 'external_initial' = 'external_initial';
+    let buttonLabel = "Go";
     let buttonIcon = <ExternalLink className="w-4 h-4 mr-1" />;
-    let buttonClassName = "";
     let isDisabled = false;
 
     if (isCompleted) {
@@ -61,8 +66,12 @@ function TaskCard({ task, userData, onClaim }: { task: Task, userData: UserData 
         } else {
             buttonState = 'go_to_refer';
         }
-    } else { // external tasks
-        buttonState = 'claim';
+    } else if (task.type === 'external') {
+        if (isExternalTaskPending) {
+            buttonState = 'external_verify';
+        } else {
+            buttonState = 'external_initial';
+        }
     }
 
 
@@ -70,28 +79,46 @@ function TaskCard({ task, userData, onClaim }: { task: Task, userData: UserData 
         setIsLoading(true);
         await onClaim(task.id);
         setIsLoading(false);
-    }
+    };
     
+    const handleExternalTask = () => {
+        if (task.url) {
+            window.open(task.url, '_blank', 'noopener,noreferrer');
+            setIsExternalTaskPending(true);
+             toast({
+                title: "Task in Progress",
+                description: "Once you have completed the task, come back and click Verify.",
+            });
+        } else {
+            toast({
+                title: "Error",
+                description: "This task has no URL configured.",
+                variant: "destructive",
+            });
+        }
+    }
+
     switch(buttonState) {
         case 'completed':
             buttonLabel = "Claimed";
             buttonIcon = <CheckCircle2 className="w-4 h-4 mr-1" />;
             isDisabled = true;
-            buttonClassName = "bg-green-500/20 text-green-400";
             break;
         case 'claim':
             buttonLabel = "Claim Reward";
             buttonIcon = <Gift className="w-4 h-4 mr-1" />;
-            buttonClassName = "bg-green-500 hover:bg-green-600 text-white";
             break;
         case 'go_to_refer':
             buttonLabel = "Go to Refer";
             buttonIcon = <Users className="w-4 h-4 mr-1" />;
-            buttonClassName = "bg-card-foreground/10 text-foreground hover:bg-card-foreground/20";
             break;
-        case 'external':
-            buttonLabel = "Complete Task";
+        case 'external_initial':
+            buttonLabel = "Go";
             buttonIcon = <ExternalLink className="w-4 h-4 mr-1" />;
+            break;
+        case 'external_verify':
+            buttonLabel = "Verify";
+            buttonIcon = <BadgeCheck className="w-4 h-4 mr-1" />;
             break;
     }
     
@@ -111,19 +138,19 @@ function TaskCard({ task, userData, onClaim }: { task: Task, userData: UserData 
 
     const handleButtonClick = () => {
         if (buttonState === 'go_to_refer') {
-            // This requires client-side navigation, so we can't use Link directly in the button
-            // but for this demo we'll just wrap it in a Link
+            // The Link component will handle navigation
             return;
         }
-        if (buttonState === 'claim') {
+        if (buttonState === 'claim' || buttonState === 'external_verify') {
             handleClaim();
         }
-        // For 'external', we assume the user navigates away and comes back.
-        // In a real app, you might open a new tab.
+        if (buttonState === 'external_initial') {
+            handleExternalTask();
+        }
     };
 
     const ButtonComponent = (
-        <Button size="sm" className={buttonClassName} onClick={handleButtonClick} disabled={isDisabled}>
+        <Button size="sm" onClick={handleButtonClick} disabled={isDisabled} className={isCompleted ? "bg-green-500/20 text-green-400" : ""}>
             {buttonIcon}
             {buttonLabel}
         </Button>
@@ -163,19 +190,30 @@ export default function TasksPage() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  async function loadInitialData() {
-      setLoading(true);
-      const user = await getUserData();
-      const taskList = await getTasks();
-      if(user) {
-          setUserData(user);
-      }
-      setTasks(taskList);
-      setLoading(false);
-  }
-
   useEffect(() => {
-    loadInitialData();
+    const FAKE_USER_ID = 'user_placeholder_id';
+    const userRef = doc(db, 'users', FAKE_USER_ID);
+
+    const unsubscribeUser = onSnapshot(userRef, (doc) => {
+        if (doc.exists()) {
+            setUserData(doc.data() as UserData);
+        } else {
+             // This may be the first run, try to create the user
+            getUserData().then(newUser => setUserData(newUser));
+        }
+    }, (error) => {
+        console.error("Error fetching real-time user data:", error);
+    });
+
+    getTasks().then(taskList => {
+        setTasks(taskList);
+        setLoading(false);
+    }).catch(error => {
+        console.error("Error fetching tasks:", error);
+        setLoading(false);
+    });
+    
+    return () => unsubscribeUser();
   }, []);
 
   const handleClaim = async (taskId: string) => {
@@ -186,9 +224,7 @@ export default function TasksPage() {
         title: "Reward Claimed!",
         description: `You've received +${result.reward} PARI.`,
       });
-      // Refresh data
-      const user = await getUserData();
-      setUserData(user);
+      // Data will refresh automatically via snapshot listener
     } else {
       toast({
         title: "Error",

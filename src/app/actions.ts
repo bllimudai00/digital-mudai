@@ -1,42 +1,15 @@
 'use server';
 
-import type { UserData, Referral, Task } from '@/lib/types';
+import { doc, updateDoc, arrayUnion, getDoc, runTransaction, increment, collection, getDocs, writeBatch, setDoc } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
+import { db } from '@/lib/firebase/firestore';
+import type { UserData, Referral, Task } from '@/lib/types';
 
-// --- Placeholder Data ---
-let FAKE_USER_ID = 'user_placeholder_id';
-
-let fakeUser: UserData = {
-    id: FAKE_USER_ID,
-    pariBalance: 1080.00,
-    hashPower: 1,
-    baseRate: 10.00,
-    streak: 16,
-    referrals: [],
-    tasks: [],
-    vip: false,
-    referralCode: 'PARIRBESS8',
-    name: 'Balram Singh Rajput',
-    email: 'seemarajput8540@gmail.com',
-    createdAt: Date.now(),
-    sessionEndTime: null,
-    miningHistory: [],
-    vipStatus: 'none',
-};
-
-let fakeTasks: Task[] = [
-    { id: 'task_1', title: "Join our official Telegram Channel", reward: 10, order: 1, type: 'external' },
-    { id: 'task_2', title: "First Referral Bonus", reward: 50, order: 2, type: 'referral_milestone', requiredCount: 1 },
-    { id: 'task_3', title: "Join our official Telegram group", reward: 10, order: 3, type: 'external' },
-    { id: 'task_4', title: "Referral Milestone", reward: 20, order: 4, type: 'referral_milestone', requiredCount: 50 },
-    { id: 'task_5', title: "Follow on X", reward: 10, order: 5, type: 'external' },
-    { id: 'task_6', title: "Referral Milestone", reward: 100, order: 6, type: 'referral_milestone', requiredCount: 500 },
-    { id: 'task_7', title: "Referral Milestone", reward: 200, order: 7, type: 'referral_milestone', requiredCount: 1000 },
-    { id: 'task_8', title: "Referral Milestone", reward: 1000, order: 8, type: 'referral_milestone', requiredCount: 5000 },
-];
+// This is a placeholder for a real user ID
+const FAKE_USER_ID = 'user_placeholder_id';
 
 
-// --- Mock Actions ---
+// --- Firebase Actions ---
 
 export async function getInitialUserData() {
     const user = await getUserData();
@@ -45,47 +18,139 @@ export async function getInitialUserData() {
     return { user, referrals, tasks };
 }
 
-
 export async function getUserData(): Promise<UserData | null> {
-    return JSON.parse(JSON.stringify(fakeUser));
+    const userRef = doc(db, 'users', FAKE_USER_ID);
+    const userSnap = await getDoc(userRef);
+
+    if (userSnap.exists()) {
+        return userSnap.data() as UserData;
+    } else {
+        // If user doesn't exist, create a new one with default values
+        console.log("User not found, creating a new one...");
+        const defaultTasks = [
+            { id: 'task_1', title: "Join our official Telegram Channel", reward: 10, order: 1, type: 'external', url: 'https://t.me/PariNetwork' },
+            { id: 'task_2', title: "First Referral Bonus", reward: 50, order: 2, type: 'referral_milestone', requiredCount: 1 },
+            { id: 'task_3', title: "Join our official Telegram group", reward: 10, order: 3, type: 'external', url: 'https://t.me/PariNetworkGroup' },
+            { id: 'task_4', title: "Referral Milestone", reward: 20, order: 4, type: 'referral_milestone', requiredCount: 50 },
+            { id: 'task_5', title: "Follow on X", reward: 10, order: 5, type: 'external', url: 'https://x.com/PariNetwork' },
+            { id: 'task_6', title: "Referral Milestone", reward: 100, order: 6, type: 'referral_milestone', requiredCount: 500 },
+            { id: 'task_7', title: "Referral Milestone", reward: 200, order: 7, type: 'referral_milestone', requiredCount: 1000 },
+            { id: 'task_8', title: "Referral Milestone", reward: 1000, order: 8, type: 'referral_milestone', requiredCount: 5000 },
+        ];
+        
+        const newUser: UserData = {
+            id: FAKE_USER_ID,
+            pariBalance: 1080.00,
+            hashPower: 1,
+            baseRate: 10.00,
+            streak: 16,
+            referrals: [],
+            tasks: [],
+            vip: false,
+            referralCode: 'PARIRBESS8',
+            name: 'Balram Singh Rajput',
+            email: 'seemarajput8540@gmail.com',
+            createdAt: Date.now(),
+            sessionEndTime: null,
+            miningHistory: [],
+            vipStatus: 'none',
+        };
+
+        // Create user document and tasks collection in a batch
+        const batch = writeBatch(db);
+        batch.set(userRef, newUser);
+
+        const tasksRef = collection(db, 'tasks');
+        defaultTasks.forEach(task => {
+            const taskRef = doc(tasksRef, task.id);
+            batch.set(taskRef, task);
+        });
+
+        await batch.commit();
+        console.log("New user and tasks created successfully.");
+        return newUser;
+    }
 }
+
 
 export async function getReferrals(referralIds: string[]): Promise<Referral[]> {
     if (!referralIds || referralIds.length === 0) return [];
-    return referralIds.map((id, index) => ({
-        id: id,
-        name: `Friend ${index + 1}`,
-        avatar: `https://picsum.photos/seed/friend${index + 1}/40`
-    }));
+
+    const referrals: Referral[] = [];
+    for (const id of referralIds) {
+        const userRef = doc(db, 'users', id);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+            const userData = userSnap.data();
+            referrals.push({
+                id: id,
+                name: userData.name || `Friend ${id.substring(0, 4)}`,
+                avatar: `https://picsum.photos/seed/${id}/40`
+            });
+        }
+    }
+    return referrals;
 }
 
-
 export async function getTasks(): Promise<Task[]> {
-    return JSON.parse(JSON.stringify(fakeTasks));
+    const tasksCollection = collection(db, 'tasks');
+    const tasksSnapshot = await getDocs(tasksCollection);
+    const tasksList = tasksSnapshot.docs.map(doc => doc.data() as Task);
+    return tasksList.sort((a, b) => a.order - b.order);
 }
 
 export async function claimTaskReward(userId: string, taskId: string) {
     'use server';
-    const task = fakeTasks.find(t => t.id === taskId);
-    if (!task) return { success: false, error: 'Task not found' };
+    const userRef = doc(db, 'users', userId);
+    const taskRef = doc(db, 'tasks', taskId);
 
-    if (fakeUser.tasks.includes(taskId)) {
-        return { success: false, error: 'Task already completed.' };
-    }
+    try {
+        let reward = 0;
 
-    if (task.type === 'referral_milestone') {
-        const referralCount = fakeUser.referrals?.length || 0;
-        if (referralCount < (task.requiredCount || 0)) {
-            return { success: false, error: 'Referral requirement not met.' };
+        const error = await runTransaction(db, async (transaction) => {
+            const userDoc = await transaction.get(userRef);
+            const taskDoc = await transaction.get(taskRef);
+
+            if (!userDoc.exists() || !taskDoc.exists()) {
+                return "User or Task not found";
+            }
+
+            const userData = userDoc.data() as UserData;
+            const taskData = taskDoc.data() as Task;
+            reward = taskData.reward;
+
+            if (userData.tasks.includes(taskId)) {
+                return "Task already completed.";
+            }
+
+            if (taskData.type === 'referral_milestone') {
+                const referralCount = userData.referrals?.length || 0;
+                if (referralCount < (taskData.requiredCount || 0)) {
+                    return "Referral requirement not met.";
+                }
+            }
+            
+            // If all checks pass, update user document
+            transaction.update(userRef, {
+                pariBalance: increment(taskData.reward),
+                tasks: arrayUnion(taskId)
+            });
+            
+            return null; // No error
+        });
+
+        if (error) {
+            return { success: false, error: error };
         }
+
+        revalidatePath('/tasks');
+        revalidatePath('/');
+        return { success: true, reward };
+
+    } catch (e: any) {
+        console.error("Transaction failed: ", e);
+        return { success: false, error: e.message || 'An unexpected error occurred.' };
     }
-
-    fakeUser.pariBalance += task.reward;
-    fakeUser.tasks.push(taskId);
-
-    revalidatePath('/tasks');
-    revalidatePath('/');
-    return { success: true, reward: task.reward };
 }
 
 
@@ -93,7 +158,8 @@ export async function startMiningSession(userId: string) {
   'use server';
   const FOUR_HOURS_IN_MS = 4 * 60 * 60 * 1000;
   const sessionEndTime = Date.now() + FOUR_HOURS_IN_MS;
-  fakeUser.sessionEndTime = sessionEndTime;
+  const userRef = doc(db, 'users', userId);
+  await updateDoc(userRef, { sessionEndTime });
 
   revalidatePath('/');
   return { success: true, sessionEndTime };
@@ -101,28 +167,59 @@ export async function startMiningSession(userId: string) {
 
 export async function claimReward(userId: string) {
     'use server';
-    if (!fakeUser.sessionEndTime || fakeUser.sessionEndTime > Date.now()) {
-        return { success: false, error: 'Mining session not yet complete.' };
+    const userRef = doc(db, 'users', userId);
+    
+    try {
+        let rewardAmount = 0;
+        const error = await runTransaction(db, async (transaction) => {
+            const userDoc = await transaction.get(userRef);
+            if (!userDoc.exists()) {
+                return "User not found.";
+            }
+
+            const userData = userDoc.data() as UserData;
+            if (!userData.sessionEndTime || userData.sessionEndTime > Date.now()) {
+                return "Mining session not yet complete.";
+            }
+
+            // In a real app, calculate reward based on hashPower, streak, etc.
+            const reward = 40.0;
+            rewardAmount = reward;
+
+            const newHistoryItem = {
+                amount: reward,
+                claimedAt: Date.now(),
+            };
+
+            transaction.update(userRef, {
+                pariBalance: increment(reward),
+                sessionEndTime: null,
+                miningHistory: arrayUnion(newHistoryItem)
+            });
+            return null;
+        });
+
+        if (error) {
+             return { success: false, error: error };
+        }
+
+        revalidatePath('/');
+        revalidatePath('/mining-history');
+        return { success: true, reward: rewardAmount };
+
+    } catch (e: any) {
+        return { success: false, error: e.message || 'An unexpected error occurred.' };
     }
-
-    const reward = 40.0;
-    fakeUser.pariBalance += reward;
-    fakeUser.sessionEndTime = null;
-    fakeUser.miningHistory.push({
-        amount: reward,
-        claimedAt: Date.now(),
-    });
-
-    revalidatePath('/');
-    revalidatePath('/mining-history');
-    return { success: true, reward };
 }
 
 
 export async function submitVipProof(userId: string, transactionId: string) {
-    fakeUser.vipStatus = 'pending';
-    fakeUser.vipTransactionId = transactionId;
-    fakeUser.vipProofSubmittedAt = new Date();
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+        vipStatus: 'pending',
+        vipTransactionId: transactionId,
+        vipProofSubmittedAt: new Date(),
+    });
 
     revalidatePath('/vip');
     return { success: true, message: "Proof submitted successfully!" };

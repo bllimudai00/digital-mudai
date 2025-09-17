@@ -32,4 +32,5 @@ export type Task = {
   order: number;
   type: 'external' | 'referral_milestone';
   requiredCount?: number;
+  url?: string;
 };

@@ -8,6 +8,8 @@ import { useEffect, useState } from "react";
 import { getUserData } from "@/app/actions";
 import type { UserData } from "@/lib/types";
 import { format } from "date-fns";
+import { onSnapshot, doc } from "firebase/firestore";
+import { db } from "@/lib/firebase/firestore";
 
 export default function MiningHistoryPage() {
   const [userData, setUserData] = useState<UserData | null>(null);
@@ -15,14 +17,19 @@ export default function MiningHistoryPage() {
 
   useEffect(() => {
     const FAKE_USER_ID = 'user_placeholder_id';
-    async function loadData() {
-        const user = await getUserData();
-        if (user) {
-            setUserData(user);
+    const userRef = doc(db, 'users', FAKE_USER_ID);
+
+    const unsubscribe = onSnapshot(userRef, (doc) => {
+        if (doc.exists()) {
+            setUserData(doc.data() as UserData);
         }
         setLoading(false);
-    }
-    loadData();
+    }, (error) => {
+        console.error("Error fetching real-time user data:", error);
+        setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const history = userData?.miningHistory?.sort((a, b) => b.claimedAt - a.claimedAt) || [];

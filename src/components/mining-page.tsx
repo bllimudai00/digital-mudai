@@ -22,6 +22,8 @@ import { useEffect, useState } from "react";
 import { claimReward, startMiningSession, getUserData } from "@/app/actions";
 import type { UserData } from "@/lib/types";
 import { useRouter } from "next/navigation";
+import { onSnapshot, doc } from "firebase/firestore";
+import { db } from "@/lib/firebase/firestore";
 
 
 function StatCard({
@@ -87,15 +89,36 @@ export default function MiningPage() {
   const [isActionLoading, setIsActionLoading] = useState(false);
   const router = useRouter();
 
+  useEffect(() => {
+    const FAKE_USER_ID = 'user_placeholder_id';
+    const userRef = doc(db, 'users', FAKE_USER_ID);
+
+    // Initial fetch
+    getUserData().then(user => {
+      if (user) {
+        setUserData(user);
+      } else {
+        // Handle case where user is created for the first time
+        getUserData().then(newUser => setUserData(newUser));
+      }
+    });
+
+    const unsubscribe = onSnapshot(userRef, (doc) => {
+        if (doc.exists()) {
+            setUserData(doc.data() as UserData);
+        }
+    }, (error) => {
+        console.error("Error fetching real-time user data:", error);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   async function loadUserData() {
     const user = await getUserData();
     setUserData(user);
     return user;
   }
-
-  useEffect(() => {
-    loadUserData();
-  }, []);
 
   useEffect(() => {
     if (!userData) {
@@ -141,7 +164,7 @@ export default function MiningPage() {
     if (!userData || miningState !== 'idle') return;
     setIsActionLoading(true);
     await startMiningSession(userData.id);
-    await loadUserData();
+    // No need to call loadUserData due to real-time listener
     setIsActionLoading(false);
   };
 
@@ -149,7 +172,7 @@ export default function MiningPage() {
     if (!userData || miningState !== 'claimable') return;
     setIsActionLoading(true);
     await claimReward(userData.id);
-    await loadUserData();
+    // No need to call loadUserData due to real-time listener
     setIsActionLoading(false);
   };
 
