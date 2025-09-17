@@ -65,7 +65,10 @@ export default function MiningHistoryPage() {
             <ArrowLeft />
           </Link>
         </Button>
-        <h1 className="text-xl font-bold text-center flex-1">Mining History</h1>
+        <h1 className="text-xl font-bold text-center flex-1 flex items-center justify-center gap-2">
+            <History className="w-5 h-5"/>
+            Mining History
+        </h1>
         <div className="w-8"></div>
       </header>
 
@@ -81,7 +84,9 @@ export default function MiningHistoryPage() {
                 {history.map((item, index) => (
                   <li key={index} className="p-4 flex justify-between items-center">
                     <div className="flex items-center gap-4">
-                        <Coins className="w-6 h-6 text-green-400" />
+                        <div className="p-2 bg-green-500/10 rounded-full">
+                            <Coins className="w-6 h-6 text-green-400" />
+                        </div>
                         <div>
                             <p className="font-semibold text-green-400">+{item.amount.toFixed(4)} PARI</p>
                             <p className="text-xs text-muted-foreground">
@@ -89,7 +94,7 @@ export default function MiningHistoryPage() {
                             </p>
                         </div>
                     </div>
-                    <p className="text-sm font-medium text-foreground">Claimed</p>
+                    <p className="text-sm font-medium text-foreground bg-secondary px-2 py-1 rounded-md">Claimed</p>
                   </li>
                 ))}
               </ul>
