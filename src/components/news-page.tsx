@@ -14,25 +14,28 @@ import {
   Star,
   Flame,
 } from "lucide-react";
+import Link from "next/link";
 
 function BottomNavItem({
   icon,
   label,
+  href,
   isActive = false,
 }: {
   icon: React.ReactNode;
   label: string;
+  href: string;
   isActive?: boolean;
 }) {
   return (
-    <div
+    <Link href={href}
       className={`flex flex-col items-center gap-1 ${
         isActive ? "text-primary" : "text-muted-foreground"
       }`}
     >
       {icon}
       <span className="text-xs">{label}</span>
-    </div>
+    </Link>
   );
 }
 
@@ -164,11 +167,11 @@ export default function NewsPage() {
 
       <footer className="fixed bottom-0 left-0 right-0 bg-card/80 backdrop-blur-sm border-t p-2">
         <div className="flex justify-around">
-          <BottomNavItem icon={<Zap className="w-6 h-6" />} label="Mining" />
-          <BottomNavItem icon={<Newspaper className="w-6 h-6" />} label="News" isActive />
-          <BottomNavItem icon={<ListChecks className="w-6 h-6" />} label="Tasks" />
-          <BottomNavItem icon={<Gift className="w-6 h-6" />} label="Refer" />
-          <BottomNavItem icon={<User className="w-6 h-6" />} label="Profile" />
+          <BottomNavItem icon={<Zap className="w-6 h-6" />} label="Mining" href="/" />
+          <BottomNavItem icon={<Newspaper className="w-6 h-6" />} label="News" href="/news" isActive />
+          <BottomNavItem icon={<ListChecks className="w-6 h-6" />} label="Tasks" href="/tasks" />
+          <BottomNavItem icon={<Gift className="w-6 h-6" />} label="Refer" href="#" />
+          <BottomNavItem icon={<User className="w-6 h-6" />} label="Profile" href="#" />
         </div>
       </footer>
     </div>
