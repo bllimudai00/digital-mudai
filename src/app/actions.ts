@@ -167,7 +167,8 @@ export async function getUserData(): Promise<UserData | null> {
     const userSnap = await getDoc(userRef);
 
     if (userSnap.exists()) {
-        const userData = userSnap.data() as UserData;
+        const data = userSnap.data();
+        const userData = serializeFirestoreTimestamps(data) as UserData;
         // Sync vip status
         if (userData.vipStatus === 'approved' && !userData.vip) {
             await updateDoc(userRef, { vip: true });
@@ -176,14 +177,14 @@ export async function getUserData(): Promise<UserData | null> {
             await updateDoc(userRef, { vip: false });
             userData.vip = false;
         }
-        return serializeFirestoreTimestamps(userData) as UserData;
+        return { ...userData, id: userSnap.id };
 
     } else {
         // If user doesn't exist, create a new one with default values
         console.log("User not found, creating a new one...");
         const newUser: UserData = {
             id: FAKE_USER_ID,
-            pariBalance: 1080.00,
+            pariBalance: 10.00,
             hashPower: 1,
             baseRate: 10.00,
             streak: 16,
@@ -210,7 +211,11 @@ export async function getUserData(): Promise<UserData | null> {
         });
         await seedInitialData(); 
         console.log("New user and initial data seeded successfully.");
-        return newUser;
+        
+        // After setting, we need to get the data again to have the server timestamp
+        const newUserSnap = await getDoc(userRef);
+        const newUserData = newUserSnap.data();
+        return serializeFirestoreTimestamps({id: newUserSnap.id, ...newUserData}) as UserData;
     }
 }
 
