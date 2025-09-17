@@ -22,9 +22,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getInitialUserData, getReferrals } from "@/app/actions";
+import { getInitialUserData, getReferrals, getLeaderboard } from "@/app/actions";
 import type { UserData, Referral, LeaderboardEntry } from "@/lib/types";
-import { onSnapshot, doc, collection } from "firebase/firestore";
+import { onSnapshot, doc, collection, query, where, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -80,11 +80,24 @@ const WhatsAppIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
 )
 
-function TopReferrerCard({ rank, user, bgColor, borderColor, medalColor }: { rank: number, user: LeaderboardEntry, bgColor: string, borderColor: string, medalColor: string }) {
+function TopReferrerCard({ rank, user, bgColor, borderColor }: { rank: number, user: LeaderboardEntry, bgColor: string, borderColor: string }) {
+    
+    let medal, medalColor;
+    if (rank === 1) {
+        medal = '🥇';
+        medalColor = "text-amber-300";
+    } else if (rank === 2) {
+        medal = '🥈';
+        medalColor = "text-slate-300";
+    } else {
+        medal = '🥉';
+        medalColor = "text-orange-400";
+    }
+
     return (
-        <div className={`flex-1 flex flex-col items-center p-4 rounded-lg ${bgColor} border-2 ${borderColor} relative`}>
+        <div className={`flex-1 flex flex-col items-center p-4 rounded-lg ${bgColor} border-2 ${borderColor} relative mt-4`}>
             <div className={`absolute -top-4 text-3xl font-bold ${medalColor}`}>
-                {rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'}
+                {medal}
             </div>
             <Avatar className="w-16 h-16 mt-4 border-4 border-background">
                 <AvatarImage src={`https://picsum.photos/seed/${user.userId}/100`} />
@@ -107,12 +120,15 @@ export default function ReferPage() {
   useEffect(() => {
     const FAKE_USER_ID = 'user_placeholder_id';
     
-    getInitialUserData().then(data => {
+    const fetchInitialData = async () => {
+        const data = await getInitialUserData();
         setUserData(data.user);
         setReferrals(data.referrals);
         setLeaderboard(data.leaderboard);
         setLoading(false);
-    });
+    }
+    
+    fetchInitialData();
 
     const userRef = doc(db, 'users', FAKE_USER_ID);
     const unsubscribeUser = onSnapshot(userRef, async (doc) => {
@@ -128,13 +144,12 @@ export default function ReferPage() {
         }
     });
 
-    const leaderboardRef = collection(db, 'leaderboard');
-    const unsubscribeLeaderboard = onSnapshot(leaderboardRef, (snapshot) => {
-         getInitialUserData().then(data => {
-            setLeaderboard(data.leaderboard);
-        });
+    const leaderboardCollection = collection(db, 'leaderboard');
+    const q = query(leaderboardCollection, where('type', '==', 'manual'), orderBy('rank'));
+    const unsubscribeLeaderboard = onSnapshot(q, async () => {
+        const updatedLeaderboard = await getLeaderboard();
+        setLeaderboard(updatedLeaderboard);
     });
-
 
     return () => {
         unsubscribeUser();
@@ -183,10 +198,10 @@ export default function ReferPage() {
                     <Link href="/referral-contest">View All</Link>
                  </Button>
             </div>
-            <div className="mt-4 flex gap-2 items-end">
-                {top2 && <TopReferrerCard rank={2} user={top2} bgColor="bg-slate-700/50" borderColor="border-slate-500" medalColor="text-slate-300" />}
-                {top1 && <TopReferrerCard rank={1} user={top1} bgColor="bg-amber-600/50" borderColor="border-amber-400" medalColor="text-amber-300" />}
-                {top3 && <TopReferrerCard rank={3} user={top3} bgColor="bg-orange-800/50" borderColor="border-orange-600" medalColor="text-orange-400" />}
+            <div className="mt-4 flex gap-2 items-end justify-center">
+                {top2 && <TopReferrerCard rank={2} user={top2} bgColor="bg-slate-700/50" borderColor="border-slate-500" />}
+                {top1 && <TopReferrerCard rank={1} user={top1} bgColor="bg-amber-600/50" borderColor="border-amber-400" />}
+                {top3 && <TopReferrerCard rank={3} user={top3} bgColor="bg-orange-800/50" borderColor="border-orange-600" />}
             </div>
           </CardContent>
         </Card>

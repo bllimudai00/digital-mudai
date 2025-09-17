@@ -1,13 +1,13 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader, Trophy, Users } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getLeaderboard } from "@/app/actions";
 import type { LeaderboardEntry } from "@/lib/types";
-import { onSnapshot, collection } from "firebase/firestore";
+import { onSnapshot, collection, query, where, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
@@ -54,18 +54,23 @@ export default function ReferralContestPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Initial fetch
-    getLeaderboard().then(data => {
+    
+    const fetchAndSetLeaderboard = async () => {
+        setLoading(true);
+        const data = await getLeaderboard();
         setLeaderboard(data);
         setLoading(false);
-    });
+    }
+    
+    fetchAndSetLeaderboard();
 
-    // Listen for real-time updates
+    // Listen for real-time updates on manual entries
     const leaderboardCollection = collection(db, 'leaderboard');
-    const unsubscribe = onSnapshot(leaderboardCollection, (snapshot) => {
-        getLeaderboard().then(data => {
-            setLeaderboard(data);
-        });
+    const q = query(leaderboardCollection, where('type', '==', 'manual'), orderBy('rank'));
+    const unsubscribe = onSnapshot(q, async () => {
+        // Refetch the whole leaderboard when manual entries change
+        const data = await getLeaderboard();
+        setLeaderboard(data);
     }, (error) => {
         console.error("Error fetching real-time leaderboard:", error);
     });
