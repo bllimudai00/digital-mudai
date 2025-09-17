@@ -265,14 +265,6 @@ export default function MiningPage() {
                   data-ai-hint="network logo"
                   className="rounded-full"
                 />
-                 {miningState === 'mining' && (
-                    <div className="absolute inset-0 rounded-full overflow-hidden">
-                        <div className="relative w-full h-full">
-                            <div className="absolute top-1/2 left-0 h-0.5 w-full bg-primary/70 animate-line-across" />
-                            <div className="absolute top-1/2 left-0 h-0.5 w-full bg-accent/70 animate-line-across-reverse" />
-                        </div>
-                    </div>
-                 )}
                  {userData.vip && (
                     <div className="absolute -top-1 -right-1 bg-blue-500 rounded-full p-2 border-2 border-background">
                       <ShieldCheck className="w-5 h-5 text-white" />
@@ -284,6 +276,12 @@ export default function MiningPage() {
               </div>
             </div>
             {getCardContent()}
+             {miningState === 'mining' && (
+                <div className="relative w-full h-2 overflow-hidden my-2">
+                    <div className="absolute top-1/2 left-0 h-0.5 w-full bg-primary/70 animate-line-across" />
+                    <div className="absolute top-1/2 left-0 h-0.5 w-full bg-accent/70 animate-line-across-reverse" />
+                </div>
+            )}
             <MiningButton />
           </CardContent>
         </Card>
