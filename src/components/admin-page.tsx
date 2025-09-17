@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { UserData, NewsArticle } from "@/lib/types";
 import { getUserData, getVipRequests, updateVipStatus, getNews, addNews, deleteNews, getUsers, updateUserFromAdmin } from "@/app/actions";
-import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit } from "lucide-react";
+import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -15,22 +15,36 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "./ui/dialog";
 import { Label } from "./ui/label";
 
+function StatCard({ title, value, icon }: { title: string, value: string | number, icon: React.ReactNode }) {
+    return (
+        <Card className="bg-card/80 backdrop-blur-sm">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{title}</CardTitle>
+                {icon}
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{value}</div>
+            </CardContent>
+        </Card>
+    );
+}
 
-function VipRequestSection() {
-    const [vipRequests, setVipRequests] = useState<UserData[]>([]);
-    const [loading, setLoading] = useState(true);
+function DashboardStatsSection({ users, vipRequests }: { users: UserData[], vipRequests: UserData[] }) {
+    const totalUsers = users.length;
+    const vipUsers = users.filter(u => u.vip).length;
+    const pendingRequests = vipRequests.length;
+
+    return (
+        <div className="grid gap-4 md:grid-cols-3">
+            <StatCard title="Total Users" value={totalUsers} icon={<Users className="h-4 w-4 text-muted-foreground" />} />
+            <StatCard title="VIP Users" value={vipUsers} icon={<ShieldCheck className="h-4 w-4 text-muted-foreground" />} />
+            <StatCard title="Pending VIP Requests" value={pendingRequests} icon={<Clock className="h-4 w-4 text-muted-foreground" />} />
+        </div>
+    );
+}
+
+function VipRequestSection({ vipRequests, loading, onUpdate }: { vipRequests: UserData[], loading: boolean, onUpdate: () => void }) {
     const { toast } = useToast();
-
-    const fetchRequests = async () => {
-        setLoading(true);
-        const requests = await getVipRequests();
-        setVipRequests(requests);
-        setLoading(false);
-    };
-
-    useEffect(() => {
-        fetchRequests();
-    }, []);
 
     const handleUpdateStatus = async (userId: string, status: 'approved' | 'rejected') => {
         const result = await updateVipStatus(userId, status);
@@ -39,7 +53,7 @@ function VipRequestSection() {
                 title: "Success",
                 description: `User has been ${status}.`,
             });
-            fetchRequests(); // Refresh list
+            onUpdate(); // Refresh list
         } else {
             toast({
                 title: "Error",
@@ -94,7 +108,7 @@ function VipRequestSection() {
 
 function NewsManagementSection() {
     const [news, setNews] = useState<NewsArticle[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading]_useState(true);
     const [newTitle, setNewTitle] = useState("");
     const [newContent, setNewContent] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -268,25 +282,17 @@ function EditUserDialog({ user, isOpen, onOpenChange, onUserUpdate }: { user: Us
     );
 }
 
-function UserManagementSection() {
-    const [users, setUsers] = useState<UserData[]>([]);
-    const [loading, setLoading] = useState(true);
+function UserManagementSection({ users, loading, onUpdate }: { users: UserData[], loading: boolean, onUpdate: () => void }) {
     const [editingUser, setEditingUser] = useState<UserData | null>(null);
-
-    const fetchUsers = async () => {
-        setLoading(true);
-        const userList = await getUsers();
-        setUsers(userList);
-        setLoading(false);
-    };
-
-    useEffect(() => {
-        fetchUsers();
-    }, []);
 
     const handleEditClick = (user: UserData) => {
         setEditingUser(user);
     };
+    
+    const handleUserUpdate = () => {
+        setEditingUser(null);
+        onUpdate();
+    }
 
     if (loading) {
         return <div className="flex justify-center p-8"><Loader className="w-6 h-6 animate-spin" /></div>;
@@ -298,10 +304,6 @@ function UserManagementSection() {
                 <CardTitle>User Management</CardTitle>
             </CardHeader>
             <CardContent>
-                <div className="mb-4 p-4 bg-background rounded-lg">
-                    <p className="text-sm text-muted-foreground">Total Users</p>
-                    <p className="text-3xl font-bold">{users.length}</p>
-                </div>
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -317,7 +319,7 @@ function UserManagementSection() {
                             <TableRow key={user.id}>
                                 <TableCell className="font-medium">{user.name}</TableCell>
                                 <TableCell>{user.email}</TableCell>
-                                <TableCell className="text-right">{user.pariBalance.toFixed(4)}</TableCell>
+                                <TableCell className="text-right">{(typeof user.pariBalance === 'number' ? user.pariBalance : parseFloat(user.pariBalance)).toFixed(4)}</TableCell>
                                 <TableCell className="text-center">
                                     {user.vip ? (
                                         <Badge className="bg-green-500 text-white">Yes</Badge>
@@ -342,7 +344,7 @@ function UserManagementSection() {
                 user={editingUser}
                 isOpen={!!editingUser}
                 onOpenChange={(isOpen) => { if (!isOpen) setEditingUser(null); }}
-                onUserUpdate={fetchUsers}
+                onUserUpdate={handleUserUpdate}
             />
         </Card>
     );
@@ -351,19 +353,29 @@ function UserManagementSection() {
 
 export default function AdminPage() {
     const [currentUser, setCurrentUser] = useState<UserData | null>(null);
+    const [allUsers, setAllUsers] = useState<UserData[]>([]);
+    const [vipRequests, setVipRequests] = useState<UserData[]>([]);
     const [loading, setLoading] = useState(true);
 
+    const fetchData = async () => {
+        // Set loading to true only if it's the initial load
+        setLoading(prev => (prev === true ? true : false));
+        const [user, users, requests] = await Promise.all([
+            getUserData(),
+            getUsers(),
+            getVipRequests()
+        ]);
+        setCurrentUser(user);
+        setAllUsers(users);
+        setVipRequests(requests);
+        setLoading(false);
+    };
+
     useEffect(() => {
-        const loadUser = async () => {
-            setLoading(true);
-            const user = await getUserData();
-            setCurrentUser(user);
-            setLoading(false);
-        };
-        loadUser();
+        fetchData();
     }, []);
 
-    if (loading) {
+    if (loading && !currentUser) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-background">
                 <Loader className="w-8 h-8 animate-spin text-primary" />
@@ -395,10 +407,13 @@ export default function AdminPage() {
                 </Button>
             </header>
             
-            <UserManagementSection />
-            <VipRequestSection />
+            <DashboardStatsSection users={allUsers} vipRequests={vipRequests} />
+            <UserManagementSection users={allUsers} loading={loading} onUpdate={fetchData} />
+            <VipRequestSection vipRequests={vipRequests} loading={loading} onUpdate={fetchData} />
             <NewsManagementSection />
 
         </div>
     );
 }
+
+    
