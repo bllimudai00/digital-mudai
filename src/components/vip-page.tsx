@@ -31,13 +31,14 @@ import {
   Loader,
   BadgeCheck,
   Clock,
+  XCircle,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Input } from "./ui/input";
 import React, { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { submitVipProof, getUserData } from "@/app/actions";
+import { submitVipProof } from "@/app/actions";
 import { UserData } from "@/lib/types";
 import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
@@ -109,7 +110,7 @@ const faqData = [
     }
 ]
 
-function UpgradeToVipForm({ userId, onProofSubmit }: { userId: string, onProofSubmit: () => void }) {
+function UpgradeToVipForm({ userId }: { userId: string }) {
     const [transactionId, setTransactionId] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
@@ -127,7 +128,6 @@ function UpgradeToVipForm({ userId, onProofSubmit }: { userId: string, onProofSu
         if (result.success) {
             toast({ title: "Success", description: result.message });
             setTransactionId("");
-            onProofSubmit(); // Refresh data on parent component
         } else {
             toast({ title: "Error", description: result.error, variant: "destructive" });
         }
@@ -158,21 +158,27 @@ function UpgradeToVipForm({ userId, onProofSubmit }: { userId: string, onProofSu
     )
 }
 
-function VipStatus({ status, userId, onProofSubmit }: { status: 'none' | 'pending' | 'approved' | 'rejected', userId: string, onProofSubmit: () => void }) {
+function VipStatus({ status, userId }: { status: 'none' | 'pending' | 'approved' | 'rejected', userId: string }) {
+    
+    const copyToClipboard = (text: string) => {
+        navigator.clipboard.writeText(text);
+        // Maybe show a toast notification
+    }
+
     if (status === 'approved') {
         return (
-            <div className="text-center bg-green-900/30 border border-green-500/50 p-4 rounded-lg flex flex-col items-center gap-2">
-                <BadgeCheck className="w-10 h-10 text-green-400" />
-                <h3 className="text-lg font-bold text-white">VIP Active</h3>
-                <p className="text-sm text-muted-foreground">Your VIP membership is approved and active.</p>
+            <div className="text-center bg-green-900/30 border border-green-500/50 p-6 rounded-lg flex flex-col items-center gap-2">
+                <BadgeCheck className="w-12 h-12 text-green-400" />
+                <h3 className="text-xl font-bold text-white mt-2">VIP Active</h3>
+                <p className="text-sm text-muted-foreground">Your VIP membership is approved and active. Enjoy your benefits!</p>
             </div>
         )
     }
      if (status === 'pending') {
         return (
-            <div className="text-center bg-yellow-900/30 border border-yellow-500/50 p-4 rounded-lg flex flex-col items-center gap-2">
-                <Clock className="w-10 h-10 text-yellow-400" />
-                <h3 className="text-lg font-bold text-white">Verification Pending</h3>
+            <div className="text-center bg-yellow-900/30 border border-yellow-500/50 p-6 rounded-lg flex flex-col items-center gap-2">
+                <Clock className="w-12 h-12 text-yellow-400" />
+                <h3 className="text-xl font-bold text-white mt-2">Verification Pending</h3>
                 <p className="text-sm text-muted-foreground">Your proof has been submitted and is awaiting verification (2-24 hours).</p>
             </div>
         )
@@ -191,7 +197,10 @@ function VipStatus({ status, userId, onProofSubmit }: { status: 'none' | 'pendin
                 <p className="text-sm text-muted-foreground">Permanent VIP Membership</p>
             </div>
             {status === 'rejected' && (
-                 <p className="text-center text-red-400 text-sm">Your previous submission was rejected. Please double-check your transaction ID and resubmit.</p>
+                 <div className="text-center bg-red-900/30 border border-red-500/50 p-4 rounded-lg flex items-center gap-3 text-red-400">
+                    <XCircle className="w-5 h-5"/>
+                    <p className="text-sm">Your last submission was rejected. Please re-check your transaction ID and submit again.</p>
+                 </div>
             )}
             <div>
                 <label className="text-sm text-muted-foreground">Payment Method</label>
@@ -204,7 +213,7 @@ function VipStatus({ status, userId, onProofSubmit }: { status: 'none' | 'pendin
                 <label className="text-sm text-muted-foreground">Wallet Address</label>
                 <div className="relative mt-1">
                     <Input type="text" readOnly value="0x10FA107AF74434313841FB36F4547ac" className="pr-12 bg-background"/>
-                    <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground">
+                    <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground" onClick={() => copyToClipboard('0x10FA107AF74434313841FB36F4547ac')}>
                         <Copy className="w-4 h-4"/>
                     </Button>
                 </div>
@@ -215,7 +224,7 @@ function VipStatus({ status, userId, onProofSubmit }: { status: 'none' | 'pendin
             </div>
           </TabsContent>
           <TabsContent value="proof">
-            <UpgradeToVipForm userId={userId} onProofSubmit={onProofSubmit} />
+            <UpgradeToVipForm userId={userId} />
           </TabsContent>
         </Tabs>
     );
@@ -224,21 +233,20 @@ function VipStatus({ status, userId, onProofSubmit }: { status: 'none' | 'pendin
 export default function VipPage() {
   const [userData, setUserData] = useState<UserData | null>(null);
 
-  async function loadData() {
-    const user = await getUserData();
-    setUserData(user);
-  }
-
   useEffect(() => {
     const FAKE_USER_ID = 'user_placeholder_id';
     const userRef = doc(db, 'users', FAKE_USER_ID);
 
     const unsubscribe = onSnapshot(userRef, (doc) => {
         if (doc.exists()) {
-            setUserData(doc.data() as UserData);
-        } else {
-             // This may be the first run, try to create the user
-            loadData();
+            const user = doc.data() as UserData;
+            // This is the sync logic from actions.ts, duplicated for real-time updates
+            if (user.vipStatus === 'approved' && !user.vip) {
+                user.vip = true;
+            } else if (user.vipStatus !== 'approved' && user.vip) {
+                user.vip = false;
+            }
+            setUserData(user);
         }
     }, (error) => {
         console.error("Error fetching real-time user data:", error);
@@ -299,7 +307,7 @@ export default function VipPage() {
           </CardHeader>
           <CardContent>
             {userData ? (
-                <VipStatus status={userData.vipStatus || 'none'} userId={userData.id} onProofSubmit={loadData} />
+                <VipStatus status={userData.vipStatus || 'none'} userId={userData.id} />
             ) : (
                 <div className="flex justify-center items-center p-8">
                     <Loader className="w-8 h-8 animate-spin" />

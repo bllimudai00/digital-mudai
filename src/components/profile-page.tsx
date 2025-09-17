@@ -91,7 +91,14 @@ export default function ProfilePage() {
 
     const unsubscribe = onSnapshot(userRef, (doc) => {
         if (doc.exists()) {
-            setUserData(doc.data() as UserData);
+            const user = doc.data() as UserData;
+            // This is the sync logic from actions.ts, duplicated for real-time updates
+            if (user.vipStatus === 'approved' && !user.vip) {
+                user.vip = true;
+            } else if (user.vipStatus !== 'approved' && user.vip) {
+                user.vip = false;
+            }
+            setUserData(user);
         } else {
             // This case should be handled by the initial creation logic in getUserData
             getUserData().then(newUser => setUserData(newUser));

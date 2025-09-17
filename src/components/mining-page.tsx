@@ -96,7 +96,14 @@ export default function MiningPage() {
 
     const unsubscribe = onSnapshot(userRef, (doc) => {
         if (doc.exists()) {
-            setUserData(doc.data() as UserData);
+            const user = doc.data() as UserData;
+            // This is the sync logic from actions.ts, duplicated for real-time updates
+             if (user.vipStatus === 'approved' && !user.vip) {
+                user.vip = true;
+            } else if (user.vipStatus !== 'approved' && user.vip) {
+                user.vip = false;
+            }
+            setUserData(user);
         } else {
             // This case should be handled by the initial creation logic in getUserData
             getUserData().then(newUser => setUserData(newUser));
@@ -285,7 +292,7 @@ export default function MiningPage() {
           <CardContent className="p-0">
             <p className="text-sm text-muted-foreground">Next Reward</p>
             <p className="text-2xl font-bold text-green-400 mt-1">{rewardAmount.toFixed(4)} PARI</p>
-            <p className="text-xs text-muted-foreground">10 x 1x (Normal) x 1x</p>
+            <p className="text-xs text-muted-foreground">10 x 1x ({userData.vip ? "VIP 2x" : "Normal"}) x 1x</p>
           </CardContent>
         </Card>
 
