@@ -209,8 +209,8 @@ export default function ProfilePage() {
 
         <Card className="bg-card/80 backdrop-blur-sm">
           <CardContent className="p-4 divide-y divide-border">
-            <ProfileMenuItem icon={<Map className="w-5 h-5 text-muted-foreground" />} label="Roadmap" />
-            <ProfileMenuItem icon={<FileText className="w-5 h-5 text-muted-foreground" />} label="White Paper" />
+            <ProfileMenuItem icon={<Map className="w-5 h-5 text-muted-foreground" />} label="Roadmap" href="/roadmap" />
+            <ProfileMenuItem icon={<FileText className="w-5 h-5 text-muted-foreground" />} label="White Paper" href="/white-paper" />
           </CardContent>
         </Card>
 
