@@ -2,6 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import {
   ListChecks,
   Gift,
@@ -79,6 +80,7 @@ function TaskCard({ task, userData, onClaim }: { task: Task, userData: UserData 
         setIsLoading(true);
         await onClaim(task.id);
         setIsLoading(false);
+        setIsExternalTaskPending(false); // Reset pending state after claim attempt
     };
     
     const handleExternalTask = () => {
@@ -128,8 +130,8 @@ function TaskCard({ task, userData, onClaim }: { task: Task, userData: UserData 
         isDisabled = true;
     }
 
-    const description = task.type === 'referral_milestone' 
-        ? `Invite ${task.requiredCount} friends to join Pari Network. (${referralCount}/${task.requiredCount})`
+    const description = task.type === 'referral_milestone' && task.requiredCount
+        ? `Invite ${task.requiredCount} friends to join Pari Network.`
         : task.title;
 
     const icon = task.type === 'referral_milestone' 
@@ -148,16 +150,18 @@ function TaskCard({ task, userData, onClaim }: { task: Task, userData: UserData 
             handleExternalTask();
         }
     };
+    
+    const progressValue = (task.requiredCount && referralCount) ? (referralCount / task.requiredCount) * 100 : 0;
 
     const ButtonComponent = (
-        <Button size="sm" onClick={handleButtonClick} disabled={isDisabled} className={isCompleted ? "bg-green-500/20 text-green-400" : ""}>
+        <Button size="sm" onClick={handleButtonClick} disabled={isDisabled} className={isCompleted ? "bg-green-500/20 text-green-400 cursor-not-allowed hover:bg-green-500/20" : ""}>
             {buttonIcon}
             {buttonLabel}
         </Button>
     );
 
   return (
-    <Card className="bg-card/80 backdrop-blur-sm">
+    <Card className={`bg-card/80 backdrop-blur-sm transition-all ${isCompleted ? 'opacity-70' : ''}`}>
       <CardContent className="p-4">
         <div className="flex justify-between items-center">
             <div className="flex-1 pr-4">
@@ -165,10 +169,16 @@ function TaskCard({ task, userData, onClaim }: { task: Task, userData: UserData 
                     {icon}
                     <h3 className="text-md font-bold">{task.title}</h3>
                 </div>
-                {task.type === 'referral_milestone' && 
-                    <p className="text-xs text-muted-foreground mb-2">{description}</p>
+                {task.type === 'referral_milestone' && task.requiredCount &&
+                    <>
+                        <p className="text-xs text-muted-foreground mb-2">{description}</p>
+                        <div className="flex items-center gap-2">
+                           <Progress value={progressValue} className="w-full h-1.5" />
+                           <span className="text-xs font-semibold text-muted-foreground">{referralCount}/{task.requiredCount}</span>
+                        </div>
+                    </>
                 }
-                <p className="text-green-400 font-bold text-sm">+{task.reward} PARI</p>
+                <p className="text-green-400 font-bold text-sm mt-2">+{task.reward} PARI</p>
             </div>
             {buttonState === 'go_to_refer' ? (
                 <Link href="/refer" passHref>
@@ -199,7 +209,6 @@ export default function TasksPage() {
         if (doc.exists()) {
             setUserData(doc.data() as UserData);
         }
-        // Set loading to false for user, but tasks might still be loading
         if (tasks.length > 0) setLoading(false);
     }, (error) => {
         console.error("Error fetching real-time user data:", error);
@@ -221,7 +230,7 @@ export default function TasksPage() {
         unsubscribeUser();
         unsubscribeTasks();
     };
-  }, [userData, tasks]);
+  }, []);
 
   const handleClaim = async (taskId: string) => {
     if (!userData) return;
