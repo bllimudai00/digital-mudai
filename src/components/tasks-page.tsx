@@ -16,10 +16,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getUserData, claimTaskReward, getTasks } from "@/app/actions";
+import { claimTaskReward, getTasks } from "@/app/actions";
 import type { Task, UserData } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { onSnapshot, doc } from "firebase/firestore";
+import { onSnapshot, doc, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 
 function BottomNavItem({
@@ -197,25 +197,23 @@ export default function TasksPage() {
     const unsubscribeUser = onSnapshot(userRef, (doc) => {
         if (doc.exists()) {
             setUserData(doc.data() as UserData);
-        } else {
-             // This may be the first run, try to create the user
-            getUserData().then(newUser => setUserData(newUser));
         }
-        setLoading(false);
+        if(!tasks.length) { // only fetch tasks once
+             getTasks().then(taskList => {
+                setTasks(taskList);
+                setLoading(false);
+            }).catch(error => {
+                console.error("Error fetching tasks:", error);
+                setLoading(false);
+            });
+        }
     }, (error) => {
         console.error("Error fetching real-time user data:", error);
         setLoading(false);
     });
-
-    getTasks().then(taskList => {
-        setTasks(taskList);
-    }).catch(error => {
-        console.error("Error fetching tasks:", error);
-        setLoading(false);
-    });
     
     return () => unsubscribeUser();
-  }, []);
+  }, [tasks]);
 
   const handleClaim = async (taskId: string) => {
     if (!userData) return;

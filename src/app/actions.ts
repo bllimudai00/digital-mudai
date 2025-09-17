@@ -1,21 +1,141 @@
 'use server';
 
-import { doc, updateDoc, arrayUnion, getDoc, runTransaction, increment, collection, getDocs, writeBatch, setDoc, query, where } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, getDoc, runTransaction, increment, collection, getDocs, writeBatch, setDoc, query, where, addDoc, deleteDoc } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/firebase/firestore';
-import type { UserData, Referral, Task } from '@/lib/types';
+import type { UserData, Referral, Task, NewsArticle } from '@/lib/types';
 
 // This is a placeholder for a real user ID
 const FAKE_USER_ID = 'user_placeholder_id';
 
+const hardcodedNewsData = [
+  {
+    id: 'news_1',
+    title: "🔥 New Fighting Game Coming Soon to Pari Network! 🔥",
+    date: "Sep 4, 2025",
+    priority: "low",
+    content: [
+      {
+        type: 'paragraph',
+        text: 'Pari Network will soon launch a new fighting game that will be directly available inside the app. This game will be easy and fun for everyone.'
+      },
+      {
+        type: 'section',
+        title: "Simple and Fun Gameplay",
+        icon: 'Gamepad2',
+        text: "Choose your favorite character and fight against other players or smart bots. The game will be fast and exciting!",
+      },
+      {
+        type: 'section',
+        title: "Earn Crypto Tokens While You Play",
+        icon: 'Wallet',
+        text: "Win battles and earn Pari Network crypto tokens as rewards. Your earnings will be safe and secured by smart contracts.",
+      },
+      {
+        type: 'section',
+        title: "What's Next?",
+        icon: 'Star',
+        text: "Soon, new features like tournaments and ranking systems will be added to make the game even more enjoyable.",
+      },
+      {
+        type: 'coming-soon',
+        text: "Coming soon!",
+      }
+    ],
+  },
+  {
+    id: 'news_2',
+    title: "Our Launching Plan: Bringing Innovation to You",
+    date: "Sep 1, 2025",
+    priority: "low",
+    content: [
+      {
+        type: 'paragraph',
+        text: "We are excited to announce that the launch of our project is on the horizon. Our plan is to introduce the application in phases, ensuring thorough testing, user feedback, and continuous improvements."
+      },
+      {
+        type: 'paragraph',
+        text: "The launch will include a special campaign to engage users, share exclusive previews, and highlight the unique features powered by AI, gaming, Web 3.0, and Pari blockchain. We aim to provide a seamless and impactful experience from day one."
+      },
+      {
+        type: 'paragraph',
+        text: "Stay tuned for updates and be ready to explore a new era of digital innovation with us!"
+      }
+    ]
+  },
+  {
+    id: 'news_3',
+    title: "Pari Blockchain Integration in Our Project",
+    date: "Sep 1, 2025",
+    priority: "low",
+    content: [
+        {
+            type: 'paragraph',
+            text: "Our project incorporates the cutting-edge Pari blockchain to power secure, scalable, and decentralized digital solutions. Pari blockchain offers enhanced speed, low transaction costs, and high security, making it ideal for gaming, AI, and Web 3.0 applications."
+        },
+        {
+            type: 'paragraph',
+            text: "By leveraging Pari blockchain, we provide users with true ownership of digital assets, transparent smart contract automation, and reliable data integrity. This integration boosts trust and efficiency in both virtual and real-world use cases."
+        },
+        {
+            type: 'paragraph',
+            text: "Pari blockchain's advanced technology strengthens our project's mission to deliver innovative, user-centric, and future-proof digital experiences."
+        }
+    ]
+  },
+];
+
 
 // --- Firebase Actions ---
 
+export async function seedInitialData() {
+    // Seed tasks
+    const tasksRef = collection(db, 'tasks');
+    const tasksSnapshot = await getDocs(tasksRef);
+    if (tasksSnapshot.empty) {
+        console.log("No tasks found, seeding initial tasks...");
+        const defaultTasks = [
+            { id: 'task_1', title: "Join our official Telegram Channel", reward: 10, order: 1, type: 'external', url: 'https://t.me/PariNetwork' },
+            { id: 'task_2', title: "First Referral Bonus", reward: 50, order: 2, type: 'referral_milestone', requiredCount: 1 },
+            { id: 'task_3', title: "Join our official Telegram group", reward: 10, order: 3, type: 'external', url: 'https://t.me/PariNetworkGroup' },
+            { id: 'task_4', title: "Referral Milestone", reward: 20, order: 4, type: 'referral_milestone', requiredCount: 50 },
+            { id: 'task_5', title: "Follow on X", reward: 10, order: 5, type: 'external', url: 'https://x.com/PariNetwork' },
+            { id: 'task_6', title: "Referral Milestone", reward: 100, order: 6, type: 'referral_milestone', requiredCount: 500 },
+            { id: 'task_7', title: "Referral Milestone", reward: 200, order: 7, type: 'referral_milestone', requiredCount: 1000 },
+            { id: 'task_8', title: "Referral Milestone", reward: 1000, order: 8, type: 'referral_milestone', requiredCount: 5000 },
+        ];
+        const batch = writeBatch(db);
+        defaultTasks.forEach(task => {
+            const taskRef = doc(tasksRef, task.id);
+            batch.set(taskRef, task);
+        });
+        await batch.commit();
+        console.log("Initial tasks seeded.");
+    }
+    
+    // Seed news
+    const newsRef = collection(db, 'news');
+    const newsSnapshot = await getDocs(newsRef);
+    if (newsSnapshot.empty) {
+        console.log("No news found, seeding initial news...");
+        const batch = writeBatch(db);
+        hardcodedNewsData.forEach(article => {
+            const articleRef = doc(newsRef, article.id);
+            batch.set(articleRef, article);
+        });
+        await batch.commit();
+        console.log("Initial news seeded.");
+    }
+}
+
+
 export async function getInitialUserData() {
+    await seedInitialData();
     const user = await getUserData();
     const referrals = await getReferrals(user?.referrals || []);
     const tasks = await getTasks();
-    return { user, referrals, tasks };
+    const news = await getNews();
+    return { user, referrals, tasks, news };
 }
 
 export async function getUserData(): Promise<UserData | null> {
@@ -36,17 +156,6 @@ export async function getUserData(): Promise<UserData | null> {
     } else {
         // If user doesn't exist, create a new one with default values
         console.log("User not found, creating a new one...");
-        const defaultTasks = [
-            { id: 'task_1', title: "Join our official Telegram Channel", reward: 10, order: 1, type: 'external', url: 'https://t.me/PariNetwork' },
-            { id: 'task_2', title: "First Referral Bonus", reward: 50, order: 2, type: 'referral_milestone', requiredCount: 1 },
-            { id: 'task_3', title: "Join our official Telegram group", reward: 10, order: 3, type: 'external', url: 'https://t.me/PariNetworkGroup' },
-            { id: 'task_4', title: "Referral Milestone", reward: 20, order: 4, type: 'referral_milestone', requiredCount: 50 },
-            { id: 'task_5', title: "Follow on X", reward: 10, order: 5, type: 'external', url: 'https://x.com/PariNetwork' },
-            { id: 'task_6', title: "Referral Milestone", reward: 100, order: 6, type: 'referral_milestone', requiredCount: 500 },
-            { id: 'task_7', title: "Referral Milestone", reward: 200, order: 7, type: 'referral_milestone', requiredCount: 1000 },
-            { id: 'task_8', title: "Referral Milestone", reward: 1000, order: 8, type: 'referral_milestone', requiredCount: 5000 },
-        ];
-        
         const newUser: UserData = {
             id: FAKE_USER_ID,
             pariBalance: 1080.00,
@@ -66,18 +175,9 @@ export async function getUserData(): Promise<UserData | null> {
             isAdmin: true,
         };
 
-        // Create user document and tasks collection in a batch
-        const batch = writeBatch(db);
-        batch.set(userRef, newUser);
-
-        const tasksRef = collection(db, 'tasks');
-        defaultTasks.forEach(task => {
-            const taskRef = doc(tasksRef, task.id);
-            batch.set(taskRef, task);
-        });
-
-        await batch.commit();
-        console.log("New user and tasks created successfully.");
+        await setDoc(userRef, newUser);
+        await seedInitialData(); 
+        console.log("New user and initial data seeded successfully.");
         return newUser;
     }
 }
@@ -305,4 +405,52 @@ export async function updateVipStatus(userId: string, status: 'approved' | 'reje
     revalidatePath(`/vip`); 
     // The user's page will update in real-time due to snapshot listeners.
     return { success: true };
+}
+
+
+export async function getNews(): Promise<NewsArticle[]> {
+    try {
+        const newsCollection = collection(db, 'news');
+        const newsSnapshot = await getDocs(newsCollection);
+        if (newsSnapshot.empty) {
+            console.log("No news found.");
+            return [];
+        }
+        const newsList = newsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as NewsArticle);
+        // Sort by date if needed, assuming date format is sortable (e.g., YYYY-MM-DD)
+        // For "Sep 4, 2025" format, a custom sort is needed.
+        return newsList.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    } catch (error) {
+        console.error("Error fetching news:", error);
+        return [];
+    }
+}
+
+export async function addNews(article: Omit<NewsArticle, 'id' | 'date'> & { date: string }) {
+    try {
+        const newsCollection = collection(db, 'news');
+        const docRef = await addDoc(newsCollection, {
+            ...article,
+            date: new Date(article.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+        });
+        revalidatePath('/news');
+        revalidatePath('/admin');
+        return { success: true, id: docRef.id };
+    } catch (error: any) {
+        console.error("Error adding news: ", error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function deleteNews(articleId: string) {
+    try {
+        const newsRef = doc(db, 'news', articleId);
+        await deleteDoc(newsRef);
+        revalidatePath('/news');
+        revalidatePath('/admin');
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error deleting news: ", error);
+        return { success: false, error: error.message };
+    }
 }
