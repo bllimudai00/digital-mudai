@@ -24,7 +24,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getInitialUserData, getReferrals, getLeaderboard } from "@/app/actions";
 import type { UserData, Referral, LeaderboardEntry } from "@/lib/types";
-import { onSnapshot, doc, collection } from "firebase/firestore";
+import { onSnapshot, doc, collection, query } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -81,7 +81,7 @@ const WhatsAppIcon = () => (
 )
 
 function PodiumSpot({ user, rank, medal }: { user: LeaderboardEntry, rank: number, medal: string }) {
-    if (!user || !user.name) return null;
+    if (!user || !user.name) return <div className="w-1/3" />;
 
     const rankStyles = {
         1: { podium: 'h-32 bg-yellow-400/30', avatar: 'w-20 h-20 border-yellow-400', offset: 'bottom-0' },
@@ -119,7 +119,8 @@ export default function ReferPage() {
     const fetchAndSetData = async () => {
         setLoading(true);
         try {
-            const [initialData, leaderboardData] = await Promise.all([getInitialUserData(), getLeaderboard()]);
+            const initialData = await getInitialUserData();
+            const leaderboardData = await getLeaderboard();
             setUserData(initialData.user);
             setReferrals(initialData.referrals);
             setLeaderboard(leaderboardData);
@@ -146,8 +147,8 @@ export default function ReferPage() {
         }
     });
     
-    const leaderboardCollection = collection(db, 'leaderboard');
-    const unsubscribeLeaderboard = onSnapshot(leaderboardCollection, async () => {
+    const leaderboardQuery = query(collection(db, 'leaderboard'));
+    const unsubscribeLeaderboard = onSnapshot(leaderboardQuery, async () => {
         setLoading(true);
         const updatedLeaderboard = await getLeaderboard();
         setLeaderboard(updatedLeaderboard);
@@ -375,5 +376,3 @@ export default function ReferPage() {
     </div>
   );
 }
-
-    
