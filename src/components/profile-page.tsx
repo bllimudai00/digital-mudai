@@ -28,7 +28,6 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useEffect, useState } from "react";
-import { getUserData } from "@/app/actions";
 import type { UserData } from "@/lib/types";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
@@ -111,7 +110,7 @@ export default function ProfilePage() {
         <Card className="bg-card/80 backdrop-blur-sm p-6">
           <CardContent className="p-0 flex flex-col items-center text-center">
             <Avatar className="w-24 h-24 mb-4 border-2 border-primary">
-              <AvatarImage src="https://picsum.photos/seed/pari/200" alt="User Avatar" data-ai-hint="network logo" />
+              <AvatarImage src="https://ik.imagekit.io/parinetwork/IMG_20250827_125111.jpg?updatedAt=1756725448569" alt="User Avatar" data-ai-hint="network logo" />
               <AvatarFallback>{userData.name.substring(0, 2)}</AvatarFallback>
             </Avatar>
             <h2 className="text-xl font-bold">{userData.name}</h2>

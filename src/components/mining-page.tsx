@@ -19,7 +19,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { claimReward, getUserData, startMiningSession } from "@/app/actions";
+import { claimReward, startMiningSession, getInitialUserData } from "@/app/actions";
 import type { UserData } from "@/lib/types";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
@@ -96,7 +96,8 @@ export default function MiningPage() {
         setUserData(doc.data() as UserData);
       } else {
         // If user doesn't exist, create them
-        await getUserData();
+        const data = await getInitialUserData();
+        setUserData(data?.user || null)
       }
     });
 
@@ -245,7 +246,7 @@ export default function MiningPage() {
             <div className="flex justify-center items-center mb-4">
               <div className="relative w-32 h-32">
                 <Image
-                  src="https://picsum.photos/seed/pari/200"
+                  src="https://ik.imagekit.io/parinetwork/IMG_20250827_125111.jpg?updatedAt=1756725448569"
                   alt="PARI Network"
                   width={128}
                   height={128}

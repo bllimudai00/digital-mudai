@@ -33,6 +33,12 @@ const nextConfig: NextConfig = {
         hostname: 'api.qrserver.com',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'ik.imagekit.io',
+        port: '',
+        pathname: '/**',
       }
     ],
   },
