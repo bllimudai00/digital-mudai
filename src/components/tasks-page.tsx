@@ -20,7 +20,7 @@ import { useEffect, useState } from "react";
 import { claimTaskReward } from "@/app/actions";
 import type { Task, UserData } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { onSnapshot, doc, collection } from "firebase/firestore";
+import { onSnapshot, doc, collection, query, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 
 function BottomNavItem({
