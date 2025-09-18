@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { UserData, NewsArticle, GlobalSettings, Task, LeaderboardEntry, RoadmapPhase, WhitePaperSection, RoadmapItem } from "@/lib/types";
-import { getUserData, getVipRequests, updateVipStatus, getNews, addNews, deleteNews, getUsers, updateUserFromAdmin, deleteUser, getGlobalSettings, updateGlobalSettings, getTasks, deleteTask, addTask, updateTask, getLeaderboard, updateLeaderboardEntry, saveRoadmap, saveWhitePaper } from "@/app/actions";
-import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck, Zap, ListChecks, ExternalLink, Trophy, Map, FileText, GripVertical, Plus, Image as ImageIcon, Link as LinkIcon, Mail } from "lucide-react";
+import type { UserData, NewsArticle, GlobalSettings, Task, RoadmapPhase, WhitePaperSection, RoadmapItem } from "@/lib/types";
+import { getUserData, getVipRequests, updateVipStatus, getNews, addNews, deleteNews, getUsers, updateUserFromAdmin, deleteUser, getGlobalSettings, updateGlobalSettings, getTasks, deleteTask, addTask, updateTask, saveRoadmap, saveWhitePaper } from "@/app/actions";
+import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck, Zap, ListChecks, ExternalLink, Map, FileText, GripVertical, Plus, Image as ImageIcon, Link as LinkIcon, Mail } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -793,86 +793,6 @@ function TaskManagementSection({ onUpdate }: { onUpdate: () => void }) {
     );
 }
 
-function LeaderboardManagementSection({ onUpdate }: { onUpdate: () => void }) {
-    const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-    const [loading, setLoading] = useState(true);
-    const { toast } = useToast();
-
-    useEffect(() => {
-        const leaderboardCollection = collection(db, 'leaderboard');
-        const unsubscribe = onSnapshot(leaderboardCollection, (snapshot) => {
-            const entries = snapshot.docs.map(doc => doc.data() as LeaderboardEntry);
-            // Ensure we have entries for ranks 1, 2, 3
-            const finalEntries: LeaderboardEntry[] = [1, 2, 3].map(rank => {
-                const existing = entries.find(e => e.rank === rank && e.type === 'manual');
-                return existing || { rank, userId: "", name: "", referralCount: 0, prize: 0, type: "manual" };
-            });
-            setLeaderboard(finalEntries);
-            setLoading(false);
-        });
-        return () => unsubscribe();
-    }, []);
-
-    const handleInputChange = (rank: number, field: keyof LeaderboardEntry, value: string | number) => {
-        setLeaderboard(prev => prev.map(entry => 
-            entry.rank === rank ? { ...entry, [field]: value } : entry
-        ));
-    };
-
-    const handleSave = async (rank: number) => {
-        const entryToSave = leaderboard.find(e => e.rank === rank);
-        if (!entryToSave) return;
-        
-        const result = await updateLeaderboardEntry(entryToSave);
-        if (result.success) {
-            toast({ title: "Success", description: `Rank ${rank} updated.` });
-            onUpdate();
-        } else {
-            toast({ title: "Error", description: result.error, variant: "destructive" });
-        }
-    };
-
-    if (loading) {
-        return <div className="flex justify-center p-8"><Loader className="w-6 h-6 animate-spin" /></div>;
-    }
-
-    return (
-        <Card className="bg-card/80 backdrop-blur-sm">
-            <CardHeader>
-                <CardTitle>Leaderboard Management (Top 3)</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                {leaderboard.map(entry => (
-                    <div key={entry.rank} className="p-4 bg-background rounded-lg space-y-4">
-                        <h3 className="font-bold text-lg text-primary">Rank #{entry.rank}</h3>
-                        <div className="grid md:grid-cols-2 gap-4">
-                            <div>
-                                <Label htmlFor={`name-${entry.rank}`}>Name</Label>
-                                <Input id={`name-${entry.rank}`} value={entry.name} onChange={(e) => handleInputChange(entry.rank, 'name', e.target.value)} />
-                            </div>
-                             <div>
-                                <Label htmlFor={`userId-${entry.rank}`}>User ID</Label>
-                                <Input id={`userId-${entry.rank}`} value={entry.userId} onChange={(e) => handleInputChange(entry.rank, 'userId', e.target.value)} />
-                            </div>
-                            <div>
-                                <Label htmlFor={`referrals-${entry.rank}`}>Referral Count</Label>
-                                <Input id={`referrals-${entry.rank}`} type="number" value={entry.referralCount} onChange={(e) => handleInputChange(entry.rank, 'referralCount', Number(e.target.value))} />
-                            </div>
-                            <div>
-                                <Label htmlFor={`prize-${entry.rank}`}>Prize (USDT)</Label>
-                                <Input id={`prize-${entry.rank}`} type="number" value={entry.prize} onChange={(e) => handleInputChange(entry.rank, 'prize', Number(e.target.value))} />
-                            </div>
-                        </div>
-                        <div className="flex justify-end">
-                            <Button size="sm" onClick={() => handleSave(entry.rank)}>Save Rank #{entry.rank}</Button>
-                        </div>
-                    </div>
-                ))}
-            </CardContent>
-        </Card>
-    );
-}
-
 function RoadmapManagementSection({ onUpdate }: { onUpdate: () => void }) {
     const [phases, setPhases] = useState<RoadmapPhase[]>([]);
     const [loading, setLoading] = useState(true);
@@ -1145,7 +1065,6 @@ export default function AdminPage() {
             
             <DashboardStatsSection users={allUsers} vipRequests={vipRequests} />
             <GlobalSettingsSection onUpdate={handleDataUpdate} />
-            <LeaderboardManagementSection onUpdate={handleDataUpdate} />
             <UserManagementSection users={allUsers} loading={loading} onUpdate={handleDataUpdate} />
             <VipRequestSection vipRequests={vipRequests} loading={loading} onUpdate={handleDataUpdate} />
             <TaskManagementSection onUpdate={handleDataUpdate} />
@@ -1156,5 +1075,3 @@ export default function AdminPage() {
         </div>
     );
 }
-
-    

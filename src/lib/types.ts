@@ -95,5 +95,3 @@ export type WhitePaperSection = {
     content: string;
     imageUrl?: string;
 };
-
-    
