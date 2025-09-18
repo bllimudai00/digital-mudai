@@ -48,6 +48,7 @@ function BottomNavItem({
         isActive ? "text-primary" : "text-muted-foreground"
       }`}
     >
+      {icon}
       <span className="text-xs">{label}</span>
     </Link>
   );
@@ -104,29 +105,34 @@ const ShareButton = ({ platform, referralLink, children, className }: { platform
 
 function PodiumSpot({ user, rank, medal }: { user: LeaderboardEntry, rank: number, medal: string }) {
     if (!user || !user.name) return <div className="w-1/3" />;
+    
+    const rankClasses = {
+      1: "h-32 bg-yellow-400/30 border-yellow-400",
+      2: "h-24 bg-slate-400/30 border-slate-400",
+      3: "h-16 bg-orange-500/30 border-orange-500",
+    }[rank];
 
-    const rankStyles = {
-        1: { podium: 'h-32 bg-yellow-400/30', avatar: 'w-20 h-20 border-yellow-400', offset: 'bottom-0' },
-        2: { podium: 'h-24 bg-slate-400/30', avatar: 'w-16 h-16 border-slate-400', offset: 'bottom-0' },
-        3: { podium: 'h-16 bg-orange-500/30', avatar: 'w-14 h-14 border-orange-500', offset: 'bottom-0' },
-    }[rank] || {};
+    const avatarSize = {
+        1: "w-20 h-20",
+        2: "w-16 h-16",
+        3: "w-14 h-14"
+    }[rank];
 
     return (
-        <div className={`relative w-1/3 flex flex-col items-center justify-end`}>
-            <div className={`absolute -top-8 flex flex-col items-center z-10`}>
-                <p className="text-3xl drop-shadow-lg">{medal}</p>
-                <Avatar className={`${rankStyles.avatar} border-4 shadow-lg`}>
-                    <AvatarImage src={`https://picsum.photos/seed/${user.userId}/100`} />
-                    <AvatarFallback>{user.name ? user.name.substring(0, 2) : '?'}</AvatarFallback>
-                </Avatar>
-            </div>
-            <div className={`${rankStyles.podium} w-full rounded-t-lg flex flex-col items-center justify-center p-1 pt-8 text-center shadow-inner`}>
-                <p className="font-bold text-sm truncate w-24 text-foreground">{user.name}</p>
+        <div className="w-1/3 flex flex-col justify-end items-center">
+            <Avatar className={`${avatarSize} border-4 shadow-lg mb-2 z-10`}>
+                <AvatarImage src={`https://picsum.photos/seed/${user.userId}/100`} />
+                <AvatarFallback>{user.name ? user.name.substring(0, 2) : '?'}</AvatarFallback>
+            </Avatar>
+            <div className={`w-full rounded-t-lg flex flex-col items-center justify-center p-1 pt-2 text-center shadow-inner relative ${rankClasses}`}>
+                <div className="absolute -top-5 text-2xl drop-shadow-lg">{medal}</div>
+                <p className="font-bold text-sm truncate w-24 text-foreground mt-1">{user.name}</p>
                 <p className="text-xs text-muted-foreground font-semibold">{user.referralCount} Ref</p>
             </div>
         </div>
     );
 }
+
 
 export default function ReferPage() {
   const [userData, setUserData] = useState<UserData | null>(null);
@@ -135,11 +141,10 @@ export default function ReferPage() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-   useEffect(() => {
+  useEffect(() => {
     const FAKE_USER_ID = 'user_placeholder_id';
 
     const fetchInitialData = async () => {
-        setLoading(true);
         try {
             const initialData = await getInitialUserData();
             if (initialData.user) setUserData(initialData.user);
@@ -147,13 +152,15 @@ export default function ReferPage() {
             if (initialData.leaderboard) setLeaderboard(initialData.leaderboard);
         } catch (error) {
             console.error("Error fetching initial data: ", error);
+            toast({ title: "Error", description: "Could not load initial data.", variant: "destructive" });
         } finally {
             setLoading(false);
         }
     };
+    
     fetchInitialData();
 
-    // Real-time listener for user updates (referrals, earnings)
+    // Real-time listeners
     const userRef = doc(db, 'users', FAKE_USER_ID);
     const unsubscribeUser = onSnapshot(userRef, async (doc) => {
         if (doc.exists()) {
@@ -167,9 +174,8 @@ export default function ReferPage() {
             }
         }
     });
-
-    const leaderboardCollection = collection(db, 'leaderboard');
-    const unsubscribeLeaderboard = onSnapshot(query(leaderboardCollection), async () => {
+    
+    const unsubscribeLeaderboard = onSnapshot(collection(db, 'leaderboard'), async () => {
         try {
             const data = await getLeaderboard();
             setLeaderboard(data);
@@ -182,7 +188,8 @@ export default function ReferPage() {
       unsubscribeUser();
       unsubscribeLeaderboard();
     };
-  }, []);
+  }, [toast]);
+
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -224,11 +231,11 @@ export default function ReferPage() {
                     <Trophy className="w-6 h-6 text-accent" />
                     <h2 className="text-xl font-bold text-white">Referral Contest</h2>
                 </div>
-                {loading || !top1 || !top2 || !top3 ? (
+                {!top1 || !top2 || !top3 ? (
                     <div className="text-center text-muted-foreground h-40 flex flex-col justify-center items-center">
-                         {loading ? <Loader className="w-8 h-8 animate-spin text-primary" /> : <Trophy className="w-10 h-10 mb-2" />}
-                         <p>{loading ? 'Loading Leaderboard...' : 'Leaderboard is being prepared.'}</p>
-                         {!loading && <p className="text-xs">Check back soon!</p>}
+                         <Trophy className="w-10 h-10 mb-2" />
+                         <p>Leaderboard is being prepared.</p>
+                         <p className="text-xs">Check back soon!</p>
                      </div>
                 ) : (
                     <div className="flex items-end justify-center w-full h-40 space-x-1">
@@ -394,4 +401,3 @@ export default function ReferPage() {
       </footer>
     </div>
   );
-}
