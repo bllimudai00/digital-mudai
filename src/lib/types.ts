@@ -8,6 +8,15 @@ export type Transaction = {
     claimedAt: string | Timestamp;
 };
 
+export type TelegramUser = {
+    id: number;
+    first_name?: string;
+    last_name?: string;
+    username?: string;
+    language_code?: string;
+    is_premium?: boolean;
+}
+
 export type UserData = {
   id: string;
   pariBalance: number;
@@ -87,5 +96,3 @@ export type WhitePaperSection = {
     content: string;
     imageUrl?: string;
 };
-
-    

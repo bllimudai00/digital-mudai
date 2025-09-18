@@ -5,11 +5,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, History, Loader, Coins, ListChecks, Zap } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import type { UserData, Transaction } from "@/lib/types";
 import { format } from "date-fns";
 import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
+import { AuthContext } from "@/context/AuthContext";
 
 function serializeTimestampInHistory(history: any[]) {
     return history.map(item => ({
@@ -53,13 +54,13 @@ function HistoryItem({ item }: { item: Transaction }) {
 }
 
 export default function HistoryPage() {
+  const authContext = useContext(AuthContext);
   const [userData, setUserData] = useState<UserData | null>(null);
-  const [loading, setLoading] = useState(true);
-
+  
   useEffect(() => {
-    const FAKE_USER_ID = 'user_placeholder_id';
+    if (!authContext?.user?.id) return;
     
-    const userRef = doc(db, 'users', FAKE_USER_ID);
+    const userRef = doc(db, 'users', authContext.user.id);
     const unsubscribe = onSnapshot(userRef, (doc) => {
         if (doc.exists()) {
             const user = doc.data() as UserData;
@@ -68,14 +69,20 @@ export default function HistoryPage() {
             }
             setUserData(user);
         }
-        setLoading(false);
     }, (error) => {
         console.error("Error fetching real-time user data:", error);
-        setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [authContext?.user?.id]);
+  
+  if (!authContext || authContext.loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <Loader className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   const history = userData?.history || [];
 
@@ -95,7 +102,7 @@ export default function HistoryPage() {
       </header>
 
       <main className="flex-1 p-4 space-y-4">
-        {loading ? (
+        {authContext.loading ? (
           <div className="flex justify-center items-center h-64">
             <Loader className="w-8 h-8 animate-spin text-primary" />
           </div>
@@ -124,5 +131,3 @@ export default function HistoryPage() {
     </div>
   );
 }
-
-    

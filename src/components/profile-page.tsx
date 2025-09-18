@@ -25,10 +25,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import type { UserData, GlobalSettings } from "@/lib/types";
 import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
+import { AuthContext } from "@/context/AuthContext";
 
 
 function BottomNavItem({
@@ -91,64 +92,29 @@ const XIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
 )
 
-function serializeNestedTimestamps(obj: any): any {
-    if (obj === null || typeof obj !== 'object') {
-        return obj;
-    }
-
-    if (Array.isArray(obj)) {
-        return obj.map(serializeNestedTimestamps);
-    }
-
-    if (obj.toDate && typeof obj.toDate === 'function') {
-        return obj.toDate().toISOString();
-    }
-    
-    if (typeof obj === 'object') {
-        const newObj: { [key: string]: any } = {};
-        for (const key in obj) {
-            if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                const value = obj[key];
-                 if (value && value.toDate && typeof value.toDate === 'function') {
-                    newObj[key] = value.toDate().toISOString();
-                } else {
-                    newObj[key] = serializeNestedTimestamps(value);
-                }
-            }
-        }
-        return newObj;
-    }
-    
-    return obj;
-}
-
-
 export default function ProfilePage() {
+  const authContext = useContext(AuthContext);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [settings, setSettings] = useState<GlobalSettings | null>(null);
-  const [loading, setLoading] = useState(true);
-
+  
   useEffect(() => {
-    const FAKE_USER_ID = 'user_placeholder_id';
+    if (!authContext?.user?.id) return;
 
     // Real-time updates from client-side snapshot listener
-    const userRef = doc(db, 'users', FAKE_USER_ID);
+    const userRef = doc(db, 'users', authContext.user.id);
     const unsubscribeUser = onSnapshot(userRef, (doc) => {
         if (doc.exists()) {
-            const user = doc.data();
-            const clientSideSerializedUser = serializeNestedTimestamps(user) as UserData;
+            const user = doc.data() as UserData;
             
-            if (clientSideSerializedUser.vipStatus === 'approved' && !clientSideSerializedUser.vip) {
-                clientSideSerializedUser.vip = true;
-            } else if (clientSideSerializedUser.vipStatus !== 'approved' && clientSideSerializedUser.vip) {
-                clientSideSerializedUser.vip = false;
+            if (user.vipStatus === 'approved' && !user.vip) {
+                user.vip = true;
+            } else if (user.vipStatus !== 'approved' && user.vip) {
+                user.vip = false;
             }
-            setUserData({...clientSideSerializedUser, id: doc.id});
+            setUserData({...user, id: doc.id});
         }
-        setLoading(false);
     }, (error) => {
         console.error("Error fetching real-time user data:", error);
-        setLoading(false);
     });
 
     const settingsRef = doc(db, 'settings', 'global');
@@ -164,13 +130,13 @@ export default function ProfilePage() {
         unsubscribeUser();
         unsubscribeSettings();
     };
-  }, []);
+  }, [authContext?.user?.id]);
 
   const supportTelegramLink = settings?.supportTelegramUsername
     ? `https://t.me/${settings.supportTelegramUsername}`
     : "";
 
-  if (loading || !userData) {
+  if (authContext?.loading || !userData) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader className="w-8 h-8 animate-spin text-primary" />
@@ -261,5 +227,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    

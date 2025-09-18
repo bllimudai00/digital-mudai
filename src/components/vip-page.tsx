@@ -33,13 +33,14 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { Input } from "./ui/input";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { submitVipProof } from "@/app/actions";
 import { UserData, GlobalSettings } from "@/lib/types";
 import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 import { Progress } from "./ui/progress";
+import { AuthContext } from "@/context/AuthContext";
 
 function BenefitCard({
   icon,
@@ -202,15 +203,15 @@ function VipStatus({ status, userId, walletAddress, vipPrice }: { status: 'none'
 }
 
 export default function VipPage() {
+  const authContext = useContext(AuthContext);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [settings, setSettings] = useState<GlobalSettings | null>(null);
 
-
   useEffect(() => {
-    const FAKE_USER_ID = 'user_placeholder_id';
+    if (!authContext?.user?.id) return;
     
     // Listen for user data
-    const userRef = doc(db, 'users', FAKE_USER_ID);
+    const userRef = doc(db, 'users', authContext.user.id);
     const unsubscribeUser = onSnapshot(userRef, (doc) => {
         if (doc.exists()) {
             const user = doc.data() as UserData;
@@ -239,7 +240,7 @@ export default function VipPage() {
         unsubscribeUser();
         unsubscribeSettings();
     };
-  }, []);
+  }, [authContext?.user?.id]);
 
   const claimedSlots = settings?.claimedVipSlots || 0;
   const totalSlots = settings?.totalVipSlots || 1;
@@ -299,17 +300,17 @@ export default function VipPage() {
           </TabsContent>
 
           <TabsContent value="upgrade" className="mt-6">
-              {userData && settings ? (
+              {authContext?.loading || !userData || !settings ? (
+                  <div className="flex justify-center items-center p-8">
+                      <Loader className="w-8 h-8 animate-spin" />
+                  </div>
+              ) : (
                   <VipStatus 
                       status={userData.vipStatus || 'none'} 
                       userId={userData.id}
                       walletAddress={walletAddress}
                       vipPrice={vipPrice}
                   />
-              ) : (
-                  <div className="flex justify-center items-center p-8">
-                      <Loader className="w-8 h-8 animate-spin" />
-                  </div>
               )}
           </TabsContent>
           

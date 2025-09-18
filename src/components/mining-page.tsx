@@ -19,11 +19,12 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import { claimReward, startMiningSession } from "@/app/actions";
 import type { UserData, GlobalSettings } from "@/lib/types";
 import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
+import { AuthContext } from "@/context/AuthContext";
 
 
 function StatCard({
@@ -96,6 +97,7 @@ function formatTime(ms: number) {
 
 
 export default function MiningPage() {
+  const authContext = useContext(AuthContext);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [settings, setSettings] = useState<GlobalSettings | null>(null);
   const [miningState, setMiningState] = useState<'idle' | 'mining' | 'claimable' | 'loading'>('loading');
@@ -103,18 +105,15 @@ export default function MiningPage() {
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [showFloatingText, setShowFloatingText] = useState(false);
   const [claimedAmount, setClaimedAmount] = useState(0);
-  const [loading, setLoading] = useState(true);
-
 
   useEffect(() => {
-    const FAKE_USER_ID = 'user_placeholder_id';
+    if (!authContext?.user?.id) return;
     
     // Real-time listener for user updates
-    const userRef = doc(db, 'users', FAKE_USER_ID);
+    const userRef = doc(db, 'users', authContext.user.id);
     const unsubscribeUser = onSnapshot(userRef, (doc) => {
         if (doc.exists()) {
             const data = doc.data() as UserData;
-            // Also sync VIP status here
             if (data.vipStatus === 'approved' && !data.vip) {
                 data.vip = true;
             } else if (data.vipStatus !== 'approved' && data.vip) {
@@ -122,13 +121,10 @@ export default function MiningPage() {
             }
             setUserData({ ...data, id: doc.id });
         } else {
-            // Handle case where user does not exist, maybe redirect or show error
             setUserData(null);
         }
-        setLoading(false);
     }, (error) => {
         console.error("Error fetching real-time user data:", error);
-        setLoading(false);
     });
 
     // Real-time listener for settings updates
@@ -139,12 +135,11 @@ export default function MiningPage() {
         }
     });
 
-
     return () => {
         unsubscribeUser();
         unsubscribeSettings();
     };
-  }, []);
+  }, [authContext?.user?.id]);
 
 
   useEffect(() => {
@@ -274,8 +269,7 @@ export default function MiningPage() {
   const totalSlots = settings?.totalVipSlots || 1;
   const progressPercentage = (claimedSlots / totalSlots) * 100;
 
-
-  if (loading || !userData || !settings) {
+  if (authContext?.loading || !userData || !settings) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader className="w-8 h-8 animate-spin text-primary" />
@@ -380,5 +374,3 @@ export default function MiningPage() {
     </div>
   );
 }
-
-    

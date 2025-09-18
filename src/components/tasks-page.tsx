@@ -17,12 +17,13 @@ import {
   BadgeCheck,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import { claimTaskReward } from "@/app/actions";
 import type { Task, UserData } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { onSnapshot, doc, collection, query, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
+import { AuthContext } from "@/context/AuthContext";
 
 function BottomNavItem({
   icon,
@@ -188,34 +189,24 @@ function TaskCard({ task, userData, onClaim }: { task: Task, userData: UserData 
 
 
 export default function TasksPage() {
+  const authContext = useContext(AuthContext);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
-    const FAKE_USER_ID = 'user_placeholder_id';
-    let userLoaded = false;
+    if (!authContext?.user?.id) return;
+
     let tasksLoaded = false;
 
-    const checkLoadingDone = () => {
-        if(userLoaded && tasksLoaded) {
-            setLoading(false);
-        }
-    }
-    
     // Listen for user data
-    const userRef = doc(db, 'users', FAKE_USER_ID);
+    const userRef = doc(db, 'users', authContext.user.id);
     const unsubscribeUser = onSnapshot(userRef, (doc) => {
         if (doc.exists()) {
             setUserData(doc.data() as UserData);
         }
-        userLoaded = true;
-        checkLoadingDone();
     }, (error) => {
         console.error("Error fetching real-time user data:", error);
-        userLoaded = true;
-        checkLoadingDone();
     });
     
     // Listen for tasks data
@@ -225,18 +216,16 @@ export default function TasksPage() {
         const tasksList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Task);
         setTasks(tasksList);
         tasksLoaded = true;
-        checkLoadingDone();
     }, (error) => {
         console.error("Error fetching real-time tasks:", error);
         tasksLoaded = true;
-        checkLoadingDone();
     });
 
     return () => {
         unsubscribeUser();
         unsubscribeTasks();
     };
-  }, []);
+  }, [authContext?.user?.id]);
 
   const handleClaim = async (taskId: string) => {
     if (!userData) return;
@@ -246,7 +235,6 @@ export default function TasksPage() {
         title: "Reward Claimed!",
         description: `You've received +${result.reward} PARI.`,
       });
-      // Data will refresh automatically via snapshot listener
     } else {
       toast({
         title: "Error",
@@ -256,8 +244,7 @@ export default function TasksPage() {
     }
   };
 
-
-  if (loading) {
+  if (authContext?.loading || !userData) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader className="w-8 h-8 animate-spin text-primary" />
@@ -303,5 +290,3 @@ export default function TasksPage() {
     </div>
   );
 }
-
-    

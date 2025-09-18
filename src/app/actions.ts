@@ -1,13 +1,80 @@
 
 'use server';
 
-import { doc, updateDoc, arrayUnion, getDoc, runTransaction, increment, collection, getDocs, writeBatch, setDoc, query, where, addDoc, deleteDoc, serverTimestamp, Timestamp, orderBy, limit } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, getDoc, runTransaction, increment, collection, getDocs, writeBatch, setDoc, query, where, addDoc, deleteDoc, serverTimestamp, Timestamp, orderBy } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/firebase/firestore';
-import type { UserData, Referral, Task, NewsArticle, GlobalSettings, RoadmapPhase, WhitePaperSection } from '@/lib/types';
+import type { UserData, Referral, Task, NewsArticle, GlobalSettings, RoadmapPhase, WhitePaperSection, TelegramUser } from '@/lib/types';
+import { createHmac } from 'crypto';
 
-// This is a placeholder for a real user ID
-const FAKE_USER_ID = 'user_placeholder_id';
+// --- Telegram Auth Verification ---
+export async function verifyTelegramAuth(initData: string): Promise<{ user: UserData; isNewUser: boolean } | { error: string }> {
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    if (!botToken) {
+        console.error("Telegram Bot Token not found in environment variables.");
+        return { error: 'Server configuration error.' };
+    }
+
+    const urlParams = new URLSearchParams(initData);
+    const hash = urlParams.get('hash');
+    const userData = Object.fromEntries(urlParams.entries());
+    
+    if (!hash) return { error: 'Invalid authentication data: No hash.' };
+
+    const dataCheckString = Object.keys(userData)
+        .filter((key) => key !== 'hash')
+        .sort()
+        .map((key) => `${key}=${userData[key]}`)
+        .join('\n');
+
+    const secretKey = createHmac('sha256', 'WebAppData').update(botToken).digest();
+    const calculatedHash = createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
+    
+    if (calculatedHash !== hash) {
+        return { error: 'Authentication failed: Invalid hash.' };
+    }
+    
+    const tgUser: TelegramUser = JSON.parse(userData.user);
+
+    const userRef = doc(db, 'users', tgUser.id.toString());
+    const userSnap = await getDoc(userRef);
+
+    if (userSnap.exists()) {
+        const user = serializeFirestoreTimestamps({ id: userSnap.id, ...userSnap.data() }) as UserData;
+        return { user, isNewUser: false };
+    } else {
+        // Create new user
+        const settings = await getGlobalSettings();
+        const referralCode = `PARI${tgUser.id.toString().slice(-4)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+        const newUser: UserData = {
+            id: tgUser.id.toString(),
+            pariBalance: 10,
+            baseRate: settings?.baseRate || 10.00,
+            referrals: [],
+            tasks: [],
+            vip: false,
+            referralCode,
+            name: `${tgUser.first_name || ''} ${tgUser.last_name || ''}`.trim(),
+            username: tgUser.username,
+            email: '', // No email from telegram
+            createdAt: new Date().toISOString(),
+            sessionEndTime: null,
+            history: [],
+            vipStatus: 'none',
+            isAdmin: false, // Default user is not admin
+            referralEarnings: 0
+        };
+
+        await setDoc(userRef, {
+            ...newUser,
+            createdAt: serverTimestamp(),
+        });
+        
+        return { user: newUser, isNewUser: true };
+    }
+}
+
 
 // --- Firebase Actions ---
 
@@ -57,9 +124,9 @@ export async function seedInitialData() {
 }
 
 
-export async function getInitialUserData() {
+export async function getInitialUserData(userId: string) {
     await seedInitialData();
-    const user = await getUserData();
+    const user = await getUserData(userId);
     const referrals = await getReferrals(user?.referrals || []);
     const tasks = await getTasks();
     const news = await getNews();
@@ -104,15 +171,15 @@ function serializeFirestoreTimestamps(data: { [key: string]: any }): { [key: str
 }
 
 
-export async function getUserData(): Promise<UserData | null> {
-    const userRef = doc(db, 'users', FAKE_USER_ID);
+export async function getUserData(userId: string): Promise<UserData | null> {
+    if (!userId) return null;
+    const userRef = doc(db, 'users', userId);
     const userSnap = await getDoc(userRef);
 
     if (userSnap.exists()) {
         const data = userSnap.data();
         let userData = serializeFirestoreTimestamps(data) as UserData;
         
-        // Sync vip status and ensure admin
         let needsUpdate = false;
         const updates: Partial<UserData> = {};
 
@@ -121,12 +188,6 @@ export async function getUserData(): Promise<UserData | null> {
             needsUpdate = true;
         } else if (userData.vipStatus !== 'approved' && userData.vip) {
             updates.vip = false;
-            needsUpdate = true;
-        }
-        
-        // Ensure the default user is always an admin
-        if (!userData.isAdmin) {
-            updates.isAdmin = true;
             needsUpdate = true;
         }
 
@@ -145,41 +206,6 @@ export async function getUserData(): Promise<UserData | null> {
         return { ...userData, id: userSnap.id };
 
     } else {
-        // If user doesn't exist, create a new one with default values
-        console.log("User not found, creating a new one...");
-        const settings = await getGlobalSettings();
-        const newUser: Omit<UserData, 'id'> = {
-            pariBalance: 10,
-            baseRate: settings?.baseRate || 10.00,
-            referrals: [],
-            tasks: [],
-            vip: false,
-            referralCode: 'PARIRBESS8',
-            name: 'Balram Singh Rajput',
-            username: 'balramsingh',
-            email: 'seemarajput8540@gmail.com',
-            createdAt: new Date().toISOString(),
-            sessionEndTime: null,
-            history: [],
-            vipStatus: 'none',
-            isAdmin: true,
-            referredBy: 'super_referrer_placeholder_id',
-            referralEarnings: 0
-        };
-
-        await setDoc(userRef, {
-            ...newUser,
-            createdAt: serverTimestamp(),
-        });
-        await seedInitialData(); 
-        console.log("New user and initial data seeded successfully.");
-        
-        // After setting, get the data again to have the server timestamp
-        const newUserSnap = await getDoc(userRef);
-        if (newUserSnap.exists()) {
-             const newUserData = newUserSnap.data();
-             return serializeFirestoreTimestamps({id: newUserSnap.id, ...newUserData}) as UserData;
-        }
        return null;
     }
 }
@@ -189,8 +215,6 @@ export async function getReferrals(referralIds: string[]): Promise<Referral[]> {
     if (!referralIds || referralIds.length === 0) return [];
 
     const referrals: Referral[] = [];
-    // To avoid fetching too many documents at once, let's process in chunks or limit.
-    // For this example, we'll fetch them one by one, but in a real app, batching is better.
     for (const id of referralIds) {
         try {
             const userRef = doc(db, 'users', id);
@@ -212,6 +236,7 @@ export async function getReferrals(referralIds: string[]): Promise<Referral[]> {
 
 export async function getTasks(): Promise<Task[]> {
     try {
+        await seedInitialData();
         const tasksCollection = collection(db, 'tasks');
         const q = query(tasksCollection, orderBy('order'));
         const tasksSnapshot = await getDocs(q);
@@ -267,24 +292,20 @@ export async function claimTaskReward(userId: string, taskId: string) {
                 claimedAt: new Date().toISOString()
             };
 
-            // If all checks pass, update user document
             transaction.update(userRef, {
                 pariBalance: increment(reward),
                 tasks: arrayUnion(taskId),
                 history: arrayUnion(newHistoryItem)
             });
             
-            return null; // No error
+            return null;
         });
 
         if (error) {
             return { success: false, error: error };
         }
 
-        revalidatePath('/tasks');
         revalidatePath('/');
-        revalidatePath('/history');
-
         return { success: true, reward };
 
     } catch (e: any) {
@@ -325,12 +346,10 @@ export async function claimReward(userId: string) {
             const settings = await getGlobalSettings();
             const baseRate = settings?.baseRate || 10.0;
 
-            // Calculate reward
-            const baseReward = baseRate * 4; // 4 hours session
+            const baseReward = baseRate * 4;
             const finalReward = userData.vip ? baseReward * 2 : baseReward;
             rewardAmount = finalReward;
 
-            // Update user's balance and history
             const newHistoryItem = {
                 type: 'mining',
                 title: 'Mining Session Reward',
@@ -344,25 +363,23 @@ export async function claimReward(userId: string) {
                 history: arrayUnion(newHistoryItem)
             });
 
-            // Handle referral commission for Level 1
             if (userData.referredBy) {
                 const referrerRefL1 = doc(db, "users", userData.referredBy);
                 const referrerL1Doc = await transaction.get(referrerRefL1);
                 
                 if (referrerL1Doc.exists()) {
-                    const commissionAmountL1 = finalReward * 0.10; // 10% commission
+                    const commissionAmountL1 = finalReward * 0.10;
                     transaction.update(referrerRefL1, {
                         pariBalance: increment(commissionAmountL1),
                         referralEarnings: increment(commissionAmountL1)
                     });
 
-                    // Handle referral commission for Level 2
                     const referrerL1Data = referrerL1Doc.data() as UserData;
                     if (referrerL1Data.referredBy) {
                         const referrerRefL2 = doc(db, "users", referrerL1Data.referredBy);
                         const referrerL2Doc = await transaction.get(referrerRefL2);
                         if(referrerL2Doc.exists()) {
-                            const commissionAmountL2 = finalReward * 0.05; // 5% commission
+                            const commissionAmountL2 = finalReward * 0.05;
                             transaction.update(referrerRefL2, {
                                 pariBalance: increment(commissionAmountL2),
                                 referralEarnings: increment(commissionAmountL2)
@@ -372,7 +389,7 @@ export async function claimReward(userId: string) {
                 }
             }
 
-            return null; // No error
+            return null;
         });
 
         if (error) {
@@ -380,8 +397,6 @@ export async function claimReward(userId: string) {
         }
 
         revalidatePath('/');
-        revalidatePath('/history');
-        revalidatePath('/refer');
         return { success: true, reward: rewardAmount };
 
     } catch (e: any) {
@@ -421,7 +436,7 @@ export async function updateGlobalSettings(settings: Partial<GlobalSettings>) {
     try {
         await updateDoc(settingsRef, settings);
         revalidatePath('/admin');
-        revalidatePath('/'); // Revalidate home page to reflect new rate
+        revalidatePath('/'); 
         revalidatePath('/profile');
         
         return { success: true };
@@ -466,13 +481,13 @@ export async function updateVipStatus(userId: string, status: 'approved' | 'reje
             console.error("VIP approval transaction failed: ", e);
             return { success: false, error: e.message || 'An unexpected error occurred.' };
         }
-    } else { // For rejected status
+    } else { 
          await updateDoc(userRef, { vipStatus: status });
     }
 
     revalidatePath('/admin');
     revalidatePath('/vip');
-    revalidatePath('/'); // For progress bar on mining page
+    revalidatePath('/'); 
     
     return { success: true };
 }
@@ -480,6 +495,7 @@ export async function updateVipStatus(userId: string, status: 'approved' | 'reje
 
 export async function getNews(): Promise<NewsArticle[]> {
     try {
+        await seedInitialData();
         const newsCollection = collection(db, 'news');
         const newsSnapshot = await getDocs(newsCollection);
         if (newsSnapshot.empty) {
@@ -488,7 +504,6 @@ export async function getNews(): Promise<NewsArticle[]> {
         }
         const newsList = newsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as NewsArticle);
         
-        // Sort by priority then date
         const priorityOrder = { 'high': 1, 'medium': 2, 'low': 3 };
         return newsList.sort((a, b) => {
             const priorityA = priorityOrder[a.priority] || 4;
@@ -544,7 +559,6 @@ export async function getUsers(): Promise<UserData[]> {
         return serializedData as UserData;
     });
 
-    // Sort by referral count descending for leaderboard purposes
     return users.sort((a, b) => (b.referrals?.length || 0) - (a.referrals?.length || 0));
 }
 
@@ -552,7 +566,6 @@ export async function updateUserFromAdmin(userId: string, dataToUpdate: Partial<
     'use server';
     const userRef = doc(db, 'users', userId);
 
-    // Sanitize data: remove id and any other non-updatable fields
     const { id, ...updateData } = dataToUpdate; 
 
     try {
@@ -674,5 +687,3 @@ export async function saveWhitePaper(sections: WhitePaperSection[]) {
         return { success: false, error: error.message };
     }
 }
-
-    

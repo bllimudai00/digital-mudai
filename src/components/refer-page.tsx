@@ -21,13 +21,14 @@ import {
   Loader,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import { getReferrals } from "@/app/actions";
 import type { UserData, Referral } from "@/lib/types";
-import { onSnapshot, doc } from "firebase/firestore";
+import { onSnapshot, doc, collection, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { AuthContext } from "@/context/AuthContext";
 
 
 function BottomNavItem({
@@ -104,15 +105,15 @@ const ShareButton = ({ platform, referralLink, children, className }: { platform
 };
 
 export default function ReferPage() {
+  const authContext = useContext(AuthContext);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [referrals, setReferrals] = useState<Referral[]>([]);
-  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
-    const FAKE_USER_ID = 'user_placeholder_id';
+    if (!authContext?.user?.id) return;
 
-    const userRef = doc(db, 'users', FAKE_USER_ID);
+    const userRef = doc(db, 'users', authContext.user.id);
     const unsubscribeUser = onSnapshot(userRef, async (doc) => {
         if (doc.exists()) {
             const user = doc.data() as UserData;
@@ -124,17 +125,15 @@ export default function ReferPage() {
                 setReferrals([]);
             }
         }
-        setLoading(false);
     }, (error) => {
         console.error("Error fetching user data:", error);
-        toast({ title: "Error", description: "Could not load page data.", variant: "destructive" });
-        setLoading(false);
+        toast({ title: "Error", description: "Could not load user data.", variant: "destructive" });
     });
 
     return () => {
       unsubscribeUser();
     };
-  }, [toast]);
+  }, [authContext?.user?.id, toast]);
 
 
   const copyToClipboard = (text: string, label: string) => {
@@ -155,7 +154,7 @@ export default function ReferPage() {
 
   const referralLink = userData ? `https://parinetwork.com/join?ref=${userData.referralCode}` : "";
 
-  if (loading) {
+  if (authContext?.loading || !userData) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader className="w-8 h-8 animate-spin text-primary" />
@@ -322,5 +321,3 @@ export default function ReferPage() {
     </div>
   );
 }
-
-    

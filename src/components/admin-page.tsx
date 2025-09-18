@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import type { UserData, NewsArticle, GlobalSettings, Task, RoadmapPhase, WhitePaperSection, RoadmapItem } from "@/lib/types";
-import { getUserData, getVipRequests, updateVipStatus, getNews, addNews, deleteNews, getUsers, updateUserFromAdmin, deleteUser, getGlobalSettings, updateGlobalSettings, getTasks, deleteTask, addTask, updateTask, saveRoadmap, saveWhitePaper } from "@/app/actions";
-import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck, Zap, ListChecks, ExternalLink, Map, FileText, GripVertical, Plus, Image as ImageIcon, Link as LinkIcon, Mail } from "lucide-react";
+import { getVipRequests, updateVipStatus, getNews, addNews, deleteNews, getUsers, updateUserFromAdmin, deleteUser, getGlobalSettings, updateGlobalSettings, getTasks, deleteTask, addTask, updateTask, saveRoadmap, saveWhitePaper } from "@/app/actions";
+import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck, Zap, ListChecks, ExternalLink, Map, FileText, GripVertical, Plus, Image as ImageIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -19,6 +19,7 @@ import { onSnapshot, collection, doc, query, orderBy } from "firebase/firestore"
 import { db } from "@/lib/firebase/firestore";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
+import { AuthContext } from "@/context/AuthContext";
 
 
 function StatCard({ title, value, icon }: { title: string, value: string | number, icon: React.ReactNode }) {
@@ -1003,7 +1004,8 @@ function WhitePaperManagementSection({ onUpdate }: { onUpdate: () => void }) {
 }
 
 export default function AdminPage() {
-    const [currentUser, setCurrentUser] = useState<UserData | null>(null);
+    const authContext = useContext(AuthContext);
+    const { user: currentUser } = authContext || {};
     const [allUsers, setAllUsers] = useState<UserData[]>([]);
     const [vipRequests, setVipRequests] = useState<UserData[]>([]);
     const [loading, setLoading] = useState(true);
@@ -1011,13 +1013,11 @@ export default function AdminPage() {
 
     const fetchData = async () => {
         setLoading(true);
-        const userPromise = getUserData();
         const usersPromise = getUsers();
         const requestsPromise = getVipRequests();
 
-        const [user, users, requests] = await Promise.all([userPromise, usersPromise, requestsPromise]);
+        const [users, requests] = await Promise.all([usersPromise, requestsPromise]);
         
-        setCurrentUser(user);
         setAllUsers(users);
         setVipRequests(requests);
         setLoading(false);
@@ -1028,10 +1028,14 @@ export default function AdminPage() {
     }
 
     useEffect(() => {
-        fetchData();
-    }, [refreshKey]);
+        if(currentUser?.isAdmin){
+            fetchData();
+        } else {
+             setLoading(false);
+        }
+    }, [refreshKey, currentUser]);
 
-    if (loading && !currentUser) {
+    if (!authContext || authContext.loading || loading) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-background">
                 <Loader className="w-8 h-8 animate-spin text-primary" />
