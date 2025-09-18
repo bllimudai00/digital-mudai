@@ -224,21 +224,17 @@ export default function ReferPage() {
                     <Trophy className="w-6 h-6 text-accent" />
                     <h2 className="text-xl font-bold text-white">Referral Contest</h2>
                 </div>
-                {loading ? (
-                    <div className="flex justify-center items-center h-40">
-                        <Loader className="w-8 h-8 animate-spin text-primary" />
-                    </div>
-                ) : (top1 && top2 && top3) ? (
+                {loading || !top1 || !top2 || !top3 ? (
+                    <div className="text-center text-muted-foreground h-40 flex flex-col justify-center items-center">
+                         {loading ? <Loader className="w-8 h-8 animate-spin text-primary" /> : <Trophy className="w-10 h-10 mb-2" />}
+                         <p>{loading ? 'Loading Leaderboard...' : 'Leaderboard is being prepared.'}</p>
+                         {!loading && <p className="text-xs">Check back soon!</p>}
+                     </div>
+                ) : (
                     <div className="flex items-end justify-center w-full h-40 space-x-1">
                         <PodiumSpot user={top2} rank={2} medal="🥈" />
                         <PodiumSpot user={top1} rank={1} medal="🥇" />
                         <PodiumSpot user={top3} rank={3} medal="🥉" />
-                    </div>
-                ) : (
-                    <div className="text-center text-muted-foreground h-40 flex flex-col justify-center items-center">
-                        <Trophy className="w-10 h-10 mb-2" />
-                        <p>Leaderboard is being prepared.</p>
-                        <p className="text-xs">Check back soon!</p>
                     </div>
                 )}
             </CardContent>
@@ -399,4 +395,3 @@ export default function ReferPage() {
     </div>
   );
 }
-    
