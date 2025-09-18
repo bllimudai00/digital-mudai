@@ -19,6 +19,8 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+const ADMIN_USERNAMES = ['Digitalmudai01', 'DesignerDynamo'];
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,7 +41,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                   "id": 987654321,
                   "first_name": "Dev",
                   "last_name": "User",
-                  "username": "devuser",
+                  "username": "Digitalmudai01",
                   "language_code": "en",
                   "is_premium": true
               }),
@@ -56,6 +58,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           // For local development, skip server verification if using dummy hash
           if (new URLSearchParams(initData).get('hash') === 'dummy_hash_for_development' && process.env.NODE_ENV === 'development') {
               const tgUser = JSON.parse(new URLSearchParams(initData).get('user') || '{}');
+              const isDevAdmin = ADMIN_USERNAMES.includes(tgUser.username || '');
               const devUser: UserData = {
                   id: tgUser.id.toString(),
                   pariBalance: 100,
@@ -71,7 +74,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                   sessionEndTime: null,
                   history: [],
                   vipStatus: 'approved',
-                  isAdmin: true,
+                  isAdmin: isDevAdmin,
                   referralEarnings: 25,
               };
               setUser(devUser);
@@ -94,6 +97,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setError("Not a Telegram Mini App.");
             // Fallback for non-telegram environment
             if (process.env.NODE_ENV === 'development') {
+                 const devUsername = "Digitalmudai01";
+                 const isDevAdmin = ADMIN_USERNAMES.includes(devUsername);
                  const devUser: UserData = {
                     id: '987654321', // Dummy ID
                     pariBalance: 100,
@@ -103,13 +108,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                     vip: true,
                     referralCode: 'DEVCODE123',
                     name: `Dev User`,
-                    username: 'devuser',
+                    username: devUsername,
                     email: '',
                     createdAt: new Date().toISOString(),
                     sessionEndTime: null,
                     history: [],
                     vipStatus: 'approved',
-                    isAdmin: true,
+                    isAdmin: isDevAdmin,
                     referralEarnings: 25,
                 };
                 setUser(devUser);

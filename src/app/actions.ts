@@ -7,6 +7,8 @@ import { db } from '@/lib/firebase/firestore';
 import type { UserData, Referral, Task, NewsArticle, GlobalSettings, RoadmapPhase, WhitePaperSection, TelegramUser } from '@/lib/types';
 import { createHmac } from 'crypto';
 
+const ADMIN_USERNAMES = ['Digitalmudai01', 'DesignerDynamo'];
+
 // --- Telegram Auth Verification ---
 export async function verifyTelegramAuth(initData: string): Promise<{ user: UserData; isNewUser: boolean } | { error: string }> {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -35,12 +37,22 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
     }
     
     const tgUser: TelegramUser = JSON.parse(userData.user);
+    const isUserAdmin = ADMIN_USERNAMES.includes(tgUser.username || '');
 
     const userRef = doc(db, 'users', tgUser.id.toString());
     const userSnap = await getDoc(userRef);
 
     if (userSnap.exists()) {
         const user = serializeFirestoreTimestamps({ id: userSnap.id, ...userSnap.data() }) as UserData;
+        
+        // Dynamically set admin status based on username on every login
+        user.isAdmin = isUserAdmin;
+        
+        // If the stored admin status is different, update it in Firestore
+        if (userSnap.data().isAdmin !== isUserAdmin) {
+            await updateDoc(userRef, { isAdmin: isUserAdmin });
+        }
+
         return { user, isNewUser: false };
     } else {
         // Create new user
@@ -62,7 +74,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
             sessionEndTime: null,
             history: [],
             vipStatus: 'none',
-            isAdmin: false, // Default user is not admin
+            isAdmin: isUserAdmin, // Set admin status on creation
             referralEarnings: 0
         };
 
@@ -128,13 +140,13 @@ export async function seedInitialData() {
     if (newsSnapshot.empty) {
         console.log("No news found, seeding initial news...");
         const defaultNews = [
-            { title: "Welcome to PARI Network!", content: "The official launch of the PARI Network airdrop mining app. Start mining and inviting your friends to earn more PARI tokens.", priority: 'high' },
-            { title: "Referral Contest is LIVE!", content: "Our first referral contest has begun. The top 3 referrers will win a massive PARI token bonus. Check the 'Refer' page for details.", priority: 'medium' }
+            { title: "Welcome to PARI Network!", content: "The official launch of the PARI Network airdrop mining app. Start mining and inviting your friends to earn more PARI tokens.", priority: 'high', date: new Date().toISOString() },
+            { title: "Referral Contest is LIVE!", content: "Our first referral contest has begun. The top 3 referrers will win a massive PARI token bonus. Check the 'Refer' page for details.", priority: 'medium', date: new Date().toISOString() }
         ];
         const batch = writeBatch(db);
         defaultNews.forEach(article => {
             const docRef = doc(newsRef);
-            batch.set(docRef, { ...article, date: new Date().toISOString() });
+            batch.set(docRef, article);
         });
         await batch.commit();
         console.log("Initial news seeded.");
@@ -206,6 +218,12 @@ export async function getUserData(userId: string): Promise<UserData | null> {
             needsUpdate = true;
         } else if (userData.vipStatus !== 'approved' && userData.vip) {
             updates.vip = false;
+            needsUpdate = true;
+        }
+        
+        const isUserAdmin = ADMIN_USERNAMES.includes(userData.username || '');
+        if (userData.isAdmin !== isUserAdmin) {
+            updates.isAdmin = isUserAdmin;
             needsUpdate = true;
         }
 
@@ -520,7 +538,11 @@ export async function getNews(): Promise<NewsArticle[]> {
             console.log("No news found.");
             return [];
         }
-        const newsList = newsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as NewsArticle);
+        const newsList = newsSnapshot.docs.map(doc => ({ 
+            id: doc.id, 
+            ...doc.data(),
+            date: doc.data().date ? new Date(doc.data().date).toISOString() : new Date().toISOString()
+        }) as NewsArticle);
         
         const priorityOrder = { 'high': 1, 'medium': 2, 'low': 3 };
         return newsList.sort((a, b) => {
@@ -705,3 +727,5 @@ export async function saveWhitePaper(sections: WhitePaperSection[]) {
         return { success: false, error: error.message };
     }
 }
+
+    
