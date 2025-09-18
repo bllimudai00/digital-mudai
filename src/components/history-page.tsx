@@ -34,6 +34,7 @@ const transactionColors = {
 function HistoryItem({ item }: { item: Transaction }) {
     const Icon = transactionIcons[item.type] || <Coins className="w-6 h-6 text-green-400" />;
     const bgColor = transactionColors[item.type] || 'bg-green-500/10';
+    const claimedDate = item.claimedAt ? new Date(item.claimedAt as string) : new Date();
 
     return (
         <li className="p-4 flex justify-between items-center">
@@ -44,7 +45,7 @@ function HistoryItem({ item }: { item: Transaction }) {
                 <div>
                     <p className="font-semibold text-foreground">{item.title}</p>
                     <p className="text-xs text-muted-foreground">
-                        {format(new Date(item.claimedAt as string), "PPP p")}
+                        {format(claimedDate, "PPP p")}
                     </p>
                 </div>
             </div>
