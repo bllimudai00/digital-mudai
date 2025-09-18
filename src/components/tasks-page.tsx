@@ -86,11 +86,14 @@ function TaskCard({ task, userData, onClaim }: { task: Task, userData: UserData 
     const handleExternalTask = () => {
         if (task.url) {
             window.open(task.url, '_blank', 'noopener,noreferrer');
-            setIsExternalTaskPending(true);
              toast({
                 title: "Task in Progress",
-                description: "Once you have completed the task, come back and click Verify.",
+                description: "Please complete the task. The claim button will be enabled shortly.",
             });
+            // Introduce a delay before allowing verification
+            setTimeout(() => {
+                setIsExternalTaskPending(true);
+            }, 5000); // 5-second delay
         } else {
             toast({
                 title: "Error",
@@ -113,7 +116,7 @@ function TaskCard({ task, userData, onClaim }: { task: Task, userData: UserData 
             case 'external_initial':
                 return { label: "Go", icon: <ExternalLink className="w-4 h-4 mr-1" />, disabled: false };
             case 'external_verify':
-                return { label: "Verify", icon: <BadgeCheck className="w-4 h-4 mr-1" />, disabled: false };
+                return { label: "Claim Reward", icon: <BadgeCheck className="w-4 h-4 mr-1" />, disabled: false };
             default:
                  return { label: "Go", icon: <ExternalLink className="w-4 h-4 mr-1" />, disabled: false };
         }
