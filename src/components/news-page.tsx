@@ -16,11 +16,11 @@ import {
   Loader,
 } from "lucide-react";
 import Link from "next/link";
-import { getNews } from "@/app/actions";
 import { NewsArticle } from "@/lib/types";
 import { useEffect, useState } from "react";
 import { onSnapshot, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
+import { format } from "date-fns";
 
 
 const iconMap: { [key: string]: React.ComponentType<{ className?: string }> } = {
@@ -56,7 +56,7 @@ function BottomNavItem({
 
 function NewsArticleCard({ article }: { article: NewsArticle }) {
   const displayDate = article.date 
-    ? new Date(article.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    ? format(new Date(article.date), "PPP")
     : 'No date';
 
   return (
@@ -83,7 +83,11 @@ export default function NewsPage() {
   useEffect(() => {
     const newsCollection = collection(db, 'news');
     const unsubscribe = onSnapshot(newsCollection, (snapshot) => {
-        const newsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as NewsArticle);
+        const newsList = snapshot.docs.map(doc => ({ 
+            id: doc.id, 
+            ...doc.data(),
+            date: doc.data().date ? new Date(doc.data().date).toISOString() : new Date().toISOString()
+        }) as NewsArticle);
         
         const priorityOrder = { 'high': 1, 'medium': 2, 'low': 3 };
         const sortedNews = newsList.sort((a, b) => {
