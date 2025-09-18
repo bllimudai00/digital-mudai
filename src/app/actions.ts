@@ -525,7 +525,7 @@ export async function addNews(article: Omit<NewsArticle, 'id' | 'date'> & { date
         const newsCollection = collection(db, 'news');
         const docRef = await addDoc(newsCollection, {
             ...article,
-            date: new Date(article.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+            date: new Date(article.date).toISOString()
         });
         revalidatePath('/news');
         revalidatePath('/admin');
