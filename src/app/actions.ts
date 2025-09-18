@@ -673,3 +673,5 @@ export async function saveWhitePaper(sections: WhitePaperSection[]) {
         return { success: false, error: error.message };
     }
 }
+
+    

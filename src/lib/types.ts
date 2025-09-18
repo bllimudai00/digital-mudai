@@ -66,15 +66,6 @@ export type NewsArticle = {
   content: string;
 };
 
-export type LeaderboardEntry = {
-    rank: number;
-    userId: string;
-    name: string;
-    referralCount: number;
-    prize: number;
-    type: 'manual' | 'genuine';
-};
-
 export type RoadmapItem = {
     text: string;
 };
@@ -95,3 +86,5 @@ export type WhitePaperSection = {
     content: string;
     imageUrl?: string;
 };
+
+    
