@@ -18,13 +18,12 @@ import {
   ListChecks,
   User,
   Loader,
-  Trophy
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getInitialUserData, getReferrals, getLeaderboard } from "@/app/actions";
-import type { UserData, Referral, LeaderboardEntry } from "@/lib/types";
-import { onSnapshot, doc, collection, query, orderBy } from "firebase/firestore";
+import { getInitialUserData, getReferrals } from "@/app/actions";
+import type { UserData, Referral } from "@/lib/types";
+import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -80,32 +79,6 @@ const WhatsAppIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
 )
 
-function PodiumSpot({ user, rank, medal }: { user: LeaderboardEntry, rank: number, medal: string }) {
-    if (!user || !user.name) return <div className="w-1/3" />;
-
-    const rankStyles = {
-        1: { podium: 'h-32 bg-yellow-400/30', avatar: 'w-20 h-20 border-yellow-400', offset: 'bottom-0' },
-        2: { podium: 'h-24 bg-slate-400/30', avatar: 'w-16 h-16 border-slate-400', offset: 'bottom-0' },
-        3: { podium: 'h-16 bg-orange-500/30', avatar: 'w-14 h-14 border-orange-500', offset: 'bottom-0' },
-    }[rank] || {};
-
-    return (
-        <div className={`relative w-1/3 flex flex-col items-center justify-end`}>
-            <div className={`absolute -top-8 flex flex-col items-center z-10`}>
-                 <p className="text-3xl drop-shadow-lg">{medal}</p>
-                <Avatar className={`${rankStyles.avatar} border-4 shadow-lg`}>
-                    <AvatarImage src={`https://picsum.photos/seed/${user.userId}/100`} />
-                    <AvatarFallback>{user.name ? user.name.substring(0, 2) : '?'}</AvatarFallback>
-                </Avatar>
-            </div>
-            <div className={`${rankStyles.podium} w-full rounded-t-lg flex flex-col items-center justify-center p-1 pt-8 text-center shadow-inner`}>
-                <p className="font-bold text-sm truncate w-24 text-foreground">{user.name}</p>
-                <p className="text-xs text-muted-foreground font-semibold">{user.referralCount} Ref</p>
-            </div>
-        </div>
-    );
-}
-
 const ShareButton = ({ platform, referralLink, children, className }: { platform: 'whatsapp' | 'telegram' | 'sms' | 'email', referralLink: string, children: React.ReactNode, className: string }) => {
     const shareText = `Join me on PARI Network and start mining! Use my referral link: ${referralLink}`;
     
@@ -133,7 +106,6 @@ const ShareButton = ({ platform, referralLink, children, className }: { platform
 export default function ReferPage() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [referrals, setReferrals] = useState<Referral[]>([]);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -144,7 +116,6 @@ export default function ReferPage() {
     getInitialUserData().then(initialData => {
       if (initialData.user) setUserData(initialData.user);
       if (initialData.referrals) setReferrals(initialData.referrals);
-      if (initialData.leaderboard) setLeaderboard(initialData.leaderboard);
       setLoading(false);
     });
 
@@ -163,16 +134,8 @@ export default function ReferPage() {
         }
     });
 
-    // Real-time listener for leaderboard updates
-    const leaderboardQuery = query(collection(db, 'leaderboard'));
-    const unsubscribeLeaderboard = onSnapshot(leaderboardQuery, async () => {
-        const updatedLeaderboard = await getLeaderboard();
-        setLeaderboard(updatedLeaderboard);
-    });
-
     return () => {
       unsubscribeUser();
-      unsubscribeLeaderboard();
     };
   }, []);
 
@@ -193,10 +156,6 @@ export default function ReferPage() {
   };
 
   const referralLink = userData ? `https://parinetwork.com/join?ref=${userData.referralCode}` : "";
-  
-  const top1 = leaderboard.find(u => u.rank === 1);
-  const top2 = leaderboard.find(u => u.rank === 2);
-  const top3 = leaderboard.find(u => u.rank === 3);
 
   if (loading) {
     return (
@@ -209,30 +168,6 @@ export default function ReferPage() {
   return (
     <div className="bg-background text-foreground min-h-screen flex flex-col font-body">
       <main className="flex-1 p-4 space-y-6 pb-24">
-        <Card className="bg-card/80 backdrop-blur-sm overflow-hidden">
-          <CardContent className="p-4">
-            <div className="flex justify-between items-center mb-10">
-                 <h2 className="text-xl font-bold flex items-center gap-2"><Trophy className="text-accent"/> Referral Contest</h2>
-                 <Button asChild variant="outline" size="sm">
-                    <Link href="/referral-contest">View All</Link>
-                 </Button>
-            </div>
-            {leaderboard.length === 0 ? (
-                <div className="flex flex-col items-center justify-center min-h-[160px] text-muted-foreground">
-                    <Trophy className="w-10 h-10 mb-2"/>
-                    <p>Leaderboard is being prepared.</p>
-                </div>
-            ) : (
-                <div className="flex items-end justify-center w-full h-40 space-x-1">
-                    <PodiumSpot user={top2!} rank={2} medal="🥈" />
-                    <PodiumSpot user={top1!} rank={1} medal="🥇" />
-                    <PodiumSpot user={top3!} rank={3} medal="🥉" />
-                </div>
-            )}
-          </CardContent>
-        </Card>
-
-
         <Card className="bg-green-900/20 border-green-500/30">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="bg-green-500/20 p-3 rounded-lg">
