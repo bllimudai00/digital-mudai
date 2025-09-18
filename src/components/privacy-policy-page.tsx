@@ -51,7 +51,7 @@ export default function PrivacyPolicyPage() {
             </PolicySection>
 
             <PolicySection title="3. How We Use Your Data">
-                <p>Your data is used to:</p_section>
+                <p>Your data is used to:</p>
                 <ul className="list-disc list-inside space-y-2">
                     <li>Provide and maintain our services, including the mining and rewards system.</li>
                     <li>Manage your account and your PARI balance.</li>
