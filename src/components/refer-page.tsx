@@ -24,7 +24,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getInitialUserData, getReferrals, getLeaderboard } from "@/app/actions";
 import type { UserData, Referral, LeaderboardEntry } from "@/lib/types";
-import { onSnapshot, doc, collection, query } from "firebase/firestore";
+import { onSnapshot, doc, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -120,19 +120,20 @@ function PodiumSpot({ user, rank, medal }: { user: LeaderboardEntry, rank: numbe
 
     return (
         <div className="w-1/3 flex flex-col justify-end items-center">
-            <Avatar className={`${avatarSize} border-4 shadow-lg mb-2 z-10`}>
-                <AvatarImage src={`https://picsum.photos/seed/${user.userId}/100`} />
-                <AvatarFallback>{user.name ? user.name.substring(0, 2) : '?'}</AvatarFallback>
-            </Avatar>
-            <div className={`w-full rounded-t-lg flex flex-col items-center justify-center p-1 pt-2 text-center shadow-inner relative ${rankClasses}`}>
-                <div className="absolute -top-5 text-2xl drop-shadow-lg">{medal}</div>
+            <div className="relative">
+                <p className="absolute -top-6 left-1/2 -translate-x-1/2 text-2xl drop-shadow-lg">{medal}</p>
+                <Avatar className={`${avatarSize} border-4 shadow-lg z-10`}>
+                    <AvatarImage src={`https://picsum.photos/seed/${user.userId}/100`} />
+                    <AvatarFallback>{user.name ? user.name.substring(0, 2) : '?'}</AvatarFallback>
+                </Avatar>
+            </div>
+            <div className={`w-full rounded-t-lg flex flex-col items-center justify-center p-1 text-center shadow-inner relative ${rankClasses}`}>
                 <p className="font-bold text-sm truncate w-24 text-foreground mt-1">{user.name}</p>
                 <p className="text-xs text-muted-foreground font-semibold">{user.referralCount} Ref</p>
             </div>
         </div>
     );
 }
-
 
 export default function ReferPage() {
   const [userData, setUserData] = useState<UserData | null>(null);
@@ -144,23 +145,29 @@ export default function ReferPage() {
   useEffect(() => {
     const FAKE_USER_ID = 'user_placeholder_id';
 
-    const fetchInitialData = async () => {
-        try {
-            const initialData = await getInitialUserData();
-            if (initialData.user) setUserData(initialData.user);
-            if (initialData.referrals) setReferrals(initialData.referrals);
-            if (initialData.leaderboard) setLeaderboard(initialData.leaderboard);
-        } catch (error) {
-            console.error("Error fetching initial data: ", error);
-            toast({ title: "Error", description: "Could not load initial data.", variant: "destructive" });
-        } finally {
-            setLoading(false);
-        }
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [initialData, leaderboardData] = await Promise.all([
+          getInitialUserData(),
+          getLeaderboard(),
+        ]);
+        
+        if (initialData.user) setUserData(initialData.user);
+        if (initialData.referrals) setReferrals(initialData.referrals);
+        setLeaderboard(leaderboardData);
+
+      } catch (error) {
+        console.error("Error fetching initial data: ", error);
+        toast({ title: "Error", description: "Could not load page data.", variant: "destructive" });
+      } finally {
+        setLoading(false);
+      }
     };
     
-    fetchInitialData();
+    fetchData();
 
-    // Real-time listeners
+    // Real-time listeners for user data and referrals
     const userRef = doc(db, 'users', FAKE_USER_ID);
     const unsubscribeUser = onSnapshot(userRef, async (doc) => {
         if (doc.exists()) {
@@ -174,14 +181,11 @@ export default function ReferPage() {
             }
         }
     });
-    
-    const unsubscribeLeaderboard = onSnapshot(collection(db, 'leaderboard'), async () => {
-        try {
-            const data = await getLeaderboard();
-            setLeaderboard(data);
-        } catch (error) {
-            console.error("Error fetching real-time leaderboard:", error);
-        }
+
+    const leaderboardRef = collection(db, 'leaderboard');
+    const unsubscribeLeaderboard = onSnapshot(leaderboardRef, async () => {
+        const data = await getLeaderboard();
+        setLeaderboard(data);
     });
 
     return () => {
@@ -213,7 +217,7 @@ export default function ReferPage() {
   const top2 = leaderboard.find(u => u.rank === 2);
   const top3 = leaderboard.find(u => u.rank === 3);
 
-  if (loading) {
+  if (loading && !userData) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader className="w-8 h-8 animate-spin text-primary" />
@@ -226,16 +230,16 @@ export default function ReferPage() {
       <main className="flex-1 p-4 space-y-6 pb-24">
         
         <Card className="bg-card/80 backdrop-blur-sm overflow-hidden py-6">
-            <CardContent>
+            <CardContent className="p-0">
                 <div className="flex items-center justify-center gap-2 mb-8">
                     <Trophy className="w-6 h-6 text-accent" />
                     <h2 className="text-xl font-bold text-white">Referral Contest</h2>
                 </div>
-                {!top1 || !top2 || !top3 ? (
+                {loading || !top1 || !top2 || !top3 ? (
                     <div className="text-center text-muted-foreground h-40 flex flex-col justify-center items-center">
-                         <Trophy className="w-10 h-10 mb-2" />
-                         <p>Leaderboard is being prepared.</p>
-                         <p className="text-xs">Check back soon!</p>
+                         {loading ? <Loader className="w-10 h-10 animate-spin" /> : <Trophy className="w-10 h-10 mb-2" />}
+                         <p>{loading ? 'Loading Leaderboard...' : 'Leaderboard is being prepared.'}</p>
+                         {!loading && <p className="text-xs">Check back soon!</p>}
                      </div>
                 ) : (
                     <div className="flex items-end justify-center w-full h-40 space-x-1">
