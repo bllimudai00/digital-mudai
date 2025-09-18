@@ -400,4 +400,3 @@ export default function ReferPage() {
       </footer>
     </div>
   );
-}
