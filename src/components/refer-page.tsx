@@ -18,12 +18,13 @@ import {
   ListChecks,
   User,
   Loader,
+  Trophy,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getInitialUserData, getReferrals } from "@/app/actions";
-import type { UserData, Referral } from "@/lib/types";
-import { onSnapshot, doc } from "firebase/firestore";
+import { getInitialUserData, getReferrals, getLeaderboard } from "@/app/actions";
+import type { UserData, Referral, LeaderboardEntry } from "@/lib/types";
+import { onSnapshot, doc, collection, query } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -47,7 +48,6 @@ function BottomNavItem({
         isActive ? "text-primary" : "text-muted-foreground"
       }`}
     >
-      {icon}
       <span className="text-xs">{label}</span>
     </Link>
   );
@@ -102,22 +102,56 @@ const ShareButton = ({ platform, referralLink, children, className }: { platform
     );
 };
 
+function PodiumSpot({ user, rank, medal }: { user: LeaderboardEntry, rank: number, medal: string }) {
+    if (!user || !user.name) return <div className="w-1/3" />;
+
+    const rankStyles = {
+        1: { podium: 'h-32 bg-yellow-400/30', avatar: 'w-20 h-20 border-yellow-400', offset: 'bottom-0' },
+        2: { podium: 'h-24 bg-slate-400/30', avatar: 'w-16 h-16 border-slate-400', offset: 'bottom-0' },
+        3: { podium: 'h-16 bg-orange-500/30', avatar: 'w-14 h-14 border-orange-500', offset: 'bottom-0' },
+    }[rank] || {};
+
+    return (
+        <div className={`relative w-1/3 flex flex-col items-center justify-end`}>
+            <div className={`absolute -top-8 flex flex-col items-center z-10`}>
+                <p className="text-3xl drop-shadow-lg">{medal}</p>
+                <Avatar className={`${rankStyles.avatar} border-4 shadow-lg`}>
+                    <AvatarImage src={`https://picsum.photos/seed/${user.userId}/100`} />
+                    <AvatarFallback>{user.name ? user.name.substring(0, 2) : '?'}</AvatarFallback>
+                </Avatar>
+            </div>
+            <div className={`${rankStyles.podium} w-full rounded-t-lg flex flex-col items-center justify-center p-1 pt-8 text-center shadow-inner`}>
+                <p className="font-bold text-sm truncate w-24 text-foreground">{user.name}</p>
+                <p className="text-xs text-muted-foreground font-semibold">{user.referralCount} Ref</p>
+            </div>
+        </div>
+    );
+}
 
 export default function ReferPage() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [referrals, setReferrals] = useState<Referral[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
    useEffect(() => {
     const FAKE_USER_ID = 'user_placeholder_id';
 
-    // Initial data fetch
-    getInitialUserData().then(initialData => {
-      if (initialData.user) setUserData(initialData.user);
-      if (initialData.referrals) setReferrals(initialData.referrals);
-      setLoading(false);
-    });
+    const fetchInitialData = async () => {
+        setLoading(true);
+        try {
+            const initialData = await getInitialUserData();
+            if (initialData.user) setUserData(initialData.user);
+            if (initialData.referrals) setReferrals(initialData.referrals);
+            if (initialData.leaderboard) setLeaderboard(initialData.leaderboard);
+        } catch (error) {
+            console.error("Error fetching initial data: ", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+    fetchInitialData();
 
     // Real-time listener for user updates (referrals, earnings)
     const userRef = doc(db, 'users', FAKE_USER_ID);
@@ -134,8 +168,19 @@ export default function ReferPage() {
         }
     });
 
+    const leaderboardCollection = collection(db, 'leaderboard');
+    const unsubscribeLeaderboard = onSnapshot(query(leaderboardCollection), async () => {
+        try {
+            const data = await getLeaderboard();
+            setLeaderboard(data);
+        } catch (error) {
+            console.error("Error fetching real-time leaderboard:", error);
+        }
+    });
+
     return () => {
       unsubscribeUser();
+      unsubscribeLeaderboard();
     };
   }, []);
 
@@ -156,6 +201,10 @@ export default function ReferPage() {
   };
 
   const referralLink = userData ? `https://parinetwork.com/join?ref=${userData.referralCode}` : "";
+  
+  const top1 = leaderboard.find(u => u.rank === 1);
+  const top2 = leaderboard.find(u => u.rank === 2);
+  const top3 = leaderboard.find(u => u.rank === 3);
 
   if (loading) {
     return (
@@ -168,6 +217,33 @@ export default function ReferPage() {
   return (
     <div className="bg-background text-foreground min-h-screen flex flex-col font-body">
       <main className="flex-1 p-4 space-y-6 pb-24">
+        
+        <Card className="bg-card/80 backdrop-blur-sm overflow-hidden py-6">
+            <CardContent>
+                <div className="flex items-center justify-center gap-2 mb-8">
+                    <Trophy className="w-6 h-6 text-accent" />
+                    <h2 className="text-xl font-bold text-white">Referral Contest</h2>
+                </div>
+                {loading ? (
+                    <div className="flex justify-center items-center h-40">
+                        <Loader className="w-8 h-8 animate-spin text-primary" />
+                    </div>
+                ) : (top1 && top2 && top3) ? (
+                    <div className="flex items-end justify-center w-full h-40 space-x-1">
+                        <PodiumSpot user={top2} rank={2} medal="🥈" />
+                        <PodiumSpot user={top1} rank={1} medal="🥇" />
+                        <PodiumSpot user={top3} rank={3} medal="🥉" />
+                    </div>
+                ) : (
+                    <div className="text-center text-muted-foreground h-40 flex flex-col justify-center items-center">
+                        <Trophy className="w-10 h-10 mb-2" />
+                        <p>Leaderboard is being prepared.</p>
+                        <p className="text-xs">Check back soon!</p>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+        
         <Card className="bg-green-900/20 border-green-500/30">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="bg-green-500/20 p-3 rounded-lg">
