@@ -22,9 +22,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getReferrals, getLeaderboard } from "@/app/actions";
+import { getInitialUserData, getReferrals, getLeaderboard } from "@/app/actions";
 import type { UserData, Referral, LeaderboardEntry } from "@/lib/types";
-import { onSnapshot, doc, collection, query } from "firebase/firestore";
+import { onSnapshot, doc, collection, query, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -137,9 +137,18 @@ export default function ReferPage() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
+   useEffect(() => {
     const FAKE_USER_ID = 'user_placeholder_id';
-    
+
+    // Initial data fetch
+    getInitialUserData().then(initialData => {
+      if (initialData.user) setUserData(initialData.user);
+      if (initialData.referrals) setReferrals(initialData.referrals);
+      if (initialData.leaderboard) setLeaderboard(initialData.leaderboard);
+      setLoading(false);
+    });
+
+    // Real-time listener for user updates (referrals, earnings)
     const userRef = doc(db, 'users', FAKE_USER_ID);
     const unsubscribeUser = onSnapshot(userRef, async (doc) => {
         if (doc.exists()) {
@@ -152,20 +161,18 @@ export default function ReferPage() {
                 setReferrals([]);
             }
         }
-        // Combined loading state check
-        if(leaderboard.length > 0) setLoading(false);
     });
-    
+
+    // Real-time listener for leaderboard updates
     const leaderboardQuery = query(collection(db, 'leaderboard'));
     const unsubscribeLeaderboard = onSnapshot(leaderboardQuery, async () => {
         const updatedLeaderboard = await getLeaderboard();
         setLeaderboard(updatedLeaderboard);
-        if (userData) setLoading(false);
     });
 
     return () => {
-        unsubscribeUser();
-        unsubscribeLeaderboard();
+      unsubscribeUser();
+      unsubscribeLeaderboard();
     };
   }, []);
 
@@ -191,7 +198,7 @@ export default function ReferPage() {
   const top2 = leaderboard.find(u => u.rank === 2);
   const top3 = leaderboard.find(u => u.rank === 3);
 
-  if (!userData) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader className="w-8 h-8 animate-spin text-primary" />
@@ -210,20 +217,16 @@ export default function ReferPage() {
                     <Link href="/referral-contest">View All</Link>
                  </Button>
             </div>
-            {loading ? (
-                <div className="flex justify-center items-center min-h-[160px]">
-                    <Loader className="w-8 h-8 animate-spin" />
-                </div>
-            ) : (top1 && top2 && top3) ? (
-                <div className="flex items-end justify-center w-full h-40 space-x-1">
-                    <PodiumSpot user={top2} rank={2} medal="🥈" />
-                    <PodiumSpot user={top1} rank={1} medal="🥇" />
-                    <PodiumSpot user={top3} rank={3} medal="🥉" />
-                </div>
-            ) : (
-                 <div className="flex flex-col items-center justify-center min-h-[160px] text-muted-foreground">
+            {leaderboard.length === 0 ? (
+                <div className="flex flex-col items-center justify-center min-h-[160px] text-muted-foreground">
                     <Trophy className="w-10 h-10 mb-2"/>
                     <p>Leaderboard is being prepared.</p>
+                </div>
+            ) : (
+                <div className="flex items-end justify-center w-full h-40 space-x-1">
+                    <PodiumSpot user={top2!} rank={2} medal="🥈" />
+                    <PodiumSpot user={top1!} rank={1} medal="🥇" />
+                    <PodiumSpot user={top3!} rank={3} medal="🥉" />
                 </div>
             )}
           </CardContent>
@@ -384,3 +387,5 @@ export default function ReferPage() {
       </footer>
     </div>
   );
+}
+    
