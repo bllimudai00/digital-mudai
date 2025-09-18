@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getInitialUserData, getReferrals, getLeaderboard } from "@/app/actions";
+import { getReferrals, getLeaderboard } from "@/app/actions";
 import type { UserData, Referral, LeaderboardEntry } from "@/lib/types";
 import { onSnapshot, doc, collection, query } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
@@ -140,23 +140,6 @@ export default function ReferPage() {
   useEffect(() => {
     const FAKE_USER_ID = 'user_placeholder_id';
     
-    const fetchAndSetData = async () => {
-        setLoading(true);
-        try {
-            const initialData = await getInitialUserData();
-            const leaderboardData = await getLeaderboard();
-            setUserData(initialData.user);
-            setReferrals(initialData.referrals);
-            setLeaderboard(leaderboardData);
-        } catch (error) {
-            console.error("Error fetching initial data:", error);
-        } finally {
-            setLoading(false);
-        }
-    }
-    
-    fetchAndSetData();
-
     const userRef = doc(db, 'users', FAKE_USER_ID);
     const unsubscribeUser = onSnapshot(userRef, async (doc) => {
         if (doc.exists()) {
@@ -169,14 +152,15 @@ export default function ReferPage() {
                 setReferrals([]);
             }
         }
+        // Combined loading state check
+        if(leaderboard.length > 0) setLoading(false);
     });
     
     const leaderboardQuery = query(collection(db, 'leaderboard'));
     const unsubscribeLeaderboard = onSnapshot(leaderboardQuery, async () => {
-        setLoading(true);
         const updatedLeaderboard = await getLeaderboard();
         setLeaderboard(updatedLeaderboard);
-        setLoading(false);
+        if (userData) setLoading(false);
     });
 
     return () => {
