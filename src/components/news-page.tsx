@@ -54,6 +54,10 @@ function BottomNavItem({
 }
 
 function NewsArticleCard({ article }: { article: NewsArticle }) {
+  const displayDate = article.date 
+    ? new Date(article.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    : 'No date';
+
   return (
     <Card className="bg-card/80 backdrop-blur-sm">
       <CardContent className="p-4">
@@ -61,7 +65,7 @@ function NewsArticleCard({ article }: { article: NewsArticle }) {
           <h3 className="text-lg font-bold pr-2">{article.title}</h3>
           <Badge variant={article.priority === 'high' ? 'destructive' : article.priority === 'medium' ? 'default' : 'secondary'} className="capitalize">{article.priority}</Badge>
         </div>
-        <p className="text-xs text-muted-foreground mb-4">{new Date(article.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+        <p className="text-xs text-muted-foreground mb-4">{displayDate}</p>
         <div className="text-sm text-muted-foreground space-y-2 whitespace-pre-wrap">
             {article.content}
         </div>
@@ -132,5 +136,3 @@ export default function NewsPage() {
     </div>
   );
 }
-
-    

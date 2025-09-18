@@ -121,6 +121,24 @@ export async function seedInitialData() {
         });
         console.log("Initial global settings seeded.");
     }
+
+    // Seed News
+    const newsRef = collection(db, 'news');
+    const newsSnapshot = await getDocs(newsRef);
+    if (newsSnapshot.empty) {
+        console.log("No news found, seeding initial news...");
+        const defaultNews = [
+            { title: "Welcome to PARI Network!", content: "The official launch of the PARI Network airdrop mining app. Start mining and inviting your friends to earn more PARI tokens.", priority: 'high' },
+            { title: "Referral Contest is LIVE!", content: "Our first referral contest has begun. The top 3 referrers will win a massive PARI token bonus. Check the 'Refer' page for details.", priority: 'medium' }
+        ];
+        const batch = writeBatch(db);
+        defaultNews.forEach(article => {
+            const docRef = doc(newsRef);
+            batch.set(docRef, { ...article, date: new Date().toISOString() });
+        });
+        await batch.commit();
+        console.log("Initial news seeded.");
+    }
 }
 
 
@@ -145,7 +163,7 @@ export async function getInitialUserData(userId: string) {
     return { user: finalUser, referrals, tasks, news, settings };
 }
 
-function serializeFirestoreTimestamps(data: { [key: string]: any }): { [key: string]: any } {
+function serializeFirestoreTimestamps(data: { [key: string]: any }): { [key:string]: any } {
     const serializedData: { [key: string]: any } = {};
     for (const key in data) {
         if (Object.prototype.hasOwnProperty.call(data, key)) {
