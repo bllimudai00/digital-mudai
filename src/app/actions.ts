@@ -41,22 +41,33 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
 
     const userRef = doc(db, 'users', tgUser.id.toString());
     const userSnap = await getDoc(userRef);
+    const settings = await getGlobalSettings();
 
     if (userSnap.exists()) {
         const user = serializeFirestoreTimestamps({ id: userSnap.id, ...userSnap.data() }) as UserData;
         
+        let needsUpdate = false;
+        const updates: Partial<UserData> = {};
+
         // Dynamically set admin status based on username on every login
-        user.isAdmin = isUserAdmin;
-        
-        // If the stored admin status is different, update it in Firestore
-        if (userSnap.data().isAdmin !== isUserAdmin) {
-            await updateDoc(userRef, { isAdmin: isUserAdmin });
+        if (user.isAdmin !== isUserAdmin) {
+            updates.isAdmin = isUserAdmin;
+            needsUpdate = true;
         }
 
-        return { user, isNewUser: false };
+        // Sync baseRate with global settings on every login
+        if (settings && user.baseRate !== settings.baseRate) {
+            updates.baseRate = settings.baseRate;
+            needsUpdate = true;
+        }
+        
+        if (needsUpdate) {
+            await updateDoc(userRef, updates);
+        }
+
+        return { user: { ...user, ...updates}, isNewUser: false };
     } else {
         // Create new user
-        const settings = await getGlobalSettings();
         const referralCode = `PARI${tgUser.id.toString().slice(-4)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
         const newUser: UserData = {

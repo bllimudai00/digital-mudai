@@ -237,7 +237,8 @@ export default function MiningPage() {
     }
   }
 
-  const rewardAmount = userData ? (userData.baseRate * 4 * (userData.vip ? 2 : 1)) : 40;
+  const baseRate = settings?.baseRate ?? userData?.baseRate ?? 10.0;
+  const rewardAmount = userData ? (baseRate * 4 * (userData.vip ? 2 : 1)) : 40;
 
   const getCardContent = () => {
     switch(miningState){
@@ -282,7 +283,7 @@ export default function MiningPage() {
       <main className="flex-1 p-4 space-y-6 pb-24">
         <div className="grid grid-cols-2 gap-4">
           <StatCard icon={<LinkIcon className="w-4 h-4" />} label="PARI Balance" value={(userData.pariBalance as number).toFixed(4)} className="col-span-2" />
-          <StatCard icon={<Zap className="w-4 h-4" />} label="Base Rate" value={`${userData.baseRate.toFixed(2)}/hr`} />
+          <StatCard icon={<Zap className="w-4 h-4" />} label="Base Rate" value={`${baseRate.toFixed(2)}/hr`} />
           <StatCard icon={<TrendingUp className="w-4 h-4 text-orange-400" />} label="Sessions" value={(userData.history?.filter(h => h.type === 'mining').length || 0).toString()} />
         </div>
 
@@ -328,7 +329,7 @@ export default function MiningPage() {
           <CardContent className="p-0">
             <p className="text-sm text-muted-foreground">Next Reward</p>
             <p className="text-2xl font-bold text-green-400 mt-1">{rewardAmount.toFixed(4)} PARI</p>
-            <p className="text-xs text-muted-foreground">{userData.baseRate.toFixed(2)} x 4h x 1x ({userData.vip ? "VIP 2x" : "Normal"})</p>
+            <p className="text-xs text-muted-foreground">{baseRate.toFixed(2)} x 4h x 1x ({userData.vip ? "VIP 2x" : "Normal"})</p>
           </CardContent>
         </Card>
 
