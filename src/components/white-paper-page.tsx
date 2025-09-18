@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -59,9 +60,9 @@ export default function WhitePaperPage() {
                              <Image 
                                 src={section.imageUrl} 
                                 alt={section.title} 
-                                layout="fill" 
-                                objectFit="contain" 
-                                className="rounded-md"
+                                fill
+                                unoptimized
+                                className="rounded-md object-contain"
                               />
                         </div>
                     )}

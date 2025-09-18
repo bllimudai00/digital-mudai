@@ -309,7 +309,7 @@ export default function ReferPage() {
             icon={<Gift className="w-6 h-6" />}
             label="Refer"
             href="/refer"
-            isActive
+            isActive={true}
           />
           <BottomNavItem
             icon={<User className="w-6 h-6" />}

@@ -221,7 +221,7 @@ export default function ProfilePage() {
           <BottomNavItem icon={<Newspaper className="w-6 h-6" />} label="News" href="/news" />
           <BottomNavItem icon={<ListChecks className="w-6 h-6" />} label="Tasks" href="/tasks" />
           <BottomNavItem icon={<Gift className="w-6 h-6" />} label="Refer" href="/refer" />
-          <BottomNavItem icon={<User className="w-6 h-6" />} label="Profile" href="/profile" isActive />
+          <BottomNavItem icon={<User className="w-6 h-6" />} label="Profile" href="/profile" isActive={true} />
         </div>
       </footer>
     </div>

@@ -364,7 +364,7 @@ export default function MiningPage() {
 
       <footer className="fixed bottom-0 left-0 right-0 bg-card/80 backdrop-blur-sm border-t p-2">
         <div className="flex justify-around">
-          <BottomNavItem icon={<Zap className="w-6 h-6" />} label="Mining" href="/" isActive />
+          <BottomNavItem icon={<Zap className="w-6 h-6" />} label="Mining" href="/" isActive={true} />
           <BottomNavItem icon={<Newspaper className="w-6 h-6" />} label="News" href="/news" />
           <BottomNavItem icon={<ListChecks className="w-6 h-6" />} label="Tasks" href="/tasks" />
           <BottomNavItem icon={<Gift className="w-6 h-6" />} label="Refer" href="/refer" />

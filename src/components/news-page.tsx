@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -127,7 +128,7 @@ export default function NewsPage() {
       <footer className="fixed bottom-0 left-0 right-0 bg-card/80 backdrop-blur-sm border-t p-2">
         <div className="flex justify-around">
           <BottomNavItem icon={<Zap className="w-6 h-6" />} label="Mining" href="/" />
-          <BottomNavItem icon={<Newspaper className="w-6 h-6" />} label="News" href="/news" isActive />
+          <BottomNavItem icon={<Newspaper className="w-6 h-6" />} label="News" href="/news" isActive={true} />
           <BottomNavItem icon={<ListChecks className="w-6 h-6" />} label="Tasks" href="/tasks" />
           <BottomNavItem icon={<Gift className="w-6 h-6" />} label="Refer" href="/refer" />
           <BottomNavItem icon={<User className="w-6 h-6" />} label="Profile" href="/profile" />
