@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -26,7 +27,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useEffect, useState } from "react";
 import type { UserData, GlobalSettings } from "@/lib/types";
-import { getGlobalSettings, getUserData } from "@/app/actions";
 import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 
@@ -130,16 +130,6 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const FAKE_USER_ID = 'user_placeholder_id';
-    
-    const fetchData = async () => {
-        const user = await getUserData();
-        const globalSettings = await getGlobalSettings();
-        if (user) setUserData(user);
-        if (globalSettings) setSettings(globalSettings);
-        setLoading(false);
-    }
-
-    fetchData();
 
     // Real-time updates from client-side snapshot listener
     const userRef = doc(db, 'users', FAKE_USER_ID);
@@ -153,11 +143,12 @@ export default function ProfilePage() {
             } else if (clientSideSerializedUser.vipStatus !== 'approved' && clientSideSerializedUser.vip) {
                 clientSideSerializedUser.vip = false;
             }
-            setUserData(clientSideSerializedUser);
+            setUserData({...clientSideSerializedUser, id: doc.id});
         }
         setLoading(false);
     }, (error) => {
         console.error("Error fetching real-time user data:", error);
+        setLoading(false);
     });
 
     const settingsRef = doc(db, 'settings', 'global');
@@ -270,3 +261,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+    

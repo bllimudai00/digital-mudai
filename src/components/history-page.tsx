@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -5,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, History, Loader, Coins, ListChecks, Zap } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getUserData } from "@/app/actions";
 import type { UserData, Transaction } from "@/lib/types";
 import { format } from "date-fns";
 import { onSnapshot, doc } from "firebase/firestore";
@@ -58,13 +58,6 @@ export default function HistoryPage() {
 
   useEffect(() => {
     const FAKE_USER_ID = 'user_placeholder_id';
-
-    getUserData().then(user => {
-      if (user) {
-        setUserData(user);
-      }
-      setLoading(false);
-    }).catch(() => setLoading(false));
     
     const userRef = doc(db, 'users', FAKE_USER_ID);
     const unsubscribe = onSnapshot(userRef, (doc) => {
@@ -131,3 +124,5 @@ export default function HistoryPage() {
     </div>
   );
 }
+
+    

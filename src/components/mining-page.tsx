@@ -20,9 +20,8 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { claimReward, startMiningSession, getInitialUserData } from "@/app/actions";
+import { claimReward, startMiningSession } from "@/app/actions";
 import type { UserData, GlobalSettings } from "@/lib/types";
-import { useRouter } from "next/navigation";
 import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 
@@ -104,21 +103,11 @@ export default function MiningPage() {
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [showFloatingText, setShowFloatingText] = useState(false);
   const [claimedAmount, setClaimedAmount] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-  const router = useRouter();
 
   useEffect(() => {
     const FAKE_USER_ID = 'user_placeholder_id';
-
-    // Initial fetch to create user if doesn't exist and get initial data
-    getInitialUserData().then(initialData => {
-        if (initialData.user) {
-            setUserData(initialData.user);
-        }
-        if (initialData.settings) {
-            setSettings(initialData.settings);
-        }
-    });
     
     // Real-time listener for user updates
     const userRef = doc(db, 'users', FAKE_USER_ID);
@@ -131,10 +120,15 @@ export default function MiningPage() {
             } else if (data.vipStatus !== 'approved' && data.vip) {
                 data.vip = false;
             }
-            setUserData(data);
+            setUserData({ ...data, id: doc.id });
+        } else {
+            // Handle case where user does not exist, maybe redirect or show error
+            setUserData(null);
         }
+        setLoading(false);
     }, (error) => {
         console.error("Error fetching real-time user data:", error);
+        setLoading(false);
     });
 
     // Real-time listener for settings updates
@@ -281,7 +275,7 @@ export default function MiningPage() {
   const progressPercentage = (claimedSlots / totalSlots) * 100;
 
 
-  if (!userData || !settings) {
+  if (loading || !userData || !settings) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader className="w-8 h-8 animate-spin text-primary" />
@@ -386,3 +380,5 @@ export default function MiningPage() {
     </div>
   );
 }
+
+    

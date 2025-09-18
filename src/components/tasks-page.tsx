@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -190,11 +191,18 @@ export default function TasksPage() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dataLoaded, setDataLoaded] = useState({ user: false, tasks: false });
   const { toast } = useToast();
 
   useEffect(() => {
     const FAKE_USER_ID = 'user_placeholder_id';
+    let userLoaded = false;
+    let tasksLoaded = false;
+
+    const checkLoadingDone = () => {
+        if(userLoaded && tasksLoaded) {
+            setLoading(false);
+        }
+    }
     
     // Listen for user data
     const userRef = doc(db, 'users', FAKE_USER_ID);
@@ -202,10 +210,12 @@ export default function TasksPage() {
         if (doc.exists()) {
             setUserData(doc.data() as UserData);
         }
-        setDataLoaded(prev => ({...prev, user: true}));
+        userLoaded = true;
+        checkLoadingDone();
     }, (error) => {
         console.error("Error fetching real-time user data:", error);
-        setDataLoaded(prev => ({...prev, user: true}));
+        userLoaded = true;
+        checkLoadingDone();
     });
     
     // Listen for tasks data
@@ -214,10 +224,12 @@ export default function TasksPage() {
     const unsubscribeTasks = onSnapshot(q, (snapshot) => {
         const tasksList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Task);
         setTasks(tasksList);
-        setDataLoaded(prev => ({...prev, tasks: true}));
+        tasksLoaded = true;
+        checkLoadingDone();
     }, (error) => {
         console.error("Error fetching real-time tasks:", error);
-        setDataLoaded(prev => ({...prev, tasks: true}));
+        tasksLoaded = true;
+        checkLoadingDone();
     });
 
     return () => {
@@ -225,13 +237,6 @@ export default function TasksPage() {
         unsubscribeTasks();
     };
   }, []);
-
-  useEffect(() => {
-    if (dataLoaded.user && dataLoaded.tasks) {
-        setLoading(false);
-    }
-  }, [dataLoaded]);
-
 
   const handleClaim = async (taskId: string) => {
     if (!userData) return;
@@ -298,3 +303,5 @@ export default function TasksPage() {
     </div>
   );
 }
+
+    

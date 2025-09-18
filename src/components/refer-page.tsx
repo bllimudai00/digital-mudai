@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,7 +22,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getInitialUserData, getReferrals } from "@/app/actions";
+import { getReferrals } from "@/app/actions";
 import type { UserData, Referral } from "@/lib/types";
 import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
@@ -111,25 +112,6 @@ export default function ReferPage() {
   useEffect(() => {
     const FAKE_USER_ID = 'user_placeholder_id';
 
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const initialData = await getInitialUserData();
-        
-        if (initialData.user) setUserData(initialData.user);
-        if (initialData.referrals) setReferrals(initialData.referrals);
-
-      } catch (error) {
-        console.error("Error fetching initial data: ", error);
-        toast({ title: "Error", description: "Could not load page data.", variant: "destructive" });
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchData();
-
-    // Real-time listeners for user data and referrals
     const userRef = doc(db, 'users', FAKE_USER_ID);
     const unsubscribeUser = onSnapshot(userRef, async (doc) => {
         if (doc.exists()) {
@@ -142,6 +124,11 @@ export default function ReferPage() {
                 setReferrals([]);
             }
         }
+        setLoading(false);
+    }, (error) => {
+        console.error("Error fetching user data:", error);
+        toast({ title: "Error", description: "Could not load page data.", variant: "destructive" });
+        setLoading(false);
     });
 
     return () => {
@@ -168,7 +155,7 @@ export default function ReferPage() {
 
   const referralLink = userData ? `https://parinetwork.com/join?ref=${userData.referralCode}` : "";
 
-  if (loading && !userData) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader className="w-8 h-8 animate-spin text-primary" />
@@ -335,3 +322,5 @@ export default function ReferPage() {
     </div>
   );
 }
+
+    
