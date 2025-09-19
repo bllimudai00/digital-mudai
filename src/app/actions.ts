@@ -4,7 +4,7 @@
 import { doc, updateDoc, arrayUnion, getDoc, runTransaction, increment, collection, getDocs, writeBatch, setDoc, query, where, addDoc, deleteDoc, serverTimestamp, Timestamp, orderBy } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/firebase/firestore';
-import type { UserData, Referral, Task, GlobalSettings, RoadmapPhase, WhitePaperSection, TelegramUser, ContestSettings } from '@/lib/types';
+import type { UserData, Referral, Task, GlobalSettings, RoadmapPhase, WhitePaperSection, TelegramUser, ContestSettings, ContestEntry } from '@/lib/types';
 import { createHmac } from 'crypto';
 
 const ADMIN_USERNAMES = ['Digitalmudai01', 'DesignerDynamo'];
@@ -178,9 +178,7 @@ export async function seedInitialData() {
     const contestSnap = await getDoc(contestRef);
     if (!contestSnap.exists()) {
         await setDoc(contestRef, { 
-            top1_userId: null,
-            top2_userId: null,
-            top3_userId: null,
+            winners: Array(10).fill({ name: "N/A", referralCount: 0 })
         });
         console.log("Initial contest settings seeded.");
     }
@@ -708,26 +706,17 @@ export async function getContestSettings(): Promise<ContestSettings | null> {
     const contestRef = doc(db, 'contest', 'settings');
     const contestSnap = await getDoc(contestRef);
     if (contestSnap.exists()) {
-        const data = contestSnap.data();
-        // Fetch user data for each winner
-        const winnerIds = [data.top1_userId, data.top2_userId, data.top3_userId];
-        const winnerPromises = winnerIds.map(id => id ? getUserData(id) : Promise.resolve(null));
-        const winners = await Promise.all(winnerPromises);
-        
-        return {
-            top1_user: winners[0] as UserData | null,
-            top2_user: winners[1] as UserData | null,
-            top3_user: winners[2] as UserData | null,
-        };
+        const data = contestSnap.data() as ContestSettings;
+        return data;
     }
     return null;
 }
 
-export async function saveContestWinners(winners: { top1_userId: string | null; top2_userId: string | null; top3_userId: string | null; }) {
+export async function saveContestWinners(winners: ContestEntry[]) {
     'use server';
     const contestRef = doc(db, 'contest', 'settings');
     try {
-        await setDoc(contestRef, winners, { merge: true });
+        await setDoc(contestRef, { winners });
         revalidatePath('/admin');
         revalidatePath('/referral-contest');
         return { success: true };

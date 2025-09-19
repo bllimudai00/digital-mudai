@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState, useContext } from "react";
-import type { UserData, GlobalSettings, Task, RoadmapPhase, WhitePaperSection, RoadmapItem, ContestSettings } from "@/lib/types";
+import type { UserData, GlobalSettings, Task, RoadmapPhase, WhitePaperSection, RoadmapItem, ContestSettings, ContestEntry } from "@/lib/types";
 import { getVipRequests, updateVipStatus, getUsers, updateUserFromAdmin, deleteUser, getGlobalSettings, updateGlobalSettings, getTasks, deleteTask, addTask, updateTask, saveRoadmap, saveWhitePaper, getContestSettings, saveContestWinners } from "@/app/actions";
 import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck, Zap, ListChecks, ExternalLink, Map, FileText, GripVertical, Plus, Image as ImageIcon, Trophy } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,19 +21,6 @@ import { db } from "@/lib/firebase/firestore";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 import { AuthContext } from "@/context/AuthContext";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
 
 
 function StatCard({ title, value, icon }: { title: string, value: string | number, icon: React.ReactNode }) {
@@ -874,52 +861,8 @@ function WhitePaperManagementSection({ onUpdate }: { onUpdate: () => void }) {
     )
 }
 
-function UserSearchComboBox({ allUsers, selectedUser, onSelectUser }: { allUsers: UserData[], selectedUser: UserData | null, onSelectUser: (user: UserData | null) => void }) {
-    const [open, setOpen] = useState(false)
-    
-    return (
-        <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
-                <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={open}
-                    className="w-full justify-between"
-                >
-                    {selectedUser
-                        ? `${selectedUser.name} (${selectedUser.username || selectedUser.id})`
-                        : "Select user..."}
-                    <Users className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-full p-0">
-                <Command>
-                    <CommandInput placeholder="Search user..." />
-                    <CommandList>
-                        <CommandEmpty>No user found.</CommandEmpty>
-                        <CommandGroup>
-                            {allUsers.map((user) => (
-                                <CommandItem
-                                    key={user.id}
-                                    value={user.name}
-                                    onSelect={() => {
-                                        onSelectUser(user)
-                                        setOpen(false)
-                                    }}
-                                >
-                                    {user.name} <span className="text-muted-foreground ml-2">({user.referralCount} referrals)</span>
-                                </CommandItem>
-                            ))}
-                        </CommandGroup>
-                    </CommandList>
-                </Command>
-            </PopoverContent>
-        </Popover>
-    )
-}
-
-function ContestManagementSection({ allUsers, onUpdate }: { allUsers: UserData[], onUpdate: () => void }) {
-    const [contestSettings, setContestSettings] = useState<ContestSettings | null>(null);
+function ContestManagementSection({ onUpdate }: { onUpdate: () => void }) {
+    const [winners, setWinners] = useState<ContestEntry[]>(Array(10).fill({ name: "", referralCount: 0 }));
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const { toast } = useToast();
@@ -928,31 +871,36 @@ function ContestManagementSection({ allUsers, onUpdate }: { allUsers: UserData[]
         const fetchContestSettings = async () => {
             setLoading(true);
             const settings = await getContestSettings();
-            setContestSettings(settings);
+            if (settings && settings.winners && settings.winners.length > 0) {
+                // Ensure there are always 10 entries
+                const currentWinners = settings.winners;
+                const fullWinnersList = Array(10).fill({ name: "", referralCount: 0 }).map((_, index) => 
+                    currentWinners[index] || { name: "", referralCount: 0 }
+                );
+                setWinners(fullWinnersList);
+            } else {
+                 setWinners(Array(10).fill({ name: "", referralCount: 0 }));
+            }
             setLoading(false);
         };
         fetchContestSettings();
     }, []);
 
-    const handleSelectWinner = (rank: 'top1' | 'top2' | 'top3', user: UserData | null) => {
-        setContestSettings(prev => {
-            if (!prev) return null;
-            return {
-                ...prev,
-                [`${rank}_user`]: user
-            };
-        });
+    const handleInputChange = (index: number, field: 'name' | 'referralCount', value: string) => {
+        const newWinners = [...winners];
+        const entry = { ...newWinners[index] };
+        if (field === 'referralCount') {
+            entry.referralCount = parseInt(value, 10) || 0;
+        } else {
+            entry.name = value;
+        }
+        newWinners[index] = entry;
+        setWinners(newWinners);
     };
-
+    
     const handleSave = async () => {
-        if (!contestSettings) return;
         setIsSaving(true);
-        const winnerIds = {
-            top1_userId: contestSettings.top1_user?.id || null,
-            top2_userId: contestSettings.top2_user?.id || null,
-            top3_userId: contestSettings.top3_user?.id || null,
-        };
-        const result = await saveContestWinners(winnerIds);
+        const result = await saveContestWinners(winners);
         if (result.success) {
             toast({ title: "Success", description: "Contest winners saved." });
             onUpdate();
@@ -960,6 +908,12 @@ function ContestManagementSection({ allUsers, onUpdate }: { allUsers: UserData[]
             toast({ title: "Error", description: result.error, variant: "destructive" });
         }
         setIsSaving(false);
+    };
+
+    const rankColors = {
+        1: 'text-yellow-400',
+        2: 'text-gray-300',
+        3: 'text-orange-400',
     };
 
     return (
@@ -973,34 +927,42 @@ function ContestManagementSection({ allUsers, onUpdate }: { allUsers: UserData[]
             </CardHeader>
             <CardContent>
                 {loading ? <div className="flex justify-center p-8"><Loader className="w-6 h-6 animate-spin"/></div> :
-                <div className="space-y-6">
-                    <div className="space-y-2">
-                        <Label className="flex items-center gap-2 text-lg font-bold"><span className="text-yellow-400">1st Place</span> (Gold)</Label>
-                        <UserSearchComboBox 
-                            allUsers={allUsers}
-                            selectedUser={contestSettings?.top1_user || null}
-                            onSelectUser={(user) => handleSelectWinner('top1', user)}
-                        />
-                    </div>
-                     <div className="space-y-2">
-                        <Label className="flex items-center gap-2 text-lg font-bold"><span className="text-gray-300">2nd Place</span> (Silver)</Label>
-                        <UserSearchComboBox 
-                            allUsers={allUsers}
-                            selectedUser={contestSettings?.top2_user || null}
-                            onSelectUser={(user) => handleSelectWinner('top2', user)}
-                        />
-                    </div>
-                     <div className="space-y-2">
-                        <Label className="flex items-center gap-2 text-lg font-bold"><span className="text-orange-400">3rd Place</span> (Bronze)</Label>
-                        <UserSearchComboBox 
-                            allUsers={allUsers}
-                            selectedUser={contestSettings?.top3_user || null}
-                            onSelectUser={(user) => handleSelectWinner('top3', user)}
-                        />
-                    </div>
-                    <p className="text-sm text-muted-foreground pt-4 border-t border-border">
-                        Ranks 4-10 are determined automatically based on the highest referral counts.
-                    </p>
+                <div className="space-y-4">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="w-16">Rank</TableHead>
+                                <TableHead>Name</TableHead>
+                                <TableHead>Referrals</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {winners.map((winner, index) => (
+                                <TableRow key={index}>
+                                    <TableCell>
+                                        <span className={`font-bold text-lg ${rankColors[index + 1 as keyof typeof rankColors] || ''}`}>
+                                            {index + 1}
+                                        </span>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Input
+                                            value={winner.name}
+                                            onChange={(e) => handleInputChange(index, 'name', e.target.value)}
+                                            placeholder="Enter name"
+                                        />
+                                    </TableCell>
+                                    <TableCell>
+                                        <Input
+                                            type="number"
+                                            value={winner.referralCount}
+                                            onChange={(e) => handleInputChange(index, 'referralCount', e.target.value)}
+                                            placeholder="Enter count"
+                                        />
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
                 </div>
                 }
             </CardContent>
@@ -1074,7 +1036,7 @@ export default function AdminPage() {
             
             <DashboardStatsSection users={allUsers} vipRequests={vipRequests} />
             <GlobalSettingsSection onUpdate={handleDataUpdate} />
-            <ContestManagementSection allUsers={allUsers} onUpdate={handleDataUpdate} />
+            <ContestManagementSection onUpdate={handleDataUpdate} />
             <UserManagementSection users={allUsers} loading={loading} onUpdate={handleDataUpdate} />
             <VipRequestSection vipRequests={vipRequests} loading={loading} onUpdate={handleDataUpdate} />
             <TaskManagementSection onUpdate={handleDataUpdate} />
@@ -1084,5 +1046,3 @@ export default function AdminPage() {
         </div>
     );
 }
-
-    

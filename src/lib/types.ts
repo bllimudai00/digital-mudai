@@ -96,8 +96,11 @@ export type ContestWinner = {
     referralCount: number;
 }
 
+export type ContestEntry = {
+    name: string;
+    referralCount: number;
+}
+
 export type ContestSettings = {
-    top1_user: UserData | null;
-    top2_user: UserData | null;
-    top3_user: UserData | null;
+    winners: ContestEntry[];
 }
