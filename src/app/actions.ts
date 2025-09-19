@@ -53,15 +53,21 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
         // Dynamically set admin status based on username on every login
         if (user.isAdmin !== isUserAdmin) {
             updates.isAdmin = isUserAdmin;
-needsUpdate = true;
+            needsUpdate = true;
         }
 
         // Sync baseRate with global settings on every login
         if (settings && user.baseRate !== settings.baseRate) {
             updates.baseRate = settings.baseRate;
-needsUpdate = true;
+            needsUpdate = true;
         }
         
+        // Sync referralCode with username for existing users
+        if (user.username && user.referralCode !== user.username) {
+            updates.referralCode = user.username;
+            needsUpdate = true;
+        }
+
         if (needsUpdate) {
             await updateDoc(userRef, updates);
         }
@@ -774,6 +780,8 @@ export async function saveContestWinners(winners: ContestEntry[]) {
     
 
 
+
+    
 
     
 
