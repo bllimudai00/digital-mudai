@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -142,7 +143,7 @@ function VipStatus({ status, userId, walletAddress, vipPrice }: { status: 'none'
         })
     }
     
-    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${finalWalletAddress}`;
+    const qrCodeUrl = "https://ik.imagekit.io/parinetwork/IMG-20250908-WA0000.jpg?updatedAt=1757307164625";
 
     if (status === 'approved') {
         return (
@@ -193,7 +194,7 @@ function VipStatus({ status, userId, walletAddress, vipPrice }: { status: 'none'
                 </div>
             </div>
             <div className="flex flex-col items-center gap-2">
-                <Image src={qrCodeUrl} width={150} height={150} alt="QR Code" data-ai-hint="qr code" />
+                <Image src={qrCodeUrl} width={150} height={150} alt="QR Code" data-ai-hint="payment qr code" />
                 <p className="text-sm text-muted-foreground">Scan QR Code</p>
             </div>
              <p className="text-xs text-muted-foreground text-center">After payment, submit your transaction ID for verification.</p>
@@ -249,7 +250,7 @@ export default function VipPage() {
   const vipPrice = settings?.vipPrice || 5;
 
   return (
-    <div className="bg-background text-foreground min-h-screen flex flex-col font-body">
+    <div className="text-foreground min-h-screen flex flex-col font-body">
         <header className="flex items-center p-4 sticky top-0 bg-background/80 backdrop-blur-sm z-10">
           <Button asChild variant="ghost" size="icon">
             <Link href="/">
@@ -331,3 +332,5 @@ export default function VipPage() {
     </div>
   );
 }
+
+    
