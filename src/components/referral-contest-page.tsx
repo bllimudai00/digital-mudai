@@ -31,7 +31,7 @@ function PodiumCard({ rank, winner, prize }: { rank: number; winner: ContestEntr
         3: 'h-32'
     };
     
-    const winnerName = winner?.name || 'N/A';
+    const winnerName = winner?.name && winner.name !== "N/A" ? winner.name : 'N/A';
     const referralCount = winner?.referralCount || 0;
 
     return (
