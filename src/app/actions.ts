@@ -38,6 +38,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
     
     const tgUser: TelegramUser = JSON.parse(userData.user);
     const isUserAdmin = ADMIN_USERNAMES.includes(tgUser.username || '');
+    const startParam = urlParams.get('start_param');
 
     const userRef = doc(db, 'users', tgUser.id.toString());
     const userSnap = await getDoc(userRef);
@@ -69,6 +70,16 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
     } else {
         // Create new user
         const referralCode = `PARI${tgUser.id.toString().slice(-4)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+        let referredBy: string | undefined = undefined;
+
+        if (startParam) {
+            const q = query(collection(db, "users"), where("referralCode", "==", startParam));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+                const referrerDoc = querySnapshot.docs[0];
+                referredBy = referrerDoc.id;
+            }
+        }
 
         const newUser: UserData = {
             id: tgUser.id.toString(),
@@ -78,6 +89,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
             tasks: [],
             vip: false,
             referralCode,
+            referredBy,
             name: `${tgUser.first_name || ''} ${tgUser.last_name || ''}`.trim(),
             username: tgUser.username,
             email: '', // No email from telegram
@@ -93,6 +105,14 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
             ...newUser,
             createdAt: serverTimestamp(),
         });
+        
+        // If the user was referred, update the referrer's list
+        if (referredBy) {
+            const referrerRef = doc(db, 'users', referredBy);
+            await updateDoc(referrerRef, {
+                referrals: arrayUnion(newUser.id)
+            });
+        }
         
         return { user: newUser, isNewUser: true };
     }
@@ -658,5 +678,3 @@ export async function saveWhitePaper(sections: WhitePaperSection[]) {
         return { success: false, error: error.message };
     }
 }
-
-    
