@@ -121,7 +121,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
             const newUserRef = doc(db, 'users', userIdStr);
             await setDoc(newUserRef, newUserDocData);
 
-            // Step 2: If there was a referrer, update their referrals list
+            // Step 2: If there was a referrer, update their referrals list in a separate, subsequent operation
             if (referrerId) {
                 const referrerRef = doc(db, 'users', referrerId);
                 await updateDoc(referrerRef, {
@@ -708,7 +708,9 @@ export async function getWhitePaper(): Promise<WhitePaperSection[]> {
     const whitepaperRef = collection(db, 'whitepaper');
     const q = query(whitepaperRef, orderBy('order'));
     const snapshot = await getDocs(q);
-    if (snapshot.empty) return [];
+    if (snapshot.empty) {
+        return [];
+    }
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WhitePaperSection));
 }
 
@@ -794,3 +796,4 @@ export async function saveContestWinners(winners: ContestEntry[]) {
     
 
     
+
