@@ -7,7 +7,7 @@ import { db } from '@/lib/firebase/firestore';
 import type { UserData, Referral, Task, GlobalSettings, RoadmapPhase, WhitePaperSection, TelegramUser, ContestSettings, ContestEntry } from '@/lib/types';
 import { createHmac } from 'crypto';
 
-const ADMIN_USERNAMES = ['Digitalmudai01', 'DesignerDynamo', 'arafatislam0'];
+const ADMIN_USERNAMES = ['Digitalmudai01', 'DesignerDynamo', 'arafatislam07'];
 
 // --- Telegram Auth Verification ---
 export async function verifyTelegramAuth(initData: string): Promise<{ user: UserData; isNewUser: boolean } | { error: string }> {
