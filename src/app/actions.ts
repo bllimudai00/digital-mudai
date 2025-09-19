@@ -1,7 +1,7 @@
 
 'use server';
 
-import { doc, updateDoc, arrayUnion, getDoc, runTransaction, increment, collection, getDocs, writeBatch, setDoc, query, where, addDoc, deleteDoc, serverTimestamp, Timestamp, orderBy } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, getDoc, runTransaction, increment, collection, getDocs, writeBatch, setDoc, query, where, addDoc, deleteDoc, serverTimestamp, Timestamp, orderBy, limit } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/firebase/firestore';
 import type { UserData, Referral, Task, GlobalSettings, RoadmapPhase, WhitePaperSection, TelegramUser, ContestSettings, ContestEntry } from '@/lib/types';
@@ -178,7 +178,7 @@ export async function seedInitialData() {
     const contestSnap = await getDoc(contestRef);
     if (!contestSnap.exists()) {
         await setDoc(contestRef, { 
-            winners: Array(10).fill({ name: "N/A", referralCount: 0 })
+            winners: Array(5).fill({ name: "N/A", referralCount: 0 })
         });
         console.log("Initial contest settings seeded.");
     }
@@ -702,14 +702,49 @@ export async function saveWhitePaper(sections: WhitePaperSection[]) {
 
 // --- Contest ---
 
-export async function getContestSettings(): Promise<ContestSettings | null> {
+export async function getContestSettings(manualOnly = false): Promise<ContestSettings> {
     const contestRef = doc(db, 'contest', 'settings');
     const contestSnap = await getDoc(contestRef);
+    let manualWinners: ContestEntry[] = Array(5).fill({ name: "N/A", referralCount: 0 });
+
     if (contestSnap.exists()) {
         const data = contestSnap.data() as ContestSettings;
-        return data;
+        if (data.winners) {
+            manualWinners = data.winners;
+        }
     }
-    return null;
+
+    if (manualOnly) {
+        return { winners: manualWinners };
+    }
+
+    const manualWinnerNames = manualWinners.map(w => w.name).filter(name => name !== "N/A");
+    
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, orderBy('referralCount', 'desc'), limit(10));
+    const querySnapshot = await getDocs(q);
+
+    const automaticWinners: ContestEntry[] = [];
+    querySnapshot.docs.forEach(doc => {
+        const user = doc.data() as UserData;
+        if (user.name && !manualWinnerNames.includes(user.name)) {
+            automaticWinners.push({
+                name: user.name,
+                referralCount: (user.referrals || []).length
+            });
+        }
+    });
+
+    const finalWinners = [...manualWinners];
+    const remainingSlots = 10 - finalWinners.length;
+    finalWinners.push(...automaticWinners.slice(0, remainingSlots));
+
+    // Ensure we always have 10 winners, filling with N/A if needed
+    while (finalWinners.length < 10) {
+        finalWinners.push({ name: 'N/A', referralCount: 0 });
+    }
+
+    return { winners: finalWinners.slice(0, 10) };
 }
 
 export async function saveContestWinners(winners: ContestEntry[]) {

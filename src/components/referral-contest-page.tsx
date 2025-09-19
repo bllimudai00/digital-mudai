@@ -7,25 +7,25 @@ import { ArrowLeft, Loader, Trophy, Users } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useContext } from "react";
 import type { UserData, ContestSettings, ContestEntry } from "@/lib/types";
-import { getContestSettings } from "@/app/actions";
+import { getContestSettings, getUsers } from "@/app/actions";
 import { AuthContext } from "@/context/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 
-const prizes = {
+const prizes: { [key: number]: number } = {
     1: 1000, 2: 500, 3: 300, 4: 100, 5: 50,
     6: 10, 7: 10, 8: 10, 9: 10, 10: 10
 };
 
 function PodiumCard({ rank, winner, prize }: { rank: number; winner: ContestEntry | null; prize: number }) {
-    const colors = {
+    const colors: { [key:number]: { bg: string, text: string, border: string, shadow: string } } = {
         1: { bg: 'bg-yellow-400/20', text: 'text-yellow-400', border: 'border-yellow-400', shadow: 'shadow-yellow-400/20' },
         2: { bg: 'bg-gray-300/20', text: 'text-gray-300', border: 'border-gray-300', shadow: 'shadow-gray-300/20' },
         3: { bg: 'bg-orange-400/20', text: 'text-orange-400', border: 'border-orange-400', shadow: 'shadow-orange-400/20' },
     };
 
-    const rankInfo = colors[rank as keyof typeof colors];
+    const rankInfo = colors[rank];
 
-    const heightClasses = {
+    const heightClasses: { [key:number]: string } = {
         1: 'h-40',
         2: 'h-32',
         3: 'h-24'
@@ -35,7 +35,7 @@ function PodiumCard({ rank, winner, prize }: { rank: number; winner: ContestEntr
     const referralCount = winner?.referralCount || 0;
 
     return (
-        <div className={`flex flex-col items-center justify-end ${heightClasses[rank as keyof typeof heightClasses]}`}>
+        <div className={`flex flex-col items-center justify-end ${heightClasses[rank]}`}>
             <Avatar className="w-12 h-12 mb-2 border-2 border-primary">
                  <AvatarImage src={`https://picsum.photos/seed/${winnerName}/${rank}/48`} alt={winnerName} />
                 <AvatarFallback>{winnerName !== 'N/A' ? winnerName.substring(0, 2) : '?'}</AvatarFallback>
@@ -137,7 +137,7 @@ export default function ReferralContestPage() {
                         {leaderboard.length > 0 ? (
                              <ul className="space-y-3">
                                 {leaderboard.map((winner, index) => (
-                                    <LeaderboardItem key={index} rank={index + 4} winner={winner} prize={prizes[index + 4 as keyof typeof prizes]} />
+                                    <LeaderboardItem key={index} rank={index + 4} winner={winner} prize={prizes[index + 4]} />
                                 ))}
                             </ul>
                         ) : (

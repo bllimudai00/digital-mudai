@@ -862,7 +862,8 @@ function WhitePaperManagementSection({ onUpdate }: { onUpdate: () => void }) {
 }
 
 function ContestManagementSection({ onUpdate }: { onUpdate: () => void }) {
-    const [winners, setWinners] = useState<ContestEntry[]>(Array(10).fill({ name: "", referralCount: 0 }));
+    const manualRanks = 5;
+    const [winners, setWinners] = useState<ContestEntry[]>(Array(manualRanks).fill({ name: "", referralCount: 0 }));
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const { toast } = useToast();
@@ -870,16 +871,15 @@ function ContestManagementSection({ onUpdate }: { onUpdate: () => void }) {
     useEffect(() => {
         const fetchContestSettings = async () => {
             setLoading(true);
-            const settings = await getContestSettings();
+            const settings = await getContestSettings(true); // Get only manual winners
             if (settings && settings.winners && settings.winners.length > 0) {
-                // Ensure there are always 10 entries
                 const currentWinners = settings.winners;
-                const fullWinnersList = Array(10).fill({ name: "", referralCount: 0 }).map((_, index) => 
+                const fullWinnersList = Array(manualRanks).fill({ name: "", referralCount: 0 }).map((_, index) => 
                     currentWinners[index] || { name: "", referralCount: 0 }
                 );
                 setWinners(fullWinnersList);
             } else {
-                 setWinners(Array(10).fill({ name: "", referralCount: 0 }));
+                 setWinners(Array(manualRanks).fill({ name: "", referralCount: 0 }));
             }
             setLoading(false);
         };
@@ -919,13 +919,16 @@ function ContestManagementSection({ onUpdate }: { onUpdate: () => void }) {
     return (
         <Card className="bg-card/50 backdrop-blur-sm border-blue-500/20">
             <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Referral Contest Management</CardTitle>
+                <CardTitle>Referral Contest Management (Top {manualRanks})</CardTitle>
                 <Button onClick={handleSave} disabled={isSaving || loading}>
                     {isSaving ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : <Trophy className="w-4 h-4 mr-2" />}
                     Save Winners
                 </Button>
             </CardHeader>
             <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                    Manually set the top {manualRanks} winners. Ranks 6-10 will be automatically populated based on actual referral counts.
+                </p>
                 {loading ? <div className="flex justify-center p-8"><Loader className="w-6 h-6 animate-spin"/></div> :
                 <div className="space-y-4">
                     <Table>
