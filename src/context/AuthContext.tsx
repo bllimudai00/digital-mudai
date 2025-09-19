@@ -19,7 +19,7 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-const ADMIN_USERNAMES = ['Digitalmudai01', 'DesignerDynamo'];
+const ADMIN_USERNAMES = ['Digitalmudai01', 'DesignerDynamo', 'arafatislam0'];
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<UserData | null>(null);
@@ -185,3 +185,5 @@ declare global {
     };
   }
 }
+
+    
