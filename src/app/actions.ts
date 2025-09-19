@@ -53,13 +53,13 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
         // Dynamically set admin status based on username on every login
         if (user.isAdmin !== isUserAdmin) {
             updates.isAdmin = isUserAdmin;
-            needsUpdate = true;
+needsUpdate = true;
         }
 
         // Sync baseRate with global settings on every login
         if (settings && user.baseRate !== settings.baseRate) {
             updates.baseRate = settings.baseRate;
-            needsUpdate = true;
+needsUpdate = true;
         }
         
         if (needsUpdate) {
@@ -68,53 +68,61 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
 
         return { user: { ...user, ...updates}, isNewUser: false };
     } else {
-        // Create new user
-        const referralCode = `PARI${tgUser.id.toString().slice(-4)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-        let referredBy: string | undefined = undefined;
+        // --- Create new user in a transaction ---
+        try {
+            const newUser = await runTransaction(db, async (transaction) => {
+                const referralCode = `PARI${tgUser.id.toString().slice(-4)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+                
+                const newUserDoc: UserData = {
+                    id: tgUser.id.toString(),
+                    pariBalance: 10,
+                    baseRate: settings?.baseRate || 10.00,
+                    referrals: [],
+                    tasks: [],
+                    vip: false,
+                    referralCode,
+                    name: `${tgUser.first_name || ''} ${tgUser.last_name || ''}`.trim(),
+                    username: tgUser.username,
+                    email: '', 
+                    createdAt: new Date().toISOString(), // This will be replaced by serverTimestamp
+                    sessionEndTime: null,
+                    history: [],
+                    vipStatus: 'none',
+                    isAdmin: isUserAdmin,
+                    referralEarnings: 0
+                };
+                
+                // Find referrer if startParam exists
+                if (startParam) {
+                    const q = query(collection(db, "users"), where("referralCode", "==", startParam));
+                    const querySnapshot = await getDocs(q);
+                    if (!querySnapshot.empty) {
+                        const referrerDoc = querySnapshot.docs[0];
+                        const referrerRef = referrerDoc.ref;
+                        newUserDoc.referredBy = referrerDoc.id;
+                        // Update referrer's list within the same transaction
+                        transaction.update(referrerRef, {
+                            referrals: arrayUnion(newUserDoc.id)
+                        });
+                    }
+                }
 
-        if (startParam) {
-            const q = query(collection(db, "users"), where("referralCode", "==", startParam));
-            const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
-                const referrerDoc = querySnapshot.docs[0];
-                referredBy = referrerDoc.id;
-            }
-        }
+                // Create the new user within the transaction
+                transaction.set(userRef, {
+                    ...newUserDoc,
+                    createdAt: serverTimestamp(),
+                });
 
-        const newUser: UserData = {
-            id: tgUser.id.toString(),
-            pariBalance: 10,
-            baseRate: settings?.baseRate || 10.00,
-            referrals: [],
-            tasks: [],
-            vip: false,
-            referralCode,
-            referredBy,
-            name: `${tgUser.first_name || ''} ${tgUser.last_name || ''}`.trim(),
-            username: tgUser.username,
-            email: '', // No email from telegram
-            createdAt: new Date().toISOString(),
-            sessionEndTime: null,
-            history: [],
-            vipStatus: 'none',
-            isAdmin: isUserAdmin, // Set admin status on creation
-            referralEarnings: 0
-        };
-
-        await setDoc(userRef, {
-            ...newUser,
-            createdAt: serverTimestamp(),
-        });
-        
-        // If the user was referred, update the referrer's list
-        if (referredBy) {
-            const referrerRef = doc(db, 'users', referredBy);
-            await updateDoc(referrerRef, {
-                referrals: arrayUnion(newUser.id)
+                // Return the final user object (without server-side timestamps)
+                return newUserDoc;
             });
+
+            return { user: newUser, isNewUser: true };
+            
+        } catch (error) {
+            console.error("New user creation transaction failed: ", error);
+            return { error: 'Failed to create new user.' };
         }
-        
-        return { user: newUser, isNewUser: true };
     }
 }
 
@@ -227,23 +235,23 @@ export async function getUserData(userId: string): Promise<UserData | null> {
 
         if (userData.vipStatus === 'approved' && !userData.vip) {
             updates.vip = true;
-            needsUpdate = true;
+needsUpdate = true;
         } else if (userData.vipStatus !== 'approved' && userData.vip) {
             updates.vip = false;
-            needsUpdate = true;
+needsUpdate = true;
         }
         
         const isUserAdmin = ADMIN_USERNAMES.includes(userData.username || '');
         if (userData.isAdmin !== isUserAdmin) {
             updates.isAdmin = isUserAdmin;
-            needsUpdate = true;
+needsUpdate = true;
         }
 
         // Sync baseRate with global settings
         const settings = await getGlobalSettings();
         if (settings && userData.baseRate !== settings.baseRate) {
             updates.baseRate = settings.baseRate;
-            needsUpdate = true;
+needsUpdate = true;
         }
         
         if (needsUpdate) {
@@ -678,3 +686,5 @@ export async function saveWhitePaper(sections: WhitePaperSection[]) {
         return { success: false, error: error.message };
     }
 }
+
+    
