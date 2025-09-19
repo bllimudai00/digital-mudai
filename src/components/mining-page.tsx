@@ -379,15 +379,12 @@ export default function MiningPage() {
         {!userData.vip && (
             <Card className="bg-card/50 backdrop-blur-sm border-blue-500/20 p-4">
               <CardContent className="p-0">
-                  <div className="flex justify-between items-center mb-2">
+                  <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-bold flex items-center gap-2"><Crown className="w-6 h-6 text-accent"/> Upgrade to VIP</h3>
                     <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-xl shrink-0" size="sm">
                         <Link href="/vip">Upgrade</Link>
                     </Button>
                   </div>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Verified status with blue tick + double mining speed + early airdrop access
-                  </p>
                   <div className="mt-4">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                           <Users className="w-4 h-4" />
@@ -412,3 +409,5 @@ export default function MiningPage() {
     </div>
   );
 }
+
+    
