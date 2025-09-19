@@ -70,19 +70,6 @@ needsUpdate = true;
     } else {
         // --- Create new user in a transaction ---
         try {
-             // Find referrer if startParam exists, *before* starting the transaction
-            let referrerRef = null;
-            let referrerId = null;
-            if (startParam) {
-                const q = query(collection(db, "users"), where("referralCode", "==", startParam));
-                const querySnapshot = await getDocs(q);
-                if (!querySnapshot.empty) {
-                    const referrerDoc = querySnapshot.docs[0];
-                    referrerRef = referrerDoc.ref;
-                    referrerId = referrerDoc.id;
-                }
-            }
-
             const newUser = await runTransaction(db, async (transaction) => {
                 const referralCode = `PARI${tgUser.id.toString().slice(-4)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
                 
@@ -105,12 +92,17 @@ needsUpdate = true;
                     referralEarnings: 0
                 };
                 
-                if (referrerRef && referrerId) {
-                    newUserDoc.referredBy = referrerId;
-                    // Update referrer's list within the same transaction
-                    transaction.update(referrerRef, {
-                        referrals: arrayUnion(newUserDoc.id)
-                    });
+                if (startParam) {
+                    const q = query(collection(db, "users"), where("referralCode", "==", startParam));
+                    const querySnapshot = await getDocs(q);
+                    if (!querySnapshot.empty) {
+                        const referrerDoc = querySnapshot.docs[0];
+                        newUserDoc.referredBy = referrerDoc.id;
+                        // Update referrer's list within the same transaction
+                        transaction.update(referrerDoc.ref, {
+                            referrals: arrayUnion(newUserDoc.id)
+                        });
+                    }
                 }
 
                 // Create the new user within the transaction
