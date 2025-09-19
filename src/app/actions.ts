@@ -25,17 +25,16 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
         return { error: 'Invalid authentication data: Missing hash or user data.' };
     }
     
-    // Create an array of [key, value] pairs from initData, excluding the 'hash'
-    const dataCheckArr = Array.from(urlParams.entries())
-        .filter(([key]) => key !== 'hash');
+    const dataCheckArr = [];
+    for (const [key, value] of urlParams.entries()) {
+        if (key !== 'hash') {
+            dataCheckArr.push({ key, value });
+        }
+    }
 
-    // Sort the array alphabetically by key
-    dataCheckArr.sort(([a], [b]) => a.localeCompare(b));
+    dataCheckArr.sort((a, b) => a.key.localeCompare(b.key));
 
-    // Join the sorted pairs into the data-check-string format
-    const dataCheckString = dataCheckArr
-        .map(([key, value]) => `${key}=${value}`)
-        .join('\n');
+    const dataCheckString = dataCheckArr.map(({ key, value }) => `${key}=${value}`).join('\n');
 
     const secretKey = createHmac('sha256', 'WebAppData').update(botToken).digest();
     const calculatedHash = createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
@@ -115,22 +114,23 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                      console.log(`[Referral] No referrer found for code: ${startParam}`);
                 }
             }
+
+            // Use a transaction to ensure atomicity
+            await runTransaction(db, async (transaction) => {
+                const newUserRef = doc(db, 'users', tgUser.id.toString());
+                transaction.set(newUserRef, newUserDocData);
+
+                if (referrerId) {
+                    const referrerRef = doc(db, 'users', referrerId);
+                    transaction.update(referrerRef, {
+                        referrals: arrayUnion(tgUser.id.toString())
+                    });
+                }
+            });
             
             const newUserDoc: UserData = {
                 id: tgUser.id.toString(),
                 ...newUserDocData
-            }
-
-            // Step 1: Create the new user.
-            const newUserRef = doc(db, 'users', newUserDoc.id);
-            await setDoc(newUserRef, newUserDocData);
-
-            // Step 2: If a referrer was found, update their document.
-            if (referrerId) {
-                const referrerRef = doc(db, 'users', referrerId);
-                await updateDoc(referrerRef, {
-                    referrals: arrayUnion(newUserDoc.id)
-                });
             }
             
             // Serialize for client-side use
@@ -141,7 +141,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
             
         } catch (error) {
             console.error("[User Creation] New user creation or referral update failed: ", error);
-            return { error: 'Failed to create new user.' };
+            return { error: 'Failed to create new user due to a transaction error.' };
         }
     }
 }
@@ -789,5 +789,9 @@ export async function saveContestWinners(winners: ContestEntry[]) {
 }
 
     
+
+    
+
+
 
     
