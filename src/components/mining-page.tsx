@@ -15,6 +15,7 @@ import {
   User,
   Loader,
   ShieldCheck,
+  Droplets,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -26,7 +27,7 @@ import { db } from "@/lib/firebase/firestore";
 import { AuthContext } from "@/context/AuthContext";
 
 
-function StatCard({
+function BalanceCard({
   icon,
   label,
   value,
@@ -37,28 +38,57 @@ function StatCard({
   value: string;
   className?: string;
 }) {
-  const isPariBalanceCard = label === "PARI Balance";
   return (
     <Card className={`bg-card/50 backdrop-blur-sm p-4 border border-blue-500/20 shadow-lg shadow-blue-500/5 ${className}`}>
-      <CardContent className={`p-0 ${isPariBalanceCard ? "text-center" : ""}`}>
-        <div
-          className={`flex items-center gap-3 text-sm text-muted-foreground ${
-            isPariBalanceCard ? "justify-center" : ""
-          }`}
-        >
+      <CardContent className="p-0 text-center">
+        <div className="flex items-center justify-center gap-3 text-sm text-muted-foreground">
           {icon}
           <span>{label}</span>
         </div>
-        <div
-          className={`font-bold mt-1 ${
-            isPariBalanceCard ? "text-4xl" : "text-2xl"
-          }`}
-        >
+        <div className="font-bold mt-1 text-4xl">
           {value}
         </div>
       </CardContent>
     </Card>
   );
+}
+
+function BenefitCard({
+  icon,
+  title,
+  description,
+  className,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  className?: string;
+}) {
+  return (
+    <Card className={`bg-card/80 backdrop-blur-sm p-4 ${className}`}>
+      <CardContent className="p-0 flex items-center gap-4">
+        <div className="p-2 bg-black/20 rounded-lg">{icon}</div>
+        <div>
+          <h3 className="font-bold text-white">{title}</h3>
+          <p className="text-sm text-muted-foreground">{description}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function StatCard({ icon, title, value, className }: { icon: React.ReactNode, title: string, value: string, className?: string }) {
+  return (
+    <Card className={`bg-card/80 backdrop-blur-sm p-4 ${className}`}>
+      <CardContent className="p-0 flex items-center gap-4">
+        <div className="p-3 bg-black/20 rounded-xl">{icon}</div>
+        <div>
+          <h3 className="font-bold text-white text-2xl">{value}</h3>
+          <p className="text-sm text-muted-foreground">{title}</p>
+        </div>
+      </CardContent>
+    </Card>
+  )
 }
 
 function BottomNavItem({
@@ -293,10 +323,11 @@ export default function MiningPage() {
       </header>
       
       <main className="flex-1 p-4 space-y-6 pb-24">
+        <BalanceCard icon={<LinkIcon className="w-5 h-5 text-cyan-400" />} label="PARI Balance" value={(userData.pariBalance as number).toFixed(4)} />
+
         <div className="grid grid-cols-2 gap-4">
-          <StatCard icon={<LinkIcon className="w-5 h-5 text-cyan-400" />} label="PARI Balance" value={(userData.pariBalance as number).toFixed(4)} className="col-span-2" />
-          <StatCard icon={<Zap className="w-5 h-5 text-cyan-400" />} label="Base Rate" value={`${baseRate.toFixed(2)}/hr`} />
-          <StatCard icon={<TrendingUp className="w-5 h-5 text-cyan-400" />} label="Sessions" value={(userData.history?.filter(h => h.type === 'mining').length || 0).toString()} />
+          <StatCard icon={<Zap className="w-6 h-6 text-cyan-400" />} title="Base Rate" value={`${baseRate.toFixed(2)}/hr`} />
+          <StatCard icon={<TrendingUp className="w-6 h-6 text-cyan-400" />} title="Sessions" value={(userData.history?.filter(h => h.type === 'mining').length || 0).toString()} />
         </div>
 
         <Card className="bg-card/50 backdrop-blur-sm text-center p-6 space-y-4 border-0 shadow-xl shadow-blue-500/5">
@@ -346,33 +377,43 @@ export default function MiningPage() {
         </Card>
 
         {!userData.vip && (
-            <Card className="bg-gradient-to-r from-primary to-accent p-0.5 rounded-2xl shadow-lg">
-                <div className="bg-card rounded-[15px] p-4">
-                  <CardContent className="p-0">
-                      <div className="flex justify-between items-start">
-                      <div className="flex-1 pr-2">
-                          <div className="flex items-center gap-2">
-                          <Crown className="w-6 h-6 text-accent" />
-                          <h3 className="text-lg font-bold">Upgrade to VIP</h3>
-                          </div>
-                          <p className="text-sm text-muted-foreground mt-1">
-                          Verified status with blue tick + double mining speed + early airdrop access.
-                          </p>
+            <Card className="bg-card/50 backdrop-blur-sm border-blue-500/20 p-4">
+              <CardContent className="p-0">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-bold flex items-center gap-2"><Crown className="w-6 h-6 text-accent"/> Upgrade to VIP</h3>
+                    <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-xl shrink-0" size="sm">
+                        <Link href="/vip">Upgrade</Link>
+                    </Button>
+                  </div>
+                  <div className="space-y-3">
+                     <BenefitCard
+                      icon={<ShieldCheck className="w-5 h-5 text-blue-400" />}
+                      title="Verified Status"
+                      description="Blue tick with profile"
+                      className="bg-blue-900/30 border-blue-500/30"
+                      />
+                      <BenefitCard
+                          icon={<Zap className="w-5 h-5 text-green-400" />}
+                          title="Double Mining Speed"
+                          description="Double your mining rewards permanently"
+                          className="bg-green-900/30 border-green-500/30"
+                      />
+                      <BenefitCard
+                          icon={<Droplets className="w-5 h-5 text-purple-400" />}
+                          title="Early Airdrop Access"
+                          description="Special allocation in future airdrops"
+                          className="bg-purple-900/30 border-purple-500/30"
+                      />
+                  </div>
+                  <div className="mt-4">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                          <Users className="w-4 h-4" />
+                          <span>FCFS Limited Slots</span>
                       </div>
-                      <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-xl shrink-0">
-                          <Link href="/vip">Upgrade</Link>
-                      </Button>
-                      </div>
-                      <div className="mt-4">
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                              <Users className="w-4 h-4" />
-                              <span>FCFS Limited Slots</span>
-                          </div>
-                      <Progress value={progressPercentage} className="h-2" />
-                      <div className="text-right text-sm text-muted-foreground mt-1">{claimedSlots} / {totalSlots}</div>
-                      </div>
-                  </CardContent>
-                </div>
+                  <Progress value={progressPercentage} className="h-2" />
+                  <div className="text-right text-sm text-muted-foreground mt-1">{claimedSlots} / {totalSlots}</div>
+                  </div>
+              </CardContent>
             </Card>
         )}
       </main>
@@ -388,5 +429,3 @@ export default function MiningPage() {
     </div>
   );
 }
-
-    

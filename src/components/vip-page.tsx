@@ -253,7 +253,7 @@ export default function VipPage() {
     <div className="text-foreground min-h-screen flex flex-col font-body">
         <header className="flex items-center p-4 sticky top-0 bg-background/80 backdrop-blur-sm z-10">
           <Button asChild variant="ghost" size="icon">
-            <Link href="/">
+            <Link href="/profile">
               <ArrowLeft />
             </Link>
           </Button>
@@ -332,5 +332,3 @@ export default function VipPage() {
     </div>
   );
 }
-
-    
