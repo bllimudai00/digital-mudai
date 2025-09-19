@@ -72,10 +72,14 @@ needsUpdate = true;
         try {
             let referrerId: string | null = null;
             if (startParam) {
+                console.log(`[Referral Debug] start_param found: ${startParam}`);
                 const q = query(collection(db, "users"), where("referralCode", "==", startParam));
                 const querySnapshot = await getDocs(q);
                 if (!querySnapshot.empty) {
                     referrerId = querySnapshot.docs[0].id;
+                    console.log(`[Referral Debug] Referrer found with ID: ${referrerId}`);
+                } else {
+                    console.log(`[Referral Debug] No referrer found for code: ${startParam}`);
                 }
             }
 
@@ -104,6 +108,7 @@ needsUpdate = true;
                 if (referrerId) {
                     newUserDoc.referredBy = referrerId;
                     const referrerRef = doc(db, 'users', referrerId);
+                    // This update MUST be inside the transaction to ensure atomicity
                     transaction.update(referrerRef, {
                         referrals: arrayUnion(newUserDoc.id)
                     });
@@ -114,15 +119,16 @@ needsUpdate = true;
                     ...newUserDoc,
                     createdAt: serverTimestamp(),
                 });
-
+                
+                console.log(`[Referral Debug] Transaction successful for new user ${newUserDoc.id}. Referrer: ${referrerId || 'None'}`);
                 return newUserDoc;
             });
 
             return { user: newUser, isNewUser: true };
             
         } catch (error) {
-            console.error("New user creation transaction failed: ", error);
-            return { error: 'Failed to create new user.' };
+            console.error("[Referral Error] New user creation transaction failed: ", error);
+            return { error: 'Failed to create new user due to a transaction error.' };
         }
     }
 }
