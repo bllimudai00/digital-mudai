@@ -349,17 +349,17 @@ export default function MiningPage() {
             <Card className="bg-gradient-to-r from-primary to-accent p-0.5 rounded-2xl shadow-lg">
                 <div className="bg-card rounded-[15px] p-4">
                   <CardContent className="p-0">
-                      <div className="flex justify-between items-center">
-                      <div>
+                      <div className="flex justify-between items-start">
+                      <div className="flex-1 pr-2">
                           <div className="flex items-center gap-2">
                           <Crown className="w-6 h-6 text-accent" />
                           <h3 className="text-lg font-bold">Upgrade to VIP</h3>
                           </div>
                           <p className="text-sm text-muted-foreground mt-1">
-                          Double mining speed + Ad-free experience
+                          Verified status with blue tick + double mining speed + early airdrop access.
                           </p>
                       </div>
-                      <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-xl">
+                      <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-xl shrink-0">
                           <Link href="/vip">Upgrade</Link>
                       </Button>
                       </div>
