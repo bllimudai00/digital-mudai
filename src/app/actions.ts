@@ -75,6 +75,25 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
         return { user: { ...user, ...updates}, isNewUser: false };
     } else {
         // --- Create new user ---
+        // Step 1: Find referrer OUTSIDE the transaction if startParam exists
+        let referrerId: string | null = null;
+        if (startParam) {
+            console.log(`[Referral] start_param found: ${startParam}`);
+            try {
+                const q = query(collection(db, "users"), where("referralCode", "==", startParam));
+                const querySnapshot = await getDocs(q);
+                if (!querySnapshot.empty) {
+                    referrerId = querySnapshot.docs[0].id;
+                    console.log(`[Referral] Referrer found with ID: ${referrerId}`);
+                } else {
+                    console.log(`[Referral] No referrer found for code: ${startParam}`);
+                }
+            } catch (error) {
+                console.error("[Referral] Error fetching referrer:", error);
+            }
+        }
+        
+        // Step 2: Run the transaction to create the user and update the referrer
         try {
             const newUser = await runTransaction(db, async (transaction) => {
                 // Use username as referral code if available, otherwise generate a random one.
@@ -99,26 +118,15 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                     referralEarnings: 0
                 };
                 
-                // Find referrer inside the transaction if startParam exists
-                if (startParam) {
-                    console.log(`[Referral Debug] start_param found: ${startParam}`);
-                    const q = query(collection(db, "users"), where("referralCode", "==", startParam));
-                    // We must use transaction.get() for reads inside a transaction
-                    const querySnapshot = await getDocs(q); 
-                    if (!querySnapshot.empty) {
-                        const referrerId = querySnapshot.docs[0].id;
-                        const referrerRef = doc(db, 'users', referrerId);
-                        console.log(`[Referral Debug] Referrer found with ID: ${referrerId}`);
-                        
-                        newUserDoc.referredBy = referrerId;
-                        
-                        // This update MUST be inside the transaction to ensure atomicity
-                        transaction.update(referrerRef, {
-                            referrals: arrayUnion(newUserDoc.id)
-                        });
-                    } else {
-                        console.log(`[Referral Debug] No referrer found for code: ${startParam}`);
-                    }
+                if (referrerId) {
+                    newUserDoc.referredBy = referrerId;
+                    const referrerRef = doc(db, 'users', referrerId);
+                    
+                    // This update MUST be inside the transaction to ensure atomicity
+                    transaction.update(referrerRef, {
+                        referrals: arrayUnion(newUserDoc.id)
+                    });
+                     console.log(`[Referral] Queued update for referrer ${referrerId} in transaction.`);
                 }
 
                 // Create the new user within the transaction
@@ -127,14 +135,14 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                     createdAt: serverTimestamp(),
                 });
                 
-                console.log(`[Referral Debug] Transaction successful for new user ${newUserDoc.id}. Referrer: ${newUserDoc.referredBy || 'None'}`);
+                console.log(`[Referral] Transaction successful for new user ${newUserDoc.id}. Referrer: ${newUserDoc.referredBy || 'None'}`);
                 return newUserDoc;
             });
 
             return { user: newUser, isNewUser: true };
             
         } catch (error) {
-            console.error("[Referral Error] New user creation transaction failed: ", error);
+            console.error("[Referral] New user creation transaction failed: ", error);
             return { error: 'Failed to create new user due to a transaction error.' };
         }
     }
@@ -303,7 +311,7 @@ export async function getReferrals(referralIds: string[]): Promise<Referral[]> {
         if(batchIds.length === 0) continue;
 
         try {
-            const q = query(collection(db, 'users'), where('id', 'in', batchIds));
+            const q = query(collection(db, 'users'), where('__name__', 'in', batchIds));
             const usersSnapshot = await getDocs(q);
             usersSnapshot.forEach(userSnap => {
                  if (userSnap.exists()) {

@@ -23,7 +23,7 @@ import Link from "next/link";
 import { useEffect, useState, useContext } from "react";
 import { getReferrals } from "@/app/actions";
 import type { UserData, Referral } from "@/lib/types";
-import { onSnapshot, doc, collection, query, where, getDocs } from "firebase/firestore";
+import { onSnapshot, doc, collection, query, where, getDocs, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -118,18 +118,16 @@ export default function ReferPage() {
             const user = doc.data() as UserData;
             setUserData(user);
             if (user.referrals && user.referrals.length > 0) {
-              const usersRef = collection(db, 'users');
-              const q = query(usersRef, where('__name__', 'in', user.referrals));
-              const querySnapshot = await getDocs(q);
-              const referralData = querySnapshot.docs.map(doc => {
-                  const userData = doc.data();
-                  return {
-                      id: doc.id,
-                      name: userData.name || `Friend ${doc.id.substring(0, 4)}`,
-                      avatar: `https://picsum.photos/seed/${doc.id}/40`
-                  };
-              });
-              setReferrals(referralData);
+                // Fetch referrals in batches to avoid large 'in' queries
+                const referralBatches: Promise<Referral[]>[] = [];
+                for (let i = 0; i < user.referrals.length; i += 30) {
+                    const batchIds = user.referrals.slice(i, i + 30);
+                    if(batchIds.length > 0){
+                        referralBatches.push(getReferrals(batchIds));
+                    }
+                }
+                const results = await Promise.all(referralBatches);
+                setReferrals(results.flat());
             } else {
                 setReferrals([]);
             }
@@ -161,7 +159,7 @@ export default function ReferPage() {
     });
   };
 
-  const referralLink = userData ? `https://t.me/Parinetworkbot?start=${userData.referralCode}` : "";
+  const referralLink = userData?.referralCode ? `https://t.me/Parinetworkbot?start=${userData.referralCode}` : "";
 
   if (authContext?.loading || !userData) {
     return (
