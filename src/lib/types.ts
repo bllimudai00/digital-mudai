@@ -37,6 +37,7 @@ export type UserData = {
   vipProofSubmittedAt?: string | Timestamp; // Allow both for server/client
   isAdmin?: boolean;
   referralEarnings?: number;
+  referralCount?: number;
 };
 
 export type GlobalSettings = {
@@ -89,4 +90,14 @@ export type WhitePaperSection = {
     imageUrl?: string;
 };
 
-    
+export type ContestWinner = {
+    id: string;
+    name: string;
+    referralCount: number;
+}
+
+export type ContestSettings = {
+    top1_user: UserData | null;
+    top2_user: UserData | null;
+    top3_user: UserData | null;
+}

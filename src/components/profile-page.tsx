@@ -19,6 +19,7 @@ import {
   Gift,
   User,
   Loader,
+  Trophy,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -190,6 +191,7 @@ export default function ProfilePage() {
             <ProfileMenuItem icon={<ShieldCheck className="w-6 h-6 text-cyan-400" />} label="VIP Membership" href="/vip" />
             <ProfileMenuItem icon={<History className="w-6 h-6 text-cyan-400" />} label="History" href="/history" />
             <ProfileMenuItem icon={<Users className="w-6 h-6 text-cyan-400" />} label="My Referrals" href="/refer" />
+            <ProfileMenuItem icon={<Trophy className="w-6 h-6 text-cyan-400" />} label="Referral Contest" href="/referral-contest" />
           </CardContent>
         </Card>
 
@@ -228,5 +230,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    

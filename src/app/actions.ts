@@ -4,7 +4,7 @@
 import { doc, updateDoc, arrayUnion, getDoc, runTransaction, increment, collection, getDocs, writeBatch, setDoc, query, where, addDoc, deleteDoc, serverTimestamp, Timestamp, orderBy } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/firebase/firestore';
-import type { UserData, Referral, Task, GlobalSettings, RoadmapPhase, WhitePaperSection, TelegramUser } from '@/lib/types';
+import type { UserData, Referral, Task, GlobalSettings, RoadmapPhase, WhitePaperSection, TelegramUser, ContestSettings } from '@/lib/types';
 import { createHmac } from 'crypto';
 
 const ADMIN_USERNAMES = ['Digitalmudai01', 'DesignerDynamo'];
@@ -171,6 +171,18 @@ export async function seedInitialData() {
             supportTelegramUsername: 'PariSupport'
         });
         console.log("Initial global settings seeded.");
+    }
+
+     // Seed contest settings
+    const contestRef = doc(db, 'contest', 'settings');
+    const contestSnap = await getDoc(contestRef);
+    if (!contestSnap.exists()) {
+        await setDoc(contestRef, { 
+            top1_userId: null,
+            top2_userId: null,
+            top3_userId: null,
+        });
+        console.log("Initial contest settings seeded.");
     }
 }
 
@@ -555,10 +567,13 @@ export async function getUsers(): Promise<UserData[]> {
         const data = doc.data();
         const docId = doc.id;
         const serializedData = serializeFirestoreTimestamps({ id: docId, ...data });
-        return serializedData as UserData;
+        return {
+            ...serializedData,
+            referralCount: (data.referrals || []).length
+        } as UserData;
     });
 
-    return users.sort((a, b) => (b.referrals?.length || 0) - (a.referrals?.length || 0));
+    return users.sort((a, b) => (b.referralCount || 0) - (a.referralCount || 0));
 }
 
 export async function updateUserFromAdmin(userId: string, dataToUpdate: Partial<UserData>) {
@@ -687,4 +702,36 @@ export async function saveWhitePaper(sections: WhitePaperSection[]) {
     }
 }
 
-    
+// --- Contest ---
+
+export async function getContestSettings(): Promise<ContestSettings | null> {
+    const contestRef = doc(db, 'contest', 'settings');
+    const contestSnap = await getDoc(contestRef);
+    if (contestSnap.exists()) {
+        const data = contestSnap.data();
+        // Fetch user data for each winner
+        const winnerIds = [data.top1_userId, data.top2_userId, data.top3_userId];
+        const winnerPromises = winnerIds.map(id => id ? getUserData(id) : Promise.resolve(null));
+        const winners = await Promise.all(winnerPromises);
+        
+        return {
+            top1_user: winners[0] as UserData | null,
+            top2_user: winners[1] as UserData | null,
+            top3_user: winners[2] as UserData | null,
+        };
+    }
+    return null;
+}
+
+export async function saveContestWinners(winners: { top1_userId: string | null; top2_userId: string | null; top3_userId: string | null; }) {
+    'use server';
+    const contestRef = doc(db, 'contest', 'settings');
+    try {
+        await setDoc(contestRef, winners, { merge: true });
+        revalidatePath('/admin');
+        revalidatePath('/referral-contest');
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}

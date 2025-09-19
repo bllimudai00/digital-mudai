@@ -2,9 +2,9 @@
 "use client";
 
 import { useEffect, useState, useContext } from "react";
-import type { UserData, GlobalSettings, Task, RoadmapPhase, WhitePaperSection, RoadmapItem } from "@/lib/types";
-import { getVipRequests, updateVipStatus, getUsers, updateUserFromAdmin, deleteUser, getGlobalSettings, updateGlobalSettings, getTasks, deleteTask, addTask, updateTask, saveRoadmap, saveWhitePaper } from "@/app/actions";
-import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck, Zap, ListChecks, ExternalLink, Map, FileText, GripVertical, Plus, Image as ImageIcon } from "lucide-react";
+import type { UserData, GlobalSettings, Task, RoadmapPhase, WhitePaperSection, RoadmapItem, ContestSettings } from "@/lib/types";
+import { getVipRequests, updateVipStatus, getUsers, updateUserFromAdmin, deleteUser, getGlobalSettings, updateGlobalSettings, getTasks, deleteTask, addTask, updateTask, saveRoadmap, saveWhitePaper, getContestSettings, saveContestWinners } from "@/app/actions";
+import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck, Zap, ListChecks, ExternalLink, Map, FileText, GripVertical, Plus, Image as ImageIcon, Trophy } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +21,19 @@ import { db } from "@/lib/firebase/firestore";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 import { AuthContext } from "@/context/AuthContext";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 
 
 function StatCard({ title, value, icon }: { title: string, value: string | number, icon: React.ReactNode }) {
@@ -555,9 +568,9 @@ function TaskManagementSection({ onUpdate }: { onUpdate: () => void }) {
 
     useEffect(() => {
         const tasksCollection = collection(db, 'tasks');
-        const unsubscribe = onSnapshot(tasksCollection, (snapshot) => {
+        const unsubscribe = onSnapshot(query(tasksCollection, orderBy('order')), (snapshot) => {
             const tasksList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Task);
-            setTasks(tasksList.sort((a, b) => a.order - b.order));
+            setTasks(tasksList);
             setLoading(false);
         }, (error) => {
             console.error("Error fetching real-time tasks:", error);
@@ -861,6 +874,140 @@ function WhitePaperManagementSection({ onUpdate }: { onUpdate: () => void }) {
     )
 }
 
+function UserSearchComboBox({ allUsers, selectedUser, onSelectUser }: { allUsers: UserData[], selectedUser: UserData | null, onSelectUser: (user: UserData | null) => void }) {
+    const [open, setOpen] = useState(false)
+    
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={open}
+                    className="w-full justify-between"
+                >
+                    {selectedUser
+                        ? `${selectedUser.name} (${selectedUser.username || selectedUser.id})`
+                        : "Select user..."}
+                    <Users className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-0">
+                <Command>
+                    <CommandInput placeholder="Search user..." />
+                    <CommandList>
+                        <CommandEmpty>No user found.</CommandEmpty>
+                        <CommandGroup>
+                            {allUsers.map((user) => (
+                                <CommandItem
+                                    key={user.id}
+                                    value={user.name}
+                                    onSelect={() => {
+                                        onSelectUser(user)
+                                        setOpen(false)
+                                    }}
+                                >
+                                    {user.name} <span className="text-muted-foreground ml-2">({user.referralCount} referrals)</span>
+                                </CommandItem>
+                            ))}
+                        </CommandGroup>
+                    </CommandList>
+                </Command>
+            </PopoverContent>
+        </Popover>
+    )
+}
+
+function ContestManagementSection({ allUsers, onUpdate }: { allUsers: UserData[], onUpdate: () => void }) {
+    const [contestSettings, setContestSettings] = useState<ContestSettings | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const { toast } = useToast();
+
+    useEffect(() => {
+        const fetchContestSettings = async () => {
+            setLoading(true);
+            const settings = await getContestSettings();
+            setContestSettings(settings);
+            setLoading(false);
+        };
+        fetchContestSettings();
+    }, []);
+
+    const handleSelectWinner = (rank: 'top1' | 'top2' | 'top3', user: UserData | null) => {
+        setContestSettings(prev => {
+            if (!prev) return null;
+            return {
+                ...prev,
+                [`${rank}_user`]: user
+            };
+        });
+    };
+
+    const handleSave = async () => {
+        if (!contestSettings) return;
+        setIsSaving(true);
+        const winnerIds = {
+            top1_userId: contestSettings.top1_user?.id || null,
+            top2_userId: contestSettings.top2_user?.id || null,
+            top3_userId: contestSettings.top3_user?.id || null,
+        };
+        const result = await saveContestWinners(winnerIds);
+        if (result.success) {
+            toast({ title: "Success", description: "Contest winners saved." });
+            onUpdate();
+        } else {
+            toast({ title: "Error", description: result.error, variant: "destructive" });
+        }
+        setIsSaving(false);
+    };
+
+    return (
+        <Card className="bg-card/50 backdrop-blur-sm border-blue-500/20">
+            <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Referral Contest Management</CardTitle>
+                <Button onClick={handleSave} disabled={isSaving || loading}>
+                    {isSaving ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : <Trophy className="w-4 h-4 mr-2" />}
+                    Save Winners
+                </Button>
+            </CardHeader>
+            <CardContent>
+                {loading ? <div className="flex justify-center p-8"><Loader className="w-6 h-6 animate-spin"/></div> :
+                <div className="space-y-6">
+                    <div className="space-y-2">
+                        <Label className="flex items-center gap-2 text-lg font-bold"><span className="text-yellow-400">1st Place</span> (Gold)</Label>
+                        <UserSearchComboBox 
+                            allUsers={allUsers}
+                            selectedUser={contestSettings?.top1_user || null}
+                            onSelectUser={(user) => handleSelectWinner('top1', user)}
+                        />
+                    </div>
+                     <div className="space-y-2">
+                        <Label className="flex items-center gap-2 text-lg font-bold"><span className="text-gray-300">2nd Place</span> (Silver)</Label>
+                        <UserSearchComboBox 
+                            allUsers={allUsers}
+                            selectedUser={contestSettings?.top2_user || null}
+                            onSelectUser={(user) => handleSelectWinner('top2', user)}
+                        />
+                    </div>
+                     <div className="space-y-2">
+                        <Label className="flex items-center gap-2 text-lg font-bold"><span className="text-orange-400">3rd Place</span> (Bronze)</Label>
+                        <UserSearchComboBox 
+                            allUsers={allUsers}
+                            selectedUser={contestSettings?.top3_user || null}
+                            onSelectUser={(user) => handleSelectWinner('top3', user)}
+                        />
+                    </div>
+                    <p className="text-sm text-muted-foreground pt-4 border-t border-border">
+                        Ranks 4-10 are determined automatically based on the highest referral counts.
+                    </p>
+                </div>
+                }
+            </CardContent>
+        </Card>
+    );
+}
+
 export default function AdminPage() {
     const authContext = useContext(AuthContext);
     const { user: currentUser } = authContext || {};
@@ -927,6 +1074,7 @@ export default function AdminPage() {
             
             <DashboardStatsSection users={allUsers} vipRequests={vipRequests} />
             <GlobalSettingsSection onUpdate={handleDataUpdate} />
+            <ContestManagementSection allUsers={allUsers} onUpdate={handleDataUpdate} />
             <UserManagementSection users={allUsers} loading={loading} onUpdate={handleDataUpdate} />
             <VipRequestSection vipRequests={vipRequests} loading={loading} onUpdate={handleDataUpdate} />
             <TaskManagementSection onUpdate={handleDataUpdate} />
