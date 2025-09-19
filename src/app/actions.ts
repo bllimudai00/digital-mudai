@@ -26,13 +26,13 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
     }
     
     const dataCheckArr = [];
+    urlParams.sort(); // Sort parameters alphabetically by key
     for (const [key, value] of urlParams.entries()) {
         if (key !== 'hash') {
             dataCheckArr.push(`${key}=${value}`);
         }
     }
 
-    dataCheckArr.sort();
     const dataCheckString = dataCheckArr.join('\n');
 
     const secretKey = createHmac('sha256', 'WebAppData').update(botToken).digest();
@@ -792,13 +792,3 @@ export async function saveContestWinners(winners: ContestEntry[]) {
         return { success: false, error: error.message };
     }
 }
-
-    
-
-    
-
-
-
-    
-
-    
