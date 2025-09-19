@@ -40,10 +40,10 @@ function StatCard({
 }) {
   const isPariBalanceCard = label === "PARI Balance";
   return (
-    <Card className={`bg-card/80 backdrop-blur-sm p-3 ${className}`}>
+    <Card className={`bg-card/50 backdrop-blur-sm p-4 border border-blue-500/20 shadow-lg shadow-blue-500/5 ${className}`}>
       <CardContent className={`p-0 ${isPariBalanceCard ? "text-center" : ""}`}>
         <div
-          className={`flex items-center gap-2 text-sm text-muted-foreground ${
+          className={`flex items-center gap-3 text-sm text-muted-foreground ${
             isPariBalanceCard ? "justify-center" : ""
           }`}
         >
@@ -52,7 +52,7 @@ function StatCard({
         </div>
         <div
           className={`font-bold mt-1 ${
-            isPariBalanceCard ? "text-3xl" : "text-xl"
+            isPariBalanceCard ? "text-4xl" : "text-2xl"
           }`}
         >
           {value}
@@ -78,10 +78,10 @@ function BottomNavItem({
       href={href}
       className={`flex flex-col items-center gap-1 ${
         isActive ? "text-primary" : "text-muted-foreground"
-      }`}
+      } transition-colors duration-200`}
     >
       {icon}
-      <span className="text-xs">{label}</span>
+      <span className="text-xs font-medium">{label}</span>
     </Link>
   );
 }
@@ -204,8 +204,8 @@ export default function MiningPage() {
   const MiningButton = () => {
     if (isActionLoading || miningState === 'loading') {
       return (
-        <Button size="lg" className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white mt-4" disabled>
-          <Loader className="w-4 h-4 mr-2 animate-spin" />
+        <Button size="lg" className="w-full text-white mt-6 shadow-lg shadow-blue-500/20" disabled>
+          <Loader className="w-5 h-5 mr-2 animate-spin" />
           Loading...
         </Button>
       )
@@ -213,22 +213,22 @@ export default function MiningPage() {
     switch (miningState) {
       case 'idle':
         return (
-          <Button size="lg" className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white mt-4" onClick={handleStartMining}>
-            <Zap className="w-4 h-4 mr-2" />
+          <Button size="lg" className="w-full bg-gradient-to-r from-primary to-accent text-white mt-6 shadow-lg shadow-blue-500/30 hover:opacity-90 transition-opacity" onClick={handleStartMining}>
+            <Zap className="w-5 h-5 mr-2" />
             Start Mining
           </Button>
         );
       case 'mining':
         return (
-          <Button size="lg" className="w-full bg-gradient-to-r from-purple-800 to-blue-800 text-white/70 mt-4" disabled>
-            <Zap className="w-4 h-4 mr-2" />
+          <Button size="lg" className="w-full bg-secondary text-white/70 mt-6" disabled>
+            <Zap className="w-5 h-5 mr-2 animate-pulse" />
             Mining...
           </Button>
         );
       case 'claimable':
         return (
-          <Button size="lg" className="relative overflow-hidden w-full bg-gradient-to-r from-green-500 to-teal-500 text-white mt-4" onClick={handleClaimReward}>
-            <Gift className="w-4 h-4 mr-2" />
+          <Button size="lg" className="relative overflow-hidden w-full bg-gradient-to-r from-green-500 to-teal-500 text-white mt-6 shadow-lg shadow-green-500/30" onClick={handleClaimReward}>
+            <Gift className="w-5 h-5 mr-2" />
             Claim Reward
           </Button>
         );
@@ -245,22 +245,22 @@ export default function MiningPage() {
         case 'mining':
             return (
                 <>
-                    <h2 className="text-2xl font-bold">{formatTime(timeRemaining)}</h2>
-                    <p className="text-muted-foreground">Until session complete</p>
+                    <h2 className="text-3xl font-bold font-mono tracking-widest">{formatTime(timeRemaining)}</h2>
+                    <p className="text-muted-foreground text-sm">Until session complete</p>
                 </>
             );
         case 'claimable':
              return (
                 <>
-                    <h2 className="text-2xl font-bold">Session Complete</h2>
-                    <p className="text-muted-foreground">Claim your {rewardAmount.toFixed(4)} PARI reward!</p>
+                    <h2 className="text-3xl font-bold">Session Complete</h2>
+                    <p className="text-muted-foreground text-sm">Claim your {rewardAmount.toFixed(4)} PARI reward!</p>
                 </>
             );
         default:
              return (
                 <>
-                    <h2 className="text-2xl font-bold">Start New Session</h2>
-                    <p className="text-muted-foreground">Tap to start mining PARI</p>
+                    <h2 className="text-3xl font-bold">Start New Session</h2>
+                    <p className="text-muted-foreground text-sm">Tap to start mining PARI</p>
                 </>
             );
     }
@@ -279,15 +279,28 @@ export default function MiningPage() {
   }
 
   return (
-    <div className="bg-background text-foreground min-h-screen flex flex-col font-body">
+    <div className="bg-transparent text-foreground min-h-screen flex flex-col font-body">
+      <header className="p-4 flex justify-between items-center">
+         <div className="flex items-center gap-2">
+            <Image
+              src="https://ik.imagekit.io/parinetwork/IMG_20250827_125111.jpg?updatedAt=1756725448569"
+              alt="PARI NETWORK Logo"
+              width={32}
+              height={32}
+              className="rounded-full"
+            />
+            <h1 className="text-xl font-bold text-white">PARI NETWORK</h1>
+        </div>
+      </header>
+      
       <main className="flex-1 p-4 space-y-6 pb-24">
         <div className="grid grid-cols-2 gap-4">
-          <StatCard icon={<LinkIcon className="w-4 h-4" />} label="PARI Balance" value={(userData.pariBalance as number).toFixed(4)} className="col-span-2" />
-          <StatCard icon={<Zap className="w-4 h-4" />} label="Base Rate" value={`${baseRate.toFixed(2)}/hr`} />
-          <StatCard icon={<TrendingUp className="w-4 h-4 text-orange-400" />} label="Sessions" value={(userData.history?.filter(h => h.type === 'mining').length || 0).toString()} />
+          <StatCard icon={<LinkIcon className="w-5 h-5 text-cyan-400" />} label="PARI Balance" value={(userData.pariBalance as number).toFixed(4)} className="col-span-2" />
+          <StatCard icon={<Zap className="w-5 h-5 text-cyan-400" />} label="Base Rate" value={`${baseRate.toFixed(2)}/hr`} />
+          <StatCard icon={<TrendingUp className="w-5 h-5 text-cyan-400" />} label="Sessions" value={(userData.history?.filter(h => h.type === 'mining').length || 0).toString()} />
         </div>
 
-        <Card className="bg-card/80 backdrop-blur-sm text-center p-6 space-y-4">
+        <Card className="bg-card/50 backdrop-blur-sm text-center p-6 space-y-4 border-0 shadow-xl shadow-blue-500/5">
           <CardContent className="p-0">
             <div className="flex justify-center items-center mb-4 relative">
                {showFloatingText && (
@@ -295,22 +308,22 @@ export default function MiningPage() {
                         +{claimedAmount.toFixed(4)} PARI
                     </div>
                 )}
-              <div className="relative w-32 h-32">
+              <div className="relative w-40 h-40">
                 <Image
                   src="https://ik.imagekit.io/parinetwork/IMG_20250827_125111.jpg?updatedAt=1756725448569"
                   alt="PARI Network"
-                  width={128}
-                  height={128}
+                  width={160}
+                  height={160}
                   data-ai-hint="network logo"
-                  className="rounded-full"
+                  className="rounded-full shadow-2xl shadow-blue-500/20"
                 />
                  {userData.vip && (
-                    <div className="absolute -top-1 -right-1 bg-blue-500 rounded-full p-2 border-2 border-background">
-                      <ShieldCheck className="w-5 h-5 text-white" />
+                    <div className="absolute top-0 right-0 bg-blue-500 rounded-full p-2.5 border-4 border-background shadow-lg">
+                      <ShieldCheck className="w-6 h-6 text-white" />
                     </div>
                  )}
-                <div className="absolute bottom-0 right-0 bg-card rounded-full p-2 border-2 border-primary">
-                  <Zap className="w-4 h-4 text-primary" />
+                <div className="absolute bottom-1 right-1 bg-card rounded-full p-2 border-2 border-primary shadow-md">
+                  <Zap className="w-5 h-5 text-primary animate-pulse" />
                 </div>
               </div>
             </div>
@@ -325,45 +338,47 @@ export default function MiningPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card/80 backdrop-blur-sm p-4">
+        <Card className="bg-card/50 backdrop-blur-sm p-4 border border-blue-500/20">
           <CardContent className="p-0">
             <p className="text-sm text-muted-foreground">Next Reward</p>
             <p className="text-2xl font-bold text-green-400 mt-1">{rewardAmount.toFixed(4)} PARI</p>
-            <p className="text-xs text-muted-foreground">{baseRate.toFixed(2)} x 4h x 1x ({userData.vip ? "VIP 2x" : "Normal"})</p>
+            <p className="text-xs text-muted-foreground">{baseRate.toFixed(2)} x 4h x ({userData.vip ? "VIP 2x" : "Normal 1x"})</p>
           </CardContent>
         </Card>
 
         {!userData.vip && (
-            <Card className="bg-card/80 backdrop-blur-sm p-4">
-            <CardContent className="p-0">
-                <div className="flex justify-between items-start">
-                <div>
-                    <div className="flex items-center gap-2">
-                    <Crown className="w-6 h-6 text-accent" />
-                    <h3 className="text-lg font-bold">Upgrade to VIP</h3>
-                    </div>
-                    <p className="text-sm text-muted-foreground mt-1">
-                    Double mining speed + Ad-free experience
-                    </p>
+            <Card className="bg-gradient-to-r from-primary to-accent p-0.5 rounded-2xl shadow-lg">
+                <div className="bg-card rounded-[15px] p-4">
+                  <CardContent className="p-0">
+                      <div className="flex justify-between items-center">
+                      <div>
+                          <div className="flex items-center gap-2">
+                          <Crown className="w-6 h-6 text-accent" />
+                          <h3 className="text-lg font-bold">Upgrade to VIP</h3>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">
+                          Double mining speed + Ad-free experience
+                          </p>
+                      </div>
+                      <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-xl">
+                          <Link href="/vip">Upgrade</Link>
+                      </Button>
+                      </div>
+                      <div className="mt-4">
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                              <Users className="w-4 h-4" />
+                              <span>FCFS Limited Slots</span>
+                          </div>
+                      <Progress value={progressPercentage} className="h-2" />
+                      <div className="text-right text-sm text-muted-foreground mt-1">{claimedSlots} / {totalSlots}</div>
+                      </div>
+                  </CardContent>
                 </div>
-                <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90">
-                    <Link href="/vip">Upgrade</Link>
-                </Button>
-                </div>
-                <div className="mt-4">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                        <Users className="w-4 h-4" />
-                        <span>FCFS Limited Slots</span>
-                    </div>
-                <Progress value={progressPercentage} className="h-2 bg-muted" />
-                <div className="text-right text-sm text-muted-foreground mt-1">{claimedSlots} / {totalSlots}</div>
-                </div>
-            </CardContent>
             </Card>
         )}
       </main>
 
-      <footer className="fixed bottom-0 left-0 right-0 bg-card/80 backdrop-blur-sm border-t p-2">
+      <footer className="fixed bottom-0 left-0 right-0 bg-card/50 backdrop-blur-sm border-t p-2 z-50">
         <div className="flex justify-around">
           <BottomNavItem icon={<Zap className="w-6 h-6" />} label="Mining" href="/" isActive={true} />
           <BottomNavItem icon={<Newspaper className="w-6 h-6" />} label="News" href="/news" />

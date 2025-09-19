@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useContext } from "react";
@@ -24,7 +25,7 @@ import { AuthContext } from "@/context/AuthContext";
 
 function StatCard({ title, value, icon }: { title: string, value: string | number, icon: React.ReactNode }) {
     return (
-        <Card className="bg-card/80 backdrop-blur-sm">
+        <Card className="bg-card/50 backdrop-blur-sm border-blue-500/20">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">{title}</CardTitle>
                 {icon}
@@ -75,7 +76,7 @@ function VipRequestSection({ vipRequests, loading, onUpdate }: { vipRequests: Us
     }
 
     return (
-        <Card className="bg-card/80 backdrop-blur-sm">
+        <Card className="bg-card/50 backdrop-blur-sm border-blue-500/20">
             <CardHeader>
                 <CardTitle>Pending VIP Requests</CardTitle>
             </CardHeader>
@@ -187,7 +188,7 @@ function NewsManagementSection({ onUpdate }: { onUpdate: () => void }) {
     };
 
     return (
-        <Card className="bg-card/80 backdrop-blur-sm">
+        <Card className="bg-card/50 backdrop-blur-sm border-blue-500/20">
             <CardHeader>
                 <CardTitle>News Management</CardTitle>
             </CardHeader>
@@ -389,7 +390,7 @@ function UserManagementSection({ users, loading, onUpdate }: { users: UserData[]
     }
 
     return (
-        <Card className="bg-card/80 backdrop-blur-sm">
+        <Card className="bg-card/50 backdrop-blur-sm border-blue-500/20">
             <CardHeader>
                 <CardTitle>User Management</CardTitle>
             </CardHeader>
@@ -487,7 +488,7 @@ function GlobalSettingsSection({ onUpdate }: { onUpdate: () => void}) {
 
     if (isLoading) {
          return (
-            <Card className="bg-card/80 backdrop-blur-sm">
+            <Card className="bg-card/50 backdrop-blur-sm border-blue-500/20">
                 <CardHeader>
                     <CardTitle>Global Settings</CardTitle>
                 </CardHeader>
@@ -499,7 +500,7 @@ function GlobalSettingsSection({ onUpdate }: { onUpdate: () => void}) {
     }
 
     return (
-        <Card className="bg-card/80 backdrop-blur-sm">
+        <Card className="bg-card/50 backdrop-blur-sm border-blue-500/20">
             <CardHeader>
                 <CardTitle>Global Settings</CardTitle>
             </CardHeader>
@@ -726,7 +727,7 @@ function TaskManagementSection({ onUpdate }: { onUpdate: () => void }) {
     }
 
     return (
-        <Card className="bg-card/80 backdrop-blur-sm">
+        <Card className="bg-card/50 backdrop-blur-sm border-blue-500/20">
             <CardHeader className="flex flex-row justify-between items-center">
                 <CardTitle>Task Management</CardTitle>
                 <Button size="sm" onClick={() => setEditingTask({})}>
@@ -862,7 +863,7 @@ function RoadmapManagementSection({ onUpdate }: { onUpdate: () => void }) {
     };
 
     return (
-        <Card className="bg-card/80 backdrop-blur-sm">
+        <Card className="bg-card/50 backdrop-blur-sm border-blue-500/20">
             <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Roadmap Management</CardTitle>
                 <Button onClick={handleSave} disabled={isSaving || loading}>
@@ -970,7 +971,7 @@ function WhitePaperManagementSection({ onUpdate }: { onUpdate: () => void }) {
     };
 
     return (
-        <Card className="bg-card/80 backdrop-blur-sm">
+        <Card className="bg-card/50 backdrop-blur-sm border-blue-500/20">
             <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>White Paper Management</CardTitle>
                 <Button onClick={handleSave} disabled={isSaving || loading}>
@@ -1037,7 +1038,7 @@ export default function AdminPage() {
 
     if (!authContext || authContext.loading || loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-background">
+            <div className="flex items-center justify-center min-h-screen bg-transparent">
                 <Loader className="w-8 h-8 animate-spin text-primary" />
             </div>
         );
@@ -1045,7 +1046,7 @@ export default function AdminPage() {
 
     if (!currentUser?.isAdmin) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-background text-center p-4">
+            <div className="flex flex-col items-center justify-center min-h-screen bg-transparent text-center p-4">
                 <h1 className="text-2xl font-bold text-destructive mb-4">Access Denied</h1>
                 <p className="text-muted-foreground">You do not have permission to view this page.</p>
                 <Button asChild className="mt-6">
@@ -1056,7 +1057,7 @@ export default function AdminPage() {
     }
 
     return (
-        <div className="bg-background text-foreground min-h-screen flex flex-col font-body p-4 space-y-6">
+        <div className="bg-transparent text-foreground min-h-screen flex flex-col font-body p-4 space-y-6">
              <header className="flex justify-between items-center">
                 <h1 className="text-2xl font-bold flex items-center gap-2">
                     <Shield className="w-6 h-6 text-primary" />
