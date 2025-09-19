@@ -198,27 +198,6 @@ export default function ReferPage() {
         <div className="space-y-4">
           <div>
             <label className="text-sm text-muted-foreground ml-1 mb-1 block">
-              Your Referral Code
-            </label>
-            <div className="relative">
-              <Input
-                type="text"
-                readOnly
-                value={userData?.referralCode || ""}
-                className="pr-12 bg-card/80 border-border"
-              />
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => copyToClipboard(userData?.referralCode || "", "Referral Code")}
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground"
-              >
-                <Clipboard className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-          <div>
-            <label className="text-sm text-muted-foreground ml-1 mb-1 block">
               Your Referral Link
             </label>
             <div className="relative">
