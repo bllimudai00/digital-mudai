@@ -128,14 +128,26 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                 });
             }
             
-            const newUserDoc: UserData = {
+            // Create a serializable version of the new user for the client
+            const serializedUser: UserData = {
                 id: userIdStr,
-                ...newUserDocData
-            }
-            
-            // Serialize for client-side use
-            const serializedUser = serializeFirestoreTimestamps(newUserDoc) as UserData;
-            serializedUser.createdAt = new Date().toISOString(); 
+                pariBalance: newUserDocData.pariBalance,
+                baseRate: newUserDocData.baseRate,
+                referrals: newUserDocData.referrals,
+                tasks: newUserDocData.tasks,
+                vip: newUserDocData.vip,
+                referralCode: newUserDocData.referralCode,
+                name: newUserDocData.name,
+                username: newUserDocData.username,
+                email: newUserDocData.email,
+                createdAt: new Date().toISOString(), // Use ISO string for client
+                sessionEndTime: newUserDocData.sessionEndTime,
+                history: newUserDocData.history,
+                vipStatus: newUserDocData.vipStatus,
+                isAdmin: newUserDocData.isAdmin,
+                referralEarnings: newUserDocData.referralEarnings,
+                ...(newUserDocData.referredBy && { referredBy: newUserDocData.referredBy })
+            };
             
             return { user: serializedUser, isNewUser: true };
             
@@ -795,5 +807,3 @@ export async function saveContestWinners(winners: ContestEntry[]) {
     
 
     
-
-
