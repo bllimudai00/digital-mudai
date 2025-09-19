@@ -68,6 +68,12 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
             needsUpdate = true;
         }
         
+        // Ensure referral code is always the User ID for existing users
+        if (user.referralCode !== userIdStr) {
+            updates.referralCode = userIdStr;
+            needsUpdate = true;
+        }
+
         if (needsUpdate) {
             await updateDoc(userRef, updates);
         }
@@ -76,7 +82,8 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
     } else {
         // --- Create new user ---
         try {
-            const referralCode = userIdStr; // Use Telegram User ID as the referral code
+            // Referral code is always the user's ID
+            const referralCode = userIdStr; 
             
             const newUserDocData: Omit<UserData, 'id'> = {
                 pariBalance: 10,
@@ -84,7 +91,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                 referrals: [],
                 tasks: [],
                 vip: false,
-                referralCode: referralCode,
+                referralCode: referralCode, // Set referral code to User ID
                 name: `${tgUser.first_name || ''} ${tgUser.last_name || ''}`.trim(),
                 username: tgUser.username,
                 email: '', 
