@@ -2,8 +2,8 @@
 "use client";
 
 import { useEffect, useState, useContext } from "react";
-import type { UserData, NewsArticle, GlobalSettings, Task, RoadmapPhase, WhitePaperSection, RoadmapItem } from "@/lib/types";
-import { getVipRequests, updateVipStatus, getNews, addNews, deleteNews, getUsers, updateUserFromAdmin, deleteUser, getGlobalSettings, updateGlobalSettings, getTasks, deleteTask, addTask, updateTask, saveRoadmap, saveWhitePaper } from "@/app/actions";
+import type { UserData, GlobalSettings, Task, RoadmapPhase, WhitePaperSection, RoadmapItem } from "@/lib/types";
+import { getVipRequests, updateVipStatus, getUsers, updateUserFromAdmin, deleteUser, getGlobalSettings, updateGlobalSettings, getTasks, deleteTask, addTask, updateTask, saveRoadmap, saveWhitePaper } from "@/app/actions";
 import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck, Zap, ListChecks, ExternalLink, Map, FileText, GripVertical, Plus, Image as ImageIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -112,149 +112,6 @@ function VipRequestSection({ vipRequests, loading, onUpdate }: { vipRequests: Us
             </CardContent>
         </Card>
     );
-}
-
-function NewsManagementSection({ onUpdate }: { onUpdate: () => void }) {
-    const [news, setNews] = useState<NewsArticle[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [newTitle, setNewTitle] = useState("");
-    const [newContent, setNewContent] = useState("");
-    const [newPriority, setNewPriority] = useState<'low' | 'medium' | 'high'>('low');
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const { toast } = useToast();
-
-    useEffect(() => {
-        const newsCollection = collection(db, 'news');
-        const unsubscribe = onSnapshot(newsCollection, (snapshot) => {
-            const newsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as NewsArticle);
-            
-            const priorityOrder = { 'high': 1, 'medium': 2, 'low': 3 };
-            const sortedNews = newsList.sort((a, b) => {
-                const priorityA = priorityOrder[a.priority] || 4;
-                const priorityB = priorityOrder[b.priority] || 4;
-                if (priorityA !== priorityB) {
-                    return priorityA - priorityB;
-                }
-                return new Date(b.date).getTime() - new Date(a.date).getTime();
-            });
-
-            setNews(sortedNews);
-            setLoading(false);
-        }, (error) => {
-            console.error("Error fetching real-time news:", error);
-            setLoading(false);
-        });
-
-        return () => unsubscribe();
-    }, []);
-
-    const handleDelete = async (articleId: string) => {
-        const result = await deleteNews(articleId);
-        if (result.success) {
-            toast({ title: "Success", description: "News article deleted." });
-            onUpdate(); 
-        } else {
-            toast({ title: "Error", description: result.error, variant: "destructive" });
-        }
-    };
-    
-    const handleAddNews = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newTitle || !newContent) {
-            toast({ title: "Error", description: "Title and content are required.", variant: "destructive" });
-            return;
-        }
-
-        setIsSubmitting(true);
-        
-        const article = {
-            title: newTitle,
-            priority: newPriority,
-            content: newContent,
-            date: new Date().toISOString()
-        };
-
-        const result = await addNews(article);
-        if (result.success) {
-            toast({ title: "Success", description: "News article added." });
-            setNewTitle("");
-            setNewContent("");
-            setNewPriority("low");
-            onUpdate();
-        } else {
-            toast({ title: "Error", description: result.error, variant: "destructive" });
-        }
-        setIsSubmitting(false);
-    };
-
-    return (
-        <Card className="bg-card/50 backdrop-blur-sm border-blue-500/20">
-            <CardHeader>
-                <CardTitle>News Management</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                <div>
-                    <h3 className="text-lg font-semibold mb-4">Add New Article</h3>
-                    <form onSubmit={handleAddNews} className="space-y-4 p-4 bg-background rounded-lg">
-                        <Input
-                            placeholder="Article Title"
-                            value={newTitle}
-                            onChange={(e) => setNewTitle(e.target.value)}
-                            required
-                            className="bg-card"
-                        />
-                         <Textarea
-                            placeholder="Article Content..."
-                            value={newContent}
-                            onChange={(e) => setNewContent(e.target.value)}
-                            required
-                            className="bg-card h-40"
-                        />
-                         <Select onValueChange={(value: 'low' | 'medium' | 'high') => setNewPriority(value)} defaultValue="low">
-                            <SelectTrigger>
-                                <SelectValue placeholder="Set priority" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="low">Low Priority</SelectItem>
-                                <SelectItem value="medium">Medium Priority</SelectItem>
-                                <SelectItem value="high">High Priority</SelectItem>
-                            </SelectContent>
-                        </Select>
-
-                        <Button type="submit" disabled={isSubmitting}>
-                            {isSubmitting ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : <PlusCircle className="w-4 h-4 mr-2" />}
-                            {isSubmitting ? "Adding..." : "Add Article"}
-                        </Button>
-                    </form>
-                </div>
-                 <div>
-                    <h3 className="text-lg font-semibold mb-4">Existing Articles</h3>
-                    {loading ? (
-                        <div className="flex justify-center p-8"><Loader className="w-6 h-6 animate-spin"/></div>
-                    ) : news.length > 0 ? (
-                        <ul className="space-y-3">
-                            {news.map((article) => (
-                                <li key={article.id} className="p-3 bg-background rounded-lg flex justify-between items-center gap-4">
-                                    <div>
-                                        <p className="font-bold flex items-center gap-2">
-                                            {article.title}
-                                            <Badge variant={article.priority === 'high' ? 'destructive' : article.priority === 'medium' ? 'default' : 'secondary'} className="capitalize">{article.priority}</Badge>
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">{new Date(article.date).toLocaleDateString()}</p>
-                                    </div>
-                                    <Button size="icon" variant="destructive" onClick={() => handleDelete(article.id)}>
-                                        <Trash2 className="w-4 h-4" />
-                                    </Button>
-                                </li>
-                            ))}
-                        </ul>
-                    ) : (
-                         <p className="text-muted-foreground text-center p-8">No news articles found.</p>
-                    )}
-                </div>
-            </CardContent>
-        </Card>
-    )
 }
 
 function EditUserDialog({ user, isOpen, onOpenChange, onUserUpdate }: { user: UserData | null, isOpen: boolean, onOpenChange: (open: boolean) => void, onUserUpdate: () => void }) {
@@ -1073,10 +930,11 @@ export default function AdminPage() {
             <UserManagementSection users={allUsers} loading={loading} onUpdate={handleDataUpdate} />
             <VipRequestSection vipRequests={vipRequests} loading={loading} onUpdate={handleDataUpdate} />
             <TaskManagementSection onUpdate={handleDataUpdate} />
-            <NewsManagementSection onUpdate={handleDataUpdate} />
             <RoadmapManagementSection onUpdate={handleDataUpdate} />
             <WhitePaperManagementSection onUpdate={handleDataUpdate} />
 
         </div>
     );
 }
+
+    

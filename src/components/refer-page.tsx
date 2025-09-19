@@ -15,7 +15,6 @@ import {
   Mail,
   Info,
   Zap,
-  Newspaper,
   ListChecks,
   User,
   Loader,
@@ -47,7 +46,7 @@ function BottomNavItem({
       href={href}
       className={`flex flex-col items-center gap-1 ${
         isActive ? "text-primary" : "text-muted-foreground"
-      }`}
+      } transition-colors duration-200`}
     >
       {icon}
       <span className="text-xs">{label}</span>
@@ -156,7 +155,7 @@ export default function ReferPage() {
 
   if (authContext?.loading || !userData) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-transparent">
+      <div className="flex items-center justify-center min-h-screen">
         <Loader className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
@@ -296,11 +295,6 @@ export default function ReferPage() {
             href="/"
           />
           <BottomNavItem
-            icon={<Newspaper className="w-6 h-6" />}
-            label="News"
-            href="/news"
-          />
-          <BottomNavItem
             icon={<ListChecks className="w-6 h-6" />}
             label="Tasks"
             href="/tasks"
@@ -321,3 +315,5 @@ export default function ReferPage() {
     </div>
   );
 }
+
+    

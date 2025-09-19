@@ -68,14 +68,6 @@ export type Task = {
   url?: string;
 };
 
-export type NewsArticle = {
-  id: string;
-  title: string;
-  date: string;
-  priority: 'low' | 'medium' | 'high';
-  content: string;
-};
-
 export type RoadmapItem = {
     text: string;
 };
@@ -96,3 +88,5 @@ export type WhitePaperSection = {
     content: string;
     imageUrl?: string;
 };
+
+    

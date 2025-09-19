@@ -4,7 +4,7 @@
 import { doc, updateDoc, arrayUnion, getDoc, runTransaction, increment, collection, getDocs, writeBatch, setDoc, query, where, addDoc, deleteDoc, serverTimestamp, Timestamp, orderBy } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/firebase/firestore';
-import type { UserData, Referral, Task, NewsArticle, GlobalSettings, RoadmapPhase, WhitePaperSection, TelegramUser } from '@/lib/types';
+import type { UserData, Referral, Task, GlobalSettings, RoadmapPhase, WhitePaperSection, TelegramUser } from '@/lib/types';
 import { createHmac } from 'crypto';
 
 const ADMIN_USERNAMES = ['Digitalmudai01', 'DesignerDynamo'];
@@ -144,24 +144,6 @@ export async function seedInitialData() {
         });
         console.log("Initial global settings seeded.");
     }
-
-    // Seed News
-    const newsRef = collection(db, 'news');
-    const newsSnapshot = await getDocs(newsRef);
-    if (newsSnapshot.empty) {
-        console.log("No news found, seeding initial news...");
-        const defaultNews = [
-            { title: "Welcome to PARI Network!", content: "The official launch of the PARI Network airdrop mining app. Start mining and inviting your friends to earn more PARI tokens.", priority: 'high', date: new Date().toISOString() },
-            { title: "Referral Contest is LIVE!", content: "Our first referral contest has begun. The top 3 referrers will win a massive PARI token bonus. Check the 'Refer' page for details.", priority: 'medium', date: new Date().toISOString() }
-        ];
-        const batch = writeBatch(db);
-        defaultNews.forEach(article => {
-            const docRef = doc(newsRef);
-            batch.set(docRef, article);
-        });
-        await batch.commit();
-        console.log("Initial news seeded.");
-    }
 }
 
 
@@ -170,7 +152,6 @@ export async function getInitialUserData(userId: string) {
     const user = await getUserData(userId);
     const referrals = await getReferrals(user?.referrals || []);
     const tasks = await getTasks();
-    const news = await getNews();
     const settings = await getGlobalSettings();
     
     let finalUser = user;
@@ -183,7 +164,7 @@ export async function getInitialUserData(userId: string) {
         }
     }
 
-    return { user: finalUser, referrals, tasks, news, settings };
+    return { user: finalUser, referrals, tasks, settings };
 }
 
 function serializeFirestoreTimestamps(data: { [key: string]: any }): { [key:string]: any } {
@@ -539,67 +520,6 @@ export async function updateVipStatus(userId: string, status: 'approved' | 'reje
     return { success: true };
 }
 
-
-export async function getNews(): Promise<NewsArticle[]> {
-    try {
-        await seedInitialData();
-        const newsCollection = collection(db, 'news');
-        const newsSnapshot = await getDocs(newsCollection);
-        if (newsSnapshot.empty) {
-            console.log("No news found.");
-            return [];
-        }
-        const newsList = newsSnapshot.docs.map(doc => ({ 
-            id: doc.id, 
-            ...doc.data(),
-            date: doc.data().date ? new Date(doc.data().date).toISOString() : new Date().toISOString()
-        }) as NewsArticle);
-        
-        const priorityOrder = { 'high': 1, 'medium': 2, 'low': 3 };
-        return newsList.sort((a, b) => {
-            const priorityA = priorityOrder[a.priority] || 4;
-            const priorityB = priorityOrder[b.priority] || 4;
-            if (priorityA !== priorityB) {
-                return priorityA - priorityB;
-            }
-            return new Date(b.date).getTime() - new Date(a.date).getTime();
-        });
-
-    } catch (error) {
-        console.error("Error fetching news:", error);
-        return [];
-    }
-}
-
-export async function addNews(article: Omit<NewsArticle, 'id' | 'date'> & { date: string }) {
-    try {
-        const newsCollection = collection(db, 'news');
-        const docRef = await addDoc(newsCollection, {
-            ...article,
-            date: new Date(article.date).toISOString()
-        });
-        revalidatePath('/news');
-        revalidatePath('/admin');
-        return { success: true, id: docRef.id };
-    } catch (error: any) {
-        console.error("Error adding news: ", error);
-        return { success: false, error: error.message };
-    }
-}
-
-export async function deleteNews(articleId: string) {
-    try {
-        const newsRef = doc(db, 'news', articleId);
-        await deleteDoc(newsRef);
-        revalidatePath('/news');
-        revalidatePath('/admin');
-        return { success: true };
-    } catch (error: any) {
-        console.error("Error deleting news: ", error);
-        return { success: false, error: error.message };
-    }
-}
-
 export async function getUsers(): Promise<UserData[]> {
   const usersRef = collection(db, 'users');
   const querySnapshot = await getDocs(usersRef);
@@ -738,3 +658,5 @@ export async function saveWhitePaper(sections: WhitePaperSection[]) {
         return { success: false, error: error.message };
     }
 }
+
+    

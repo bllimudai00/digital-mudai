@@ -15,7 +15,6 @@ import {
   Wrench,
   ChevronRight,
   Zap,
-  Newspaper,
   ListChecks,
   Gift,
   User,
@@ -139,14 +138,14 @@ export default function ProfilePage() {
 
   if (authContext?.loading || !userData) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="flex items-center justify-center min-h-screen">
         <Loader className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="bg-transparent text-foreground min-h-screen flex flex-col font-body">
+    <div className="text-foreground min-h-screen flex flex-col font-body">
       <main className="flex-1 p-4 space-y-6 pb-24">
         <h1 className="text-3xl font-bold">Profile</h1>
 
@@ -221,7 +220,6 @@ export default function ProfilePage() {
       <footer className="fixed bottom-0 left-0 right-0 bg-card/50 backdrop-blur-sm border-t p-2 z-50">
         <div className="flex justify-around">
           <BottomNavItem icon={<Zap className="w-6 h-6" />} label="Mining" href="/" />
-          <BottomNavItem icon={<Newspaper className="w-6 h-6" />} label="News" href="/news" />
           <BottomNavItem icon={<ListChecks className="w-6 h-6" />} label="Tasks" href="/tasks" />
           <BottomNavItem icon={<Gift className="w-6 h-6" />} label="Refer" href="/refer" />
           <BottomNavItem icon={<User className="w-6 h-6" />} label="Profile" href="/profile" isActive={true} />
@@ -230,3 +228,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+    
