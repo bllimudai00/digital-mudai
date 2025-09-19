@@ -25,14 +25,14 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
         return { error: 'Invalid authentication data: Missing hash or user data.' };
     }
     
-    // Create a new search params object for validation, excluding the hash
-    const paramsForValidation = new URLSearchParams(initData);
-    paramsForValidation.delete('hash');
-    
-    // Convert to an array of [key, value] pairs and sort
-    const dataCheckArr = Array.from(paramsForValidation.entries());
+    // Create an array of [key, value] pairs from initData, excluding the 'hash'
+    const dataCheckArr = Array.from(urlParams.entries())
+        .filter(([key]) => key !== 'hash');
+
+    // Sort the array alphabetically by key
     dataCheckArr.sort(([a], [b]) => a.localeCompare(b));
 
+    // Join the sorted pairs into the data-check-string format
     const dataCheckString = dataCheckArr
         .map(([key, value]) => `${key}=${value}`)
         .join('\n');
@@ -84,8 +84,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
         try {
             const referralCode = tgUser.username ? tgUser.username : `PARI${tgUser.id.toString().slice(-4)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
             
-            const newUserDoc: UserData = {
-                id: tgUser.id.toString(),
+            const newUserDocData: Omit<UserData, 'id'> = {
                 pariBalance: 10,
                 baseRate: settings?.baseRate || 10.00,
                 referrals: [],
@@ -95,7 +94,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                 name: `${tgUser.first_name || ''} ${tgUser.last_name || ''}`.trim(),
                 username: tgUser.username,
                 email: '', 
-                createdAt: serverTimestamp(), // Let server set the timestamp
+                createdAt: serverTimestamp(),
                 sessionEndTime: null,
                 history: [],
                 vipStatus: 'none',
@@ -111,26 +110,28 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                 if (!referrerSnapshot.empty) {
                     const referrerDoc = referrerSnapshot.docs[0];
                     referrerId = referrerDoc.id;
-                    newUserDoc.referredBy = referrerId;
+                    newUserDocData.referredBy = referrerId;
                 } else {
                      console.log(`[Referral] No referrer found for code: ${startParam}`);
                 }
             }
+            
+            const newUserDoc: UserData = {
+                id: tgUser.id.toString(),
+                ...newUserDocData
+            }
 
-            // Use a transaction to ensure atomicity
-            await runTransaction(db, async (transaction) => {
-                // Step 1: Create the new user.
-                const newUserRef = doc(db, 'users', newUserDoc.id);
-                transaction.set(newUserRef, newUserDoc);
+            // Step 1: Create the new user.
+            const newUserRef = doc(db, 'users', newUserDoc.id);
+            await setDoc(newUserRef, newUserDocData);
 
-                // Step 2: If a referrer was found, update their document.
-                if (referrerId) {
-                    const referrerRef = doc(db, 'users', referrerId);
-                    transaction.update(referrerRef, {
-                        referrals: arrayUnion(newUserDoc.id)
-                    });
-                }
-            });
+            // Step 2: If a referrer was found, update their document.
+            if (referrerId) {
+                const referrerRef = doc(db, 'users', referrerId);
+                await updateDoc(referrerRef, {
+                    referrals: arrayUnion(newUserDoc.id)
+                });
+            }
             
             // Serialize for client-side use
             const serializedUser = serializeFirestoreTimestamps(newUserDoc) as UserData;
@@ -139,8 +140,8 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
             return { user: serializedUser, isNewUser: true };
             
         } catch (error) {
-            console.error("[Referral] New user creation or referral update failed: ", error);
-            return { error: 'Failed to create new user due to a transaction error.' };
+            console.error("[User Creation] New user creation or referral update failed: ", error);
+            return { error: 'Failed to create new user.' };
         }
     }
 }
@@ -786,5 +787,7 @@ export async function saveContestWinners(winners: ContestEntry[]) {
         return { success: false, error: error.message };
     }
 }
+
+    
 
     
