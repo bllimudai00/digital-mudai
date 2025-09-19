@@ -44,10 +44,11 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
     }
     
     const tgUser: TelegramUser = JSON.parse(userParam);
+    const userIdStr = tgUser.id.toString();
     const isUserAdmin = ADMIN_USERNAMES.includes(tgUser.username || '');
     const startParam = urlParams.get('start_param');
 
-    const userRef = doc(db, 'users', tgUser.id.toString());
+    const userRef = doc(db, 'users', userIdStr);
     const userSnap = await getDoc(userRef);
     const settings = await getGlobalSettings();
 
@@ -67,12 +68,6 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
             needsUpdate = true;
         }
         
-        // If user has a username now, and their referral code is still the auto-generated one, update it.
-        if (tgUser.username && user.referralCode.startsWith('PARI')) {
-            updates.referralCode = tgUser.username;
-            needsUpdate = true;
-        }
-
         if (needsUpdate) {
             await updateDoc(userRef, updates);
         }
@@ -81,10 +76,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
     } else {
         // --- Create new user ---
         try {
-            // Use username if available, otherwise generate a unique referral code.
-            const referralCode = tgUser.username 
-                ? tgUser.username 
-                : `PARI${tgUser.id.toString().slice(-4)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+            const referralCode = userIdStr; // Use Telegram User ID as the referral code
             
             const newUserDocData: Omit<UserData, 'id'> = {
                 pariBalance: 10,
@@ -106,35 +98,34 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
             
             let referrerId: string | null = null;
             if (startParam) {
-                // Find referrer by their referralCode (which can be username or auto-generated)
-                const referrerQuery = query(collection(db, "users"), where("referralCode", "==", startParam), limit(1));
-                const referrerSnapshot = await getDocs(referrerQuery);
+                // The startParam IS the referrer's User ID (which is their referral code)
+                const referrerRef = doc(db, "users", startParam);
+                const referrerSnapshot = await getDoc(referrerRef);
                 
-                if (!referrerSnapshot.empty) {
-                    const referrerDoc = referrerSnapshot.docs[0];
-                    referrerId = referrerDoc.id; // Get the referrer's unique User ID
+                if (referrerSnapshot.exists()) {
+                    referrerId = referrerSnapshot.id;
                     newUserDocData.referredBy = referrerId;
                 } else {
-                     console.log(`[Referral] No referrer found for code: ${startParam}`);
+                     console.log(`[Referral] No referrer found for code/ID: ${startParam}`);
                 }
             }
 
             // Use a transaction to ensure atomicity
             await runTransaction(db, async (transaction) => {
-                const newUserRef = doc(db, 'users', tgUser.id.toString());
+                const newUserRef = doc(db, 'users', userIdStr);
                 transaction.set(newUserRef, newUserDocData);
 
                 if (referrerId) {
                     const referrerRef = doc(db, 'users', referrerId);
                     // Add the new user's ID to the referrer's list of referrals
                     transaction.update(referrerRef, {
-                        referrals: arrayUnion(tgUser.id.toString())
+                        referrals: arrayUnion(userIdStr)
                     });
                 }
             });
             
             const newUserDoc: UserData = {
-                id: tgUser.id.toString(),
+                id: userIdStr,
                 ...newUserDocData
             }
             
@@ -792,3 +783,5 @@ export async function saveContestWinners(winners: ContestEntry[]) {
         return { success: false, error: error.message };
     }
 }
+
+    
