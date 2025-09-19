@@ -50,21 +50,18 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
         let needsUpdate = false;
         const updates: Partial<UserData> = {};
 
-        // Dynamically set admin status based on username on every login
         if (user.isAdmin !== isUserAdmin) {
             updates.isAdmin = isUserAdmin;
             needsUpdate = true;
         }
 
-        // Sync baseRate with global settings on every login
         if (settings && user.baseRate !== settings.baseRate) {
             updates.baseRate = settings.baseRate;
             needsUpdate = true;
         }
         
-        // Sync referralCode with username for existing users if username exists
-        if (user.username && user.referralCode !== user.username) {
-            updates.referralCode = user.username;
+        if (tgUser.username && user.referralCode !== tgUser.username) {
+            updates.referralCode = tgUser.username;
             needsUpdate = true;
         }
 
@@ -76,65 +73,69 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
     } else {
         // --- Create new user ---
         try {
-            const newUser = await runTransaction(db, async (transaction) => {
-                const newUserRef = doc(db, 'users', tgUser.id.toString());
-
-                // Use username as referral code if available, otherwise generate a random one.
-                const referralCode = tgUser.username ? tgUser.username : `PARI${tgUser.id.toString().slice(-4)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+            const referralCode = tgUser.username ? tgUser.username : `PARI${tgUser.id.toString().slice(-4)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+            
+            const newUserDoc: UserData = {
+                id: tgUser.id.toString(),
+                pariBalance: 10,
+                baseRate: settings?.baseRate || 10.00,
+                referrals: [],
+                tasks: [],
+                vip: false,
+                referralCode: referralCode,
+                name: `${tgUser.first_name || ''} ${tgUser.last_name || ''}`.trim(),
+                username: tgUser.username,
+                email: '', 
+                createdAt: serverTimestamp() as any, // Let server set the timestamp
+                sessionEndTime: null,
+                history: [],
+                vipStatus: 'none',
+                isAdmin: isUserAdmin,
+                referralEarnings: 0
+            };
+            
+            let referrerId: string | null = null;
+            if (startParam) {
+                const referrerQuery = query(collection(db, "users"), where("referralCode", "==", startParam), limit(1));
+                const referrerSnapshot = await getDocs(referrerQuery);
                 
-                const newUserDoc: UserData = {
-                    id: tgUser.id.toString(),
-                    pariBalance: 10,
-                    baseRate: settings?.baseRate || 10.00,
-                    referrals: [],
-                    tasks: [],
-                    vip: false,
-                    referralCode: referralCode,
-                    name: `${tgUser.first_name || ''} ${tgUser.last_name || ''}`.trim(),
-                    username: tgUser.username,
-                    email: '', 
-                    createdAt: new Date().toISOString(), // This will be replaced by serverTimestamp
-                    sessionEndTime: null,
-                    history: [],
-                    vipStatus: 'none',
-                    isAdmin: isUserAdmin,
-                    referralEarnings: 0
-                };
-                
-                // If there's a referral code in the start param, find the referrer and update them
-                if (startParam) {
-                    const referrerQuery = query(collection(db, "users"), where("referralCode", "==", startParam), limit(1));
-                    const referrerSnapshot = await getDocs(referrerQuery);
-                    
-                    if (!referrerSnapshot.empty) {
-                        const referrerDoc = referrerSnapshot.docs[0];
-                        const referrerRef = doc(db, 'users', referrerDoc.id);
-                        newUserDoc.referredBy = referrerDoc.id;
-                        
-                        // Update referrer within the same transaction
-                        transaction.update(referrerRef, {
-                            referrals: arrayUnion(newUserDoc.id)
-                        });
-                        console.log(`[Referral] Queued update for referrer ${referrerDoc.id} in transaction.`);
-                    } else {
-                         console.log(`[Referral] No referrer found for code: ${startParam}`);
-                    }
+                if (!referrerSnapshot.empty) {
+                    const referrerDoc = referrerSnapshot.docs[0];
+                    referrerId = referrerDoc.id;
+                    newUserDoc.referredBy = referrerId;
+                } else {
+                     console.log(`[Referral] No referrer found for code: ${startParam}`);
                 }
+            }
 
-                // Create the new user within the transaction
-                transaction.set(newUserRef, {
-                    ...newUserDoc,
-                    createdAt: serverTimestamp(),
-                });
-                
-                console.log(`[Referral] Transaction successful for new user ${newUserDoc.id}. Referrer: ${newUserDoc.referredBy || 'None'}`);
-                return newUserDoc;
-            });
+            // Step 1: Create the new user. This is the most critical part.
+            const newUserRef = doc(db, 'users', newUserDoc.id);
+            await setDoc(newUserRef, newUserDoc);
 
-            return { user: newUser, isNewUser: true };
+            // Step 2: If a referrer was found, update their document.
+            // This is a separate operation. If it fails, it doesn't rollback the user creation,
+            // but the new user still has the `referredBy` field for future reconciliation.
+            if (referrerId) {
+                try {
+                    const referrerRef = doc(db, 'users', referrerId);
+                    await updateDoc(referrerRef, {
+                        referrals: arrayUnion(newUserDoc.id)
+                    });
+                    console.log(`[Referral] Successfully updated referrer ${referrerId}.`);
+                } catch (updateError) {
+                    console.error(`[Referral] CRITICAL: Failed to update referrer ${referrerId} after creating user ${newUserDoc.id}.`, updateError);
+                    // This is a situation to monitor. The new user exists but the referrer's list is not updated.
+                }
+            }
+            
+            // Serialize for client-side use
+            const serializedUser = serializeFirestoreTimestamps(newUserDoc) as UserData;
+            serializedUser.createdAt = new Date().toISOString(); 
+            
+            return { user: serializedUser, isNewUser: true };
             
         } catch (error) {
-            console.error("[Referral] New user creation transaction failed: ", error);
+            console.error("[Referral] New user creation failed: ", error);
             return { error: 'Failed to create new user due to a transaction error.' };
         }
     }
@@ -781,5 +782,3 @@ export async function saveContestWinners(winners: ContestEntry[]) {
         return { success: false, error: error.message };
     }
 }
-
-    
