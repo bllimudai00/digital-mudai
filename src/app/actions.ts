@@ -76,21 +76,22 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
     } else {
         // --- Create new user ---
         try {
-            let referrerId: string | null = null;
-            if (startParam) {
-                console.log(`[Referral Debug] start_param found: ${startParam}`);
-                // Now, the start_param is the referrer's username, which is stored in the referralCode field.
-                const q = query(collection(db, "users"), where("referralCode", "==", startParam));
-                const querySnapshot = await getDocs(q);
-                if (!querySnapshot.empty) {
-                    referrerId = querySnapshot.docs[0].id;
-                    console.log(`[Referral Debug] Referrer found with ID: ${referrerId}`);
-                } else {
-                    console.log(`[Referral Debug] No referrer found for code: ${startParam}`);
-                }
-            }
-
             const newUser = await runTransaction(db, async (transaction) => {
+                let referrerId: string | null = null;
+                // Find referrer inside the transaction if startParam exists
+                if (startParam) {
+                    console.log(`[Referral Debug] start_param found: ${startParam}`);
+                    const q = query(collection(db, "users"), where("referralCode", "==", startParam));
+                    // We must use transaction.get() for reads inside a transaction
+                    const querySnapshot = await getDocs(q); 
+                    if (!querySnapshot.empty) {
+                        referrerId = querySnapshot.docs[0].id;
+                        console.log(`[Referral Debug] Referrer found with ID: ${referrerId}`);
+                    } else {
+                        console.log(`[Referral Debug] No referrer found for code: ${startParam}`);
+                    }
+                }
+
                 // Use username as referral code if available, otherwise generate a random one.
                 const referralCode = tgUser.username ? tgUser.username : `PARI${tgUser.id.toString().slice(-4)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
                 
