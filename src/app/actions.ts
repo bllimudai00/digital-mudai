@@ -28,13 +28,12 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
     const dataCheckArr = [];
     for (const [key, value] of urlParams.entries()) {
         if (key !== 'hash') {
-            dataCheckArr.push({ key, value });
+            dataCheckArr.push(`${key}=${value}`);
         }
     }
 
-    dataCheckArr.sort((a, b) => a.key.localeCompare(b.key));
-
-    const dataCheckString = dataCheckArr.map(({ key, value }) => `${key}=${value}`).join('\n');
+    dataCheckArr.sort();
+    const dataCheckString = dataCheckArr.join('\n');
 
     const secretKey = createHmac('sha256', 'WebAppData').update(botToken).digest();
     const calculatedHash = createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
@@ -68,7 +67,8 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
             needsUpdate = true;
         }
         
-        if (tgUser.username && user.referralCode !== tgUser.username) {
+        // If user has a username now, and their referral code is still the auto-generated one, update it.
+        if (tgUser.username && user.referralCode.startsWith('PARI')) {
             updates.referralCode = tgUser.username;
             needsUpdate = true;
         }
@@ -81,7 +81,10 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
     } else {
         // --- Create new user ---
         try {
-            const referralCode = tgUser.username ? tgUser.username : `PARI${tgUser.id.toString().slice(-4)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+            // Use username if available, otherwise generate a unique referral code.
+            const referralCode = tgUser.username 
+                ? tgUser.username 
+                : `PARI${tgUser.id.toString().slice(-4)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
             
             const newUserDocData: Omit<UserData, 'id'> = {
                 pariBalance: 10,
@@ -103,12 +106,13 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
             
             let referrerId: string | null = null;
             if (startParam) {
+                // Find referrer by their referralCode (which can be username or auto-generated)
                 const referrerQuery = query(collection(db, "users"), where("referralCode", "==", startParam), limit(1));
                 const referrerSnapshot = await getDocs(referrerQuery);
                 
                 if (!referrerSnapshot.empty) {
                     const referrerDoc = referrerSnapshot.docs[0];
-                    referrerId = referrerDoc.id;
+                    referrerId = referrerDoc.id; // Get the referrer's unique User ID
                     newUserDocData.referredBy = referrerId;
                 } else {
                      console.log(`[Referral] No referrer found for code: ${startParam}`);
@@ -122,6 +126,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
 
                 if (referrerId) {
                     const referrerRef = doc(db, 'users', referrerId);
+                    // Add the new user's ID to the referrer's list of referrals
                     transaction.update(referrerRef, {
                         referrals: arrayUnion(tgUser.id.toString())
                     });
@@ -793,5 +798,7 @@ export async function saveContestWinners(winners: ContestEntry[]) {
     
 
 
+
+    
 
     
