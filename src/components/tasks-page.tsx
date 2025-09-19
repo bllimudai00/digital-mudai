@@ -249,14 +249,14 @@ export default function TasksPage() {
 
   if (authContext?.loading || !userData) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="flex items-center justify-center min-h-screen bg-transparent">
         <Loader className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="bg-background text-foreground min-h-screen flex flex-col font-body">
+    <div className="text-foreground min-h-screen flex flex-col font-body">
       <main className="flex-1 p-4 space-y-6 pb-24">
         <div className="flex items-center gap-2 text-xl font-bold">
           <ListChecks className="w-6 h-6" />
