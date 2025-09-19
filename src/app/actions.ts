@@ -110,19 +110,17 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                 }
             }
 
-            // Use a transaction to ensure atomicity
-            await runTransaction(db, async (transaction) => {
-                const newUserRef = doc(db, 'users', userIdStr);
-                transaction.set(newUserRef, newUserDocData);
+            // Step 1: Create the new user document
+            const newUserRef = doc(db, 'users', userIdStr);
+            await setDoc(newUserRef, newUserDocData);
 
-                if (referrerId) {
-                    const referrerRef = doc(db, 'users', referrerId);
-                    // Add the new user's ID to the referrer's list of referrals
-                    transaction.update(referrerRef, {
-                        referrals: arrayUnion(userIdStr)
-                    });
-                }
-            });
+            // Step 2: If there was a referrer, update their referrals list
+            if (referrerId) {
+                const referrerRef = doc(db, 'users', referrerId);
+                await updateDoc(referrerRef, {
+                    referrals: arrayUnion(userIdStr)
+                });
+            }
             
             const newUserDoc: UserData = {
                 id: userIdStr,
@@ -137,7 +135,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
             
         } catch (error) {
             console.error("[User Creation] New user creation or referral update failed: ", error);
-            return { error: 'Failed to create new user due to a transaction error.' };
+            return { error: 'Failed to create new user due to a database error.' };
         }
     }
 }
@@ -783,5 +781,3 @@ export async function saveContestWinners(winners: ContestEntry[]) {
         return { success: false, error: error.message };
     }
 }
-
-    
