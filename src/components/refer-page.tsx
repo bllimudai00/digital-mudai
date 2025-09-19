@@ -23,7 +23,7 @@ import Link from "next/link";
 import { useEffect, useState, useContext } from "react";
 import { getReferrals } from "@/app/actions";
 import type { UserData, Referral } from "@/lib/types";
-import { onSnapshot, doc, collection, query, where } from "firebase/firestore";
+import { onSnapshot, doc, collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -118,8 +118,18 @@ export default function ReferPage() {
             const user = doc.data() as UserData;
             setUserData(user);
             if (user.referrals && user.referrals.length > 0) {
-                const referralData = await getReferrals(user.referrals);
-                setReferrals(referralData);
+              const usersRef = collection(db, 'users');
+              const q = query(usersRef, where('__name__', 'in', user.referrals));
+              const querySnapshot = await getDocs(q);
+              const referralData = querySnapshot.docs.map(doc => {
+                  const userData = doc.data();
+                  return {
+                      id: doc.id,
+                      name: userData.name || `Friend ${doc.id.substring(0, 4)}`,
+                      avatar: `https://picsum.photos/seed/${doc.id}/40`
+                  };
+              });
+              setReferrals(referralData);
             } else {
                 setReferrals([]);
             }

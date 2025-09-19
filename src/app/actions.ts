@@ -62,7 +62,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
             needsUpdate = true;
         }
         
-        // Sync referralCode with username for existing users
+        // Sync referralCode with username for existing users if username exists
         if (user.username && user.referralCode !== user.username) {
             updates.referralCode = user.username;
             needsUpdate = true;
@@ -77,21 +77,6 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
         // --- Create new user ---
         try {
             const newUser = await runTransaction(db, async (transaction) => {
-                let referrerId: string | null = null;
-                // Find referrer inside the transaction if startParam exists
-                if (startParam) {
-                    console.log(`[Referral Debug] start_param found: ${startParam}`);
-                    const q = query(collection(db, "users"), where("referralCode", "==", startParam));
-                    // We must use transaction.get() for reads inside a transaction
-                    const querySnapshot = await getDocs(q); 
-                    if (!querySnapshot.empty) {
-                        referrerId = querySnapshot.docs[0].id;
-                        console.log(`[Referral Debug] Referrer found with ID: ${referrerId}`);
-                    } else {
-                        console.log(`[Referral Debug] No referrer found for code: ${startParam}`);
-                    }
-                }
-
                 // Use username as referral code if available, otherwise generate a random one.
                 const referralCode = tgUser.username ? tgUser.username : `PARI${tgUser.id.toString().slice(-4)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
                 
@@ -114,13 +99,26 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                     referralEarnings: 0
                 };
                 
-                if (referrerId) {
-                    newUserDoc.referredBy = referrerId;
-                    const referrerRef = doc(db, 'users', referrerId);
-                    // This update MUST be inside the transaction to ensure atomicity
-                    transaction.update(referrerRef, {
-                        referrals: arrayUnion(newUserDoc.id)
-                    });
+                // Find referrer inside the transaction if startParam exists
+                if (startParam) {
+                    console.log(`[Referral Debug] start_param found: ${startParam}`);
+                    const q = query(collection(db, "users"), where("referralCode", "==", startParam));
+                    // We must use transaction.get() for reads inside a transaction
+                    const querySnapshot = await getDocs(q); 
+                    if (!querySnapshot.empty) {
+                        const referrerId = querySnapshot.docs[0].id;
+                        const referrerRef = doc(db, 'users', referrerId);
+                        console.log(`[Referral Debug] Referrer found with ID: ${referrerId}`);
+                        
+                        newUserDoc.referredBy = referrerId;
+                        
+                        // This update MUST be inside the transaction to ensure atomicity
+                        transaction.update(referrerRef, {
+                            referrals: arrayUnion(newUserDoc.id)
+                        });
+                    } else {
+                        console.log(`[Referral Debug] No referrer found for code: ${startParam}`);
+                    }
                 }
 
                 // Create the new user within the transaction
@@ -129,7 +127,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                     createdAt: serverTimestamp(),
                 });
                 
-                console.log(`[Referral Debug] Transaction successful for new user ${newUserDoc.id}. Referrer: ${referrerId || 'None'}`);
+                console.log(`[Referral Debug] Transaction successful for new user ${newUserDoc.id}. Referrer: ${newUserDoc.referredBy || 'None'}`);
                 return newUserDoc;
             });
 
@@ -297,22 +295,31 @@ export async function getReferrals(referralIds: string[]): Promise<Referral[]> {
     if (!referralIds || referralIds.length === 0) return [];
 
     const referrals: Referral[] = [];
-    for (const id of referralIds) {
+    // To avoid hitting DB for each referral, fetch them in batches.
+    // Firestore `in` query supports up to 30 items.
+    const batchSize = 30;
+    for (let i = 0; i < referralIds.length; i += batchSize) {
+        const batchIds = referralIds.slice(i, i + batchSize);
+        if(batchIds.length === 0) continue;
+
         try {
-            const userRef = doc(db, 'users', id);
-            const userSnap = await getDoc(userRef);
-            if (userSnap.exists()) {
-                const userData = userSnap.data();
-                referrals.push({
-                    id: id,
-                    name: userData.name || `Friend ${id.substring(0, 4)}`,
-                    avatar: `https://picsum.photos/seed/${id}/40`
-                });
-            }
+            const q = query(collection(db, 'users'), where('id', 'in', batchIds));
+            const usersSnapshot = await getDocs(q);
+            usersSnapshot.forEach(userSnap => {
+                 if (userSnap.exists()) {
+                    const userData = userSnap.data();
+                    referrals.push({
+                        id: userSnap.id,
+                        name: userData.name || `Friend ${userSnap.id.substring(0, 4)}`,
+                        avatar: `https://picsum.photos/seed/${userSnap.id}/40`
+                    });
+                }
+            });
         } catch (error) {
-            console.error(`Failed to fetch referral with id: ${id}`, error);
+            console.error(`Failed to fetch referral batch`, error);
         }
     }
+    
     return referrals;
 }
 
@@ -774,20 +781,3 @@ export async function saveContestWinners(winners: ContestEntry[]) {
         return { success: false, error: error.message };
     }
 }
-
-    
-    
-
-    
-
-
-
-    
-
-    
-
-    
-
-    
-
-    
