@@ -271,19 +271,19 @@ export default function VipPage() {
           
           <TabsContent value="benefits" className="mt-6 space-y-3">
               <BenefitCard
-              icon={<ShieldCheck className="w-6 h-6 text-blue-400" />}
+              icon={<ShieldCheck className="w-5 h-5 text-blue-400" />}
               title="Verified Status"
               description="Blue tick with profile"
               className="bg-blue-900/30 border-blue-500/30"
               />
               <BenefitCard
-                  icon={<Zap className="w-6 h-6 text-green-400" />}
+                  icon={<Zap className="w-5 h-5 text-green-400" />}
                   title="Double Mining Speed"
                   description="Double your mining rewards permanently"
                   className="bg-green-900/30 border-green-500/30"
               />
               <BenefitCard
-                  icon={<Droplets className="w-6 h-6 text-purple-400" />}
+                  icon={<Droplets className="w-5 h-5 text-purple-400" />}
                   title="Early Airdrop Access"
                   description="Early access & special allocation in future airdrops"
                   className="bg-purple-900/30 border-purple-500/30"

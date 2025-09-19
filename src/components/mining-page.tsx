@@ -379,32 +379,15 @@ export default function MiningPage() {
         {!userData.vip && (
             <Card className="bg-card/50 backdrop-blur-sm border-blue-500/20 p-4">
               <CardContent className="p-0">
-                  <div className="flex justify-between items-center mb-4">
+                  <div className="flex justify-between items-center mb-2">
                     <h3 className="text-lg font-bold flex items-center gap-2"><Crown className="w-6 h-6 text-accent"/> Upgrade to VIP</h3>
                     <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90 rounded-xl shrink-0" size="sm">
                         <Link href="/vip">Upgrade</Link>
                     </Button>
                   </div>
-                  <div className="space-y-3">
-                     <BenefitCard
-                      icon={<ShieldCheck className="w-5 h-5 text-blue-400" />}
-                      title="Verified Status"
-                      description="Blue tick with profile"
-                      className="bg-blue-900/30 border-blue-500/30"
-                      />
-                      <BenefitCard
-                          icon={<Zap className="w-5 h-5 text-green-400" />}
-                          title="Double Mining Speed"
-                          description="Double your mining rewards permanently"
-                          className="bg-green-900/30 border-green-500/30"
-                      />
-                      <BenefitCard
-                          icon={<Droplets className="w-5 h-5 text-purple-400" />}
-                          title="Early Airdrop Access"
-                          description="Special allocation in future airdrops"
-                          className="bg-purple-900/30 border-purple-500/30"
-                      />
-                  </div>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Verified status with blue tick + double mining speed + early airdrop access
+                  </p>
                   <div className="mt-4">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                           <Users className="w-4 h-4" />
