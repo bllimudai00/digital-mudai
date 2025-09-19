@@ -95,7 +95,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                 name: `${tgUser.first_name || ''} ${tgUser.last_name || ''}`.trim(),
                 username: tgUser.username,
                 email: '', 
-                createdAt: serverTimestamp() as any, // Let server set the timestamp
+                createdAt: serverTimestamp(), // Let server set the timestamp
                 sessionEndTime: null,
                 history: [],
                 vipStatus: 'none',
@@ -117,23 +117,20 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                 }
             }
 
-            // Step 1: Create the new user.
-            const newUserRef = doc(db, 'users', newUserDoc.id);
-            await setDoc(newUserRef, newUserDoc);
+            // Use a transaction to ensure atomicity
+            await runTransaction(db, async (transaction) => {
+                // Step 1: Create the new user.
+                const newUserRef = doc(db, 'users', newUserDoc.id);
+                transaction.set(newUserRef, newUserDoc);
 
-            // Step 2: If a referrer was found, update their document.
-            if (referrerId) {
-                try {
+                // Step 2: If a referrer was found, update their document.
+                if (referrerId) {
                     const referrerRef = doc(db, 'users', referrerId);
-                    await updateDoc(referrerRef, {
+                    transaction.update(referrerRef, {
                         referrals: arrayUnion(newUserDoc.id)
                     });
-                    console.log(`[Referral] Successfully updated referrer ${referrerId}.`);
-                } catch (updateError) {
-                    console.error(`[Referral] CRITICAL: Failed to update referrer ${referrerId} after creating user ${newUserDoc.id}.`, updateError);
-                    // This is a situation to monitor. The new user exists but the referrer's list is not updated.
                 }
-            }
+            });
             
             // Serialize for client-side use
             const serializedUser = serializeFirestoreTimestamps(newUserDoc) as UserData;
@@ -142,8 +139,8 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
             return { user: serializedUser, isNewUser: true };
             
         } catch (error) {
-            console.error("[Referral] New user creation failed: ", error);
-            return { error: 'Failed to create new user due to a server error.' };
+            console.error("[Referral] New user creation or referral update failed: ", error);
+            return { error: 'Failed to create new user due to a transaction error.' };
         }
     }
 }
