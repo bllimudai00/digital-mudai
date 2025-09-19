@@ -73,6 +73,7 @@ needsUpdate = true;
             let referrerId: string | null = null;
             if (startParam) {
                 console.log(`[Referral Debug] start_param found: ${startParam}`);
+                // Now, the start_param is the referrer's username, which is stored in the referralCode field.
                 const q = query(collection(db, "users"), where("referralCode", "==", startParam));
                 const querySnapshot = await getDocs(q);
                 if (!querySnapshot.empty) {
@@ -84,7 +85,8 @@ needsUpdate = true;
             }
 
             const newUser = await runTransaction(db, async (transaction) => {
-                const referralCode = `PARI${tgUser.id.toString().slice(-4)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+                // Use username as referral code if available, otherwise generate a random one.
+                const referralCode = tgUser.username ? tgUser.username : `PARI${tgUser.id.toString().slice(-4)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
                 
                 const newUserDoc: UserData = {
                     id: tgUser.id.toString(),
@@ -93,7 +95,7 @@ needsUpdate = true;
                     referrals: [],
                     tasks: [],
                     vip: false,
-                    referralCode,
+                    referralCode: referralCode,
                     name: `${tgUser.first_name || ''} ${tgUser.last_name || ''}`.trim(),
                     username: tgUser.username,
                     email: '', 
@@ -771,3 +773,6 @@ export async function saveContestWinners(winners: ContestEntry[]) {
 
     
 
+
+
+    
