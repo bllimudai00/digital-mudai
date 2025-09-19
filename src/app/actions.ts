@@ -75,27 +75,10 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
         return { user: { ...user, ...updates}, isNewUser: false };
     } else {
         // --- Create new user ---
-        // Step 1: Find referrer OUTSIDE the transaction if startParam exists
-        let referrerId: string | null = null;
-        if (startParam) {
-            console.log(`[Referral] start_param found: ${startParam}`);
-            try {
-                const q = query(collection(db, "users"), where("referralCode", "==", startParam));
-                const querySnapshot = await getDocs(q);
-                if (!querySnapshot.empty) {
-                    referrerId = querySnapshot.docs[0].id;
-                    console.log(`[Referral] Referrer found with ID: ${referrerId}`);
-                } else {
-                    console.log(`[Referral] No referrer found for code: ${startParam}`);
-                }
-            } catch (error) {
-                console.error("[Referral] Error fetching referrer:", error);
-            }
-        }
-        
-        // Step 2: Run the transaction to create the user and update the referrer
         try {
             const newUser = await runTransaction(db, async (transaction) => {
+                const newUserRef = doc(db, 'users', tgUser.id.toString());
+
                 // Use username as referral code if available, otherwise generate a random one.
                 const referralCode = tgUser.username ? tgUser.username : `PARI${tgUser.id.toString().slice(-4)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
                 
@@ -118,19 +101,28 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                     referralEarnings: 0
                 };
                 
-                if (referrerId) {
-                    newUserDoc.referredBy = referrerId;
-                    const referrerRef = doc(db, 'users', referrerId);
+                // If there's a referral code in the start param, find the referrer and update them
+                if (startParam) {
+                    const referrerQuery = query(collection(db, "users"), where("referralCode", "==", startParam), limit(1));
+                    const referrerSnapshot = await getDocs(referrerQuery);
                     
-                    // This update MUST be inside the transaction to ensure atomicity
-                    transaction.update(referrerRef, {
-                        referrals: arrayUnion(newUserDoc.id)
-                    });
-                     console.log(`[Referral] Queued update for referrer ${referrerId} in transaction.`);
+                    if (!referrerSnapshot.empty) {
+                        const referrerDoc = referrerSnapshot.docs[0];
+                        const referrerRef = doc(db, 'users', referrerDoc.id);
+                        newUserDoc.referredBy = referrerDoc.id;
+                        
+                        // Update referrer within the same transaction
+                        transaction.update(referrerRef, {
+                            referrals: arrayUnion(newUserDoc.id)
+                        });
+                        console.log(`[Referral] Queued update for referrer ${referrerDoc.id} in transaction.`);
+                    } else {
+                         console.log(`[Referral] No referrer found for code: ${startParam}`);
+                    }
                 }
 
                 // Create the new user within the transaction
-                transaction.set(userRef, {
+                transaction.set(newUserRef, {
                     ...newUserDoc,
                     createdAt: serverTimestamp(),
                 });
@@ -789,3 +781,5 @@ export async function saveContestWinners(winners: ContestEntry[]) {
         return { success: false, error: error.message };
     }
 }
+
+    
