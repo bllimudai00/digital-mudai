@@ -70,6 +70,19 @@ needsUpdate = true;
     } else {
         // --- Create new user in a transaction ---
         try {
+             // Find referrer if startParam exists, *before* starting the transaction
+            let referrerRef = null;
+            let referrerId = null;
+            if (startParam) {
+                const q = query(collection(db, "users"), where("referralCode", "==", startParam));
+                const querySnapshot = await getDocs(q);
+                if (!querySnapshot.empty) {
+                    const referrerDoc = querySnapshot.docs[0];
+                    referrerRef = referrerDoc.ref;
+                    referrerId = referrerDoc.id;
+                }
+            }
+
             const newUser = await runTransaction(db, async (transaction) => {
                 const referralCode = `PARI${tgUser.id.toString().slice(-4)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
                 
@@ -92,19 +105,12 @@ needsUpdate = true;
                     referralEarnings: 0
                 };
                 
-                // Find referrer if startParam exists
-                if (startParam) {
-                    const q = query(collection(db, "users"), where("referralCode", "==", startParam));
-                    const querySnapshot = await getDocs(q);
-                    if (!querySnapshot.empty) {
-                        const referrerDoc = querySnapshot.docs[0];
-                        const referrerRef = referrerDoc.ref;
-                        newUserDoc.referredBy = referrerDoc.id;
-                        // Update referrer's list within the same transaction
-                        transaction.update(referrerRef, {
-                            referrals: arrayUnion(newUserDoc.id)
-                        });
-                    }
+                if (referrerRef && referrerId) {
+                    newUserDoc.referredBy = referrerId;
+                    // Update referrer's list within the same transaction
+                    transaction.update(referrerRef, {
+                        referrals: arrayUnion(newUserDoc.id)
+                    });
                 }
 
                 // Create the new user within the transaction
@@ -720,24 +726,22 @@ export async function getContestSettings(manualOnly = false): Promise<ContestSet
 
     const manualWinnerNames = manualWinners.map(w => w.name).filter(name => name !== "N/A");
     
-    const usersRef = collection(db, 'users');
-    const q = query(usersRef, orderBy('referralCount', 'desc'), limit(10));
-    const querySnapshot = await getDocs(q);
+    // Fetch all users and calculate referralCount on the fly
+    const allUsers = await getUsers(); 
 
-    const automaticWinners: ContestEntry[] = [];
-    querySnapshot.docs.forEach(doc => {
-        const user = doc.data() as UserData;
-        if (user.name && !manualWinnerNames.includes(user.name)) {
-            automaticWinners.push({
-                name: user.name,
-                referralCount: (user.referrals || []).length
-            });
-        }
-    });
+    const automaticWinners: ContestEntry[] = allUsers
+        .filter(user => user.name && !manualWinnerNames.includes(user.name))
+        .map(user => ({
+            name: user.name,
+            referralCount: user.referrals?.length || 0,
+        }))
+        .sort((a, b) => b.referralCount - a.referralCount);
 
     const finalWinners = [...manualWinners];
     const remainingSlots = 10 - finalWinners.length;
-    finalWinners.push(...automaticWinners.slice(0, remainingSlots));
+    if (remainingSlots > 0) {
+      finalWinners.push(...automaticWinners.slice(0, remainingSlots));
+    }
 
     // Ensure we always have 10 winners, filling with N/A if needed
     while (finalWinners.length < 10) {
@@ -751,7 +755,8 @@ export async function saveContestWinners(winners: ContestEntry[]) {
     'use server';
     const contestRef = doc(db, 'contest', 'settings');
     try {
-        await setDoc(contestRef, { winners });
+        // We only save the manually entered winners (top 5)
+        await setDoc(contestRef, { winners: winners.slice(0, 5) });
         revalidatePath('/admin');
         revalidatePath('/referral-contest');
         return { success: true };
@@ -759,3 +764,5 @@ export async function saveContestWinners(winners: ContestEntry[]) {
         return { success: false, error: error.message };
     }
 }
+
+    
