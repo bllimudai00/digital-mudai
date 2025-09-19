@@ -19,24 +19,33 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
 
     const urlParams = new URLSearchParams(initData);
     const hash = urlParams.get('hash');
-    const userData = Object.fromEntries(urlParams.entries());
-    
-    if (!hash) return { error: 'Invalid authentication data: No hash.' };
+    const userParam = urlParams.get('user');
 
-    const dataCheckString = Object.keys(userData)
-        .filter((key) => key !== 'hash')
-        .sort()
-        .map((key) => `${key}=${userData[key]}`)
+    if (!hash || !userParam) {
+        return { error: 'Invalid authentication data: Missing hash or user data.' };
+    }
+    
+    // Create a new search params object for validation, excluding the hash
+    const paramsForValidation = new URLSearchParams(initData);
+    paramsForValidation.delete('hash');
+    
+    // Convert to an array of [key, value] pairs and sort
+    const dataCheckArr = Array.from(paramsForValidation.entries());
+    dataCheckArr.sort(([a], [b]) => a.localeCompare(b));
+
+    const dataCheckString = dataCheckArr
+        .map(([key, value]) => `${key}=${value}`)
         .join('\n');
 
     const secretKey = createHmac('sha256', 'WebAppData').update(botToken).digest();
     const calculatedHash = createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
-    
+
     if (calculatedHash !== hash) {
+        console.error("Hash validation failed.", { calculatedHash, hash, dataCheckString });
         return { error: 'Authentication failed: Invalid hash.' };
     }
     
-    const tgUser: TelegramUser = JSON.parse(userData.user);
+    const tgUser: TelegramUser = JSON.parse(userParam);
     const isUserAdmin = ADMIN_USERNAMES.includes(tgUser.username || '');
     const startParam = urlParams.get('start_param');
 
@@ -108,13 +117,11 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                 }
             }
 
-            // Step 1: Create the new user. This is the most critical part.
+            // Step 1: Create the new user.
             const newUserRef = doc(db, 'users', newUserDoc.id);
             await setDoc(newUserRef, newUserDoc);
 
             // Step 2: If a referrer was found, update their document.
-            // This is a separate operation. If it fails, it doesn't rollback the user creation,
-            // but the new user still has the `referredBy` field for future reconciliation.
             if (referrerId) {
                 try {
                     const referrerRef = doc(db, 'users', referrerId);
@@ -136,7 +143,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
             
         } catch (error) {
             console.error("[Referral] New user creation failed: ", error);
-            return { error: 'Failed to create new user due to a transaction error.' };
+            return { error: 'Failed to create new user due to a server error.' };
         }
     }
 }
