@@ -23,7 +23,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
         <Script src="https://telegram.org/js/telegram-web-app.js" strategy="beforeInteractive" />
       </head>
-      <body className="font-body antialiased bg-gradient-to-br from-background to-[#020418]">
+      <body className="font-body antialiased">
         <AuthProvider>
           {children}
         </AuthProvider>
