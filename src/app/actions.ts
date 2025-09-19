@@ -68,8 +68,17 @@ needsUpdate = true;
 
         return { user: { ...user, ...updates}, isNewUser: false };
     } else {
-        // --- Create new user in a transaction ---
+        // --- Create new user ---
         try {
+            let referrerId: string | null = null;
+            if (startParam) {
+                const q = query(collection(db, "users"), where("referralCode", "==", startParam));
+                const querySnapshot = await getDocs(q);
+                if (!querySnapshot.empty) {
+                    referrerId = querySnapshot.docs[0].id;
+                }
+            }
+
             const newUser = await runTransaction(db, async (transaction) => {
                 const referralCode = `PARI${tgUser.id.toString().slice(-4)}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
                 
@@ -92,17 +101,12 @@ needsUpdate = true;
                     referralEarnings: 0
                 };
                 
-                if (startParam) {
-                    const q = query(collection(db, "users"), where("referralCode", "==", startParam));
-                    const querySnapshot = await getDocs(q);
-                    if (!querySnapshot.empty) {
-                        const referrerDoc = querySnapshot.docs[0];
-                        newUserDoc.referredBy = referrerDoc.id;
-                        // Update referrer's list within the same transaction
-                        transaction.update(referrerDoc.ref, {
-                            referrals: arrayUnion(newUserDoc.id)
-                        });
-                    }
+                if (referrerId) {
+                    newUserDoc.referredBy = referrerId;
+                    const referrerRef = doc(db, 'users', referrerId);
+                    transaction.update(referrerRef, {
+                        referrals: arrayUnion(newUserDoc.id)
+                    });
                 }
 
                 // Create the new user within the transaction
@@ -111,7 +115,6 @@ needsUpdate = true;
                     createdAt: serverTimestamp(),
                 });
 
-                // Return the final user object (without server-side timestamps)
                 return newUserDoc;
             });
 
@@ -758,4 +761,6 @@ export async function saveContestWinners(winners: ContestEntry[]) {
 }
 
     
+    
+
     
