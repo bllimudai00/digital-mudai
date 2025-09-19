@@ -26,9 +26,9 @@ function PodiumCard({ rank, winner, prize }: { rank: number; winner: ContestEntr
     const rankInfo = colors[rank];
 
     const heightClasses: { [key:number]: string } = {
-        1: 'h-40',
-        2: 'h-32',
-        3: 'h-24'
+        1: 'h-48',
+        2: 'h-40',
+        3: 'h-32'
     };
     
     const winnerName = winner?.name || 'N/A';
@@ -40,9 +40,9 @@ function PodiumCard({ rank, winner, prize }: { rank: number; winner: ContestEntr
                  <AvatarImage src={`https://picsum.photos/seed/${winnerName}/${rank}/48`} alt={winnerName} />
                 <AvatarFallback>{winnerName !== 'N/A' ? winnerName.substring(0, 2) : '?'}</AvatarFallback>
             </Avatar>
-            <p className="text-sm font-bold truncate w-20 text-center">{winnerName}</p>
+            <p className="text-sm font-bold truncate w-24 text-center">{winnerName}</p>
             <p className="text-xs text-muted-foreground">{winnerName !== 'N/A' ? `${referralCount} referrals` : ''}</p>
-            <div className={`w-full text-center mt-2 flex-grow-0 rounded-t-lg p-2 flex flex-col justify-center items-center ${rankInfo.bg} border-t-4 ${rankInfo.border} shadow-lg ${rankInfo.shadow}`}>
+            <div className={`w-full text-center mt-auto flex-grow-0 rounded-t-lg p-2 flex flex-col justify-center items-center ${rankInfo.bg} border-t-4 ${rankInfo.border} shadow-lg ${rankInfo.shadow}`}>
                 <p className={`text-2xl font-bold ${rankInfo.text}`}>{rank}</p>
                 <p className="text-sm font-bold text-white">${prize}</p>
             </div>
@@ -123,7 +123,7 @@ export default function ReferralContestPage() {
                         <p className="text-center text-muted-foreground mb-6">Total Prize Pool: $2000</p>
                         
                         {/* Podium for Top 3 */}
-                        <div className="flex justify-around items-end h-48">
+                        <div className="flex justify-around items-end h-56">
                             <PodiumCard rank={2} winner={top3[1]} prize={prizes[2]} />
                             <PodiumCard rank={1} winner={top3[0]} prize={prizes[1]} />
                             <PodiumCard rank={3} winner={top3[2]} prize={prizes[3]} />
