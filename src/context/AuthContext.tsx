@@ -19,7 +19,7 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-const ADMIN_USERNAMES = ['Digitalmudai01', 'DesignerDynamo', 'arafatislam07'];
+const ADMIN_USER_IDS = ['987654321', '123456789', '555555555']; // Replace with actual Admin Telegram User IDs
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<UserData | null>(null);
@@ -41,50 +41,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
           // Scenario 1: Running in Telegram with real initData
           if (initData) {
-            // Special case for local dev using dummy hash but with real `initData` present
-            if (new URLSearchParams(initData).get('hash') === 'dummy_hash_for_development' && isDevEnv) {
-                const tgUser = JSON.parse(new URLSearchParams(initData).get('user') || '{}');
-                const isDevAdmin = ADMIN_USERNAMES.includes(tgUser.username || '');
-                const devUser: UserData = {
-                    id: tgUser.id.toString(),
-                    pariBalance: 100,
-                    baseRate: 10,
-                    referrals: [],
-                    tasks: [],
-                    vip: true,
-                    referralCode: 'DEVCODE123',
-                    name: `${tgUser.first_name} ${tgUser.last_name}`,
-                    username: tgUser.username,
-                    email: '',
-                    createdAt: new Date().toISOString(),
-                    sessionEndTime: null,
-                    history: [],
-                    vipStatus: 'approved',
-                    isAdmin: isDevAdmin,
-                    referralEarnings: 25,
-                };
-                setUser(devUser);
-                toast({ title: "Developer Mode", description: "Using dummy hash auth data." });
-            } else {
-                 // Production or real verification path
-                const result = await verifyTelegramAuth(initData);
-                if ('user' in result) {
-                    setUser(result.user);
-                    if(result.isNewUser) {
-                        toast({ title: "Welcome!", description: "Your account has been created." });
-                    }
-                } else {
-                    setError(result.error);
-                    toast({ title: "Auth Error", description: result.error, variant: 'destructive' });
+            const result = await verifyTelegramAuth(initData);
+            if ('user' in result) {
+                setUser(result.user);
+                if(result.isNewUser) {
+                    toast({ title: "Welcome!", description: "Your account has been created." });
                 }
+            } else {
+                setError(result.error);
+                toast({ title: "Auth Error", description: result.error, variant: 'destructive' });
             }
           } else if (isDevEnv) {
             // Scenario 2: Dev env, but no `initData` at all. Fallback to dummy user.
             setError("Telegram.WebApp.initData is empty. Falling back to dev user.");
-            const devUsername = "Digitalmudai01";
-            const isDevAdmin = ADMIN_USERNAMES.includes(devUsername);
+            const devUserId = '987654321';
+            const isDevAdmin = ADMIN_USER_IDS.includes(devUserId);
             const devUser: UserData = {
-              id: '987654321',
+              id: devUserId,
               pariBalance: 100,
               baseRate: 10,
               referrals: [],
@@ -92,7 +65,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               vip: true,
               referralCode: 'DEVCODE123',
               name: `Dev User`,
-              username: devUsername,
+              username: 'dev_user',
               email: '',
               createdAt: new Date().toISOString(),
               sessionEndTime: null,
@@ -110,10 +83,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         } else if (isDevEnv) {
              // Scenario 4: Not even in a Telegram-like environment (no `window.Telegram`), but in dev.
              setError("Telegram context not found. Using fallback dev user.");
-             const devUsername = "Digitalmudai01";
-             const isDevAdmin = ADMIN_USERNAMES.includes(devUsername);
+             const devUserId = '987654321';
+             const isDevAdmin = ADMIN_USER_IDS.includes(devUserId);
              const devUser: UserData = {
-                id: '987654321', // Dummy ID
+                id: devUserId,
                 pariBalance: 100,
                 baseRate: 10,
                 referrals: [],
@@ -121,7 +94,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 vip: true,
                 referralCode: 'DEVCODE123',
                 name: `Dev User`,
-                username: devUsername,
+                username: 'dev_user',
                 email: '',
                 createdAt: new Date().toISOString(),
                 sessionEndTime: null,
@@ -185,5 +158,3 @@ declare global {
     };
   }
 }
-
-    

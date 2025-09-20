@@ -1,3 +1,4 @@
+
 'use server';
 
 import { doc, updateDoc, arrayUnion, getDoc, runTransaction, increment, collection, getDocs, writeBatch, setDoc, query, where, addDoc, deleteDoc, serverTimestamp, Timestamp, orderBy, limit } from 'firebase/firestore';
@@ -6,7 +7,7 @@ import { db } from '@/lib/firebase/firestore';
 import type { UserData, Referral, Task, GlobalSettings, RoadmapPhase, WhitePaperSection, TelegramUser, ContestSettings, ContestEntry } from '@/lib/types';
 import { createHmac } from 'crypto';
 
-const ADMIN_USERNAMES = ['Digitalmudai01', 'DesignerDynamo', 'arafatislam07'];
+const ADMIN_USER_IDS = ['987654321', '123456789', '555555555']; // Replace with actual Admin Telegram User IDs
 
 // --- Telegram Auth Verification ---
 export async function verifyTelegramAuth(initData: string): Promise<{ user: UserData; isNewUser: boolean } | { error: string }> {
@@ -44,44 +45,53 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
     
     const tgUser: TelegramUser = JSON.parse(userParam);
     const userIdStr = tgUser.id.toString();
-    const isUserAdmin = ADMIN_USERNAMES.includes(tgUser.username || '');
+    const isUserAdmin = ADMIN_USER_IDS.includes(userIdStr);
     const startParam = urlParams.get('start_param');
 
     const userRef = doc(db, 'users', userIdStr);
-    const userSnap = await getDoc(userRef);
-    const settings = await getGlobalSettings();
-
-    if (userSnap.exists()) {
-        const user = serializeFirestoreTimestamps({ id: userSnap.id, ...userSnap.data() }) as UserData;
-        
-        let needsUpdate = false;
-        const updates: Partial<UserData> = {};
-
-        if (user.isAdmin !== isUserAdmin) {
-            updates.isAdmin = isUserAdmin;
-            needsUpdate = true;
+    
+    let referrerId: string | null = null;
+    if (startParam) {
+        const referrerRef = doc(db, "users", startParam);
+        const referrerSnapshot = await getDoc(referrerRef);
+        if (referrerSnapshot.exists()) {
+            referrerId = referrerSnapshot.id;
+        } else {
+             console.log(`[Referral] No referrer found for code/ID: ${startParam}`);
         }
+    }
+    
+    try {
+        const userSnap = await getDoc(userRef);
+        const settings = await getGlobalSettings();
 
-        if (settings && user.baseRate !== settings.baseRate) {
-            updates.baseRate = settings.baseRate;
-            needsUpdate = true;
-        }
-        
-        // Ensure referral code is always the User ID for existing users
-        if (user.referralCode !== userIdStr) {
-            updates.referralCode = userIdStr;
-            needsUpdate = true;
-        }
+        if (userSnap.exists()) {
+            const user = serializeFirestoreTimestamps({ id: userSnap.id, ...userSnap.data() }) as UserData;
+            
+            let needsUpdate = false;
+            const updates: Partial<UserData> = {};
 
-        if (needsUpdate) {
-            await updateDoc(userRef, updates);
-        }
+            if (user.isAdmin !== isUserAdmin) {
+                updates.isAdmin = isUserAdmin;
+                needsUpdate = true;
+            }
 
-        return { user: { ...user, ...updates}, isNewUser: false };
-    } else {
-        // --- Create new user ---
-        try {
-            // Referral code is always the user's ID
+            if (settings && user.baseRate !== settings.baseRate) {
+                updates.baseRate = settings.baseRate;
+                needsUpdate = true;
+            }
+            
+            if (user.referralCode !== userIdStr) {
+                updates.referralCode = userIdStr;
+                needsUpdate = true;
+            }
+
+            if (needsUpdate) {
+                await updateDoc(userRef, updates);
+            }
+
+            return { user: { ...user, ...updates}, isNewUser: false };
+        } else {
             const referralCode = userIdStr; 
             
             const newUserDocData: Omit<UserData, 'id'> = {
@@ -90,7 +100,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                 referrals: [],
                 tasks: [],
                 vip: false,
-                referralCode: referralCode, // Set referral code to User ID
+                referralCode: referralCode,
                 name: `${tgUser.first_name || ''} ${tgUser.last_name || ''}`.trim(),
                 username: tgUser.username,
                 email: '', 
@@ -102,33 +112,19 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                 referralEarnings: 0
             };
             
-            let referrerId: string | null = null;
-            if (startParam) {
-                // The startParam IS the referrer's User ID (which is their referral code)
-                const referrerRef = doc(db, "users", startParam);
-                const referrerSnapshot = await getDoc(referrerRef);
-                
-                if (referrerSnapshot.exists()) {
-                    referrerId = referrerSnapshot.id;
-                    newUserDocData.referredBy = referrerId;
-                } else {
-                     console.log(`[Referral] No referrer found for code/ID: ${startParam}`);
-                }
+            if (referrerId) {
+                newUserDocData.referredBy = referrerId;
             }
 
-            // Step 1: Create the new user document
-            const newUserRef = doc(db, 'users', userIdStr);
             await setDoc(newUserRef, newUserDocData);
 
-            // Step 2: If there was a referrer, update their referrals list in a separate, subsequent operation
             if (referrerId) {
-                const referrerRef = doc(db, 'users', referrerId);
-                await updateDoc(referrerRef, {
+                const referrerRefToUpdate = doc(db, 'users', referrerId);
+                await updateDoc(referrerRefToUpdate, {
                     referrals: arrayUnion(userIdStr)
                 });
             }
             
-            // Create a serializable version of the new user for the client
             const serializedUser: UserData = {
                 id: userIdStr,
                 pariBalance: newUserDocData.pariBalance,
@@ -140,7 +136,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                 name: newUserDocData.name,
                 username: newUserDocData.username,
                 email: newUserDocData.email,
-                createdAt: new Date().toISOString(), // Use ISO string for client
+                createdAt: new Date().toISOString(),
                 sessionEndTime: newUserDocData.sessionEndTime,
                 history: newUserDocData.history,
                 vipStatus: newUserDocData.vipStatus,
@@ -150,11 +146,10 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
             };
             
             return { user: serializedUser, isNewUser: true };
-            
-        } catch (error) {
-            console.error("[User Creation] New user creation or referral update failed: ", error);
-            return { error: 'Failed to create new user due to a database error.' };
         }
+    } catch (error: any) {
+        console.error("[User Creation/Verification] Database operation failed: ", error);
+        return { error: `Database error: ${error.message}` };
     }
 }
 
@@ -283,7 +278,7 @@ needsUpdate = true;
 needsUpdate = true;
         }
         
-        const isUserAdmin = ADMIN_USERNAMES.includes(userData.username || '');
+        const isUserAdmin = ADMIN_USER_IDS.includes(userId);
         if (userData.isAdmin !== isUserAdmin) {
             updates.isAdmin = isUserAdmin;
 needsUpdate = true;
@@ -801,10 +796,3 @@ export async function saveContestWinners(winners: ContestEntry[]) {
         return { success: false, error: error.message };
     }
 }
-
-    
-
-    
-
-    
-
