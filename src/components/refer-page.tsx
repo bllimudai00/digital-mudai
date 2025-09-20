@@ -23,7 +23,7 @@ import Link from "next/link";
 import { useEffect, useState, useContext } from "react";
 import { getReferrals } from "@/app/actions";
 import type { UserData, Referral } from "@/lib/types";
-import { onSnapshot, doc, collection, query, where, getDocs, limit } from "firebase/firestore";
+import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -113,34 +113,39 @@ export default function ReferPage() {
     if (!authContext?.user?.id) return;
 
     const userRef = doc(db, 'users', authContext.user.id);
-    const unsubscribeUser = onSnapshot(userRef, async (doc) => {
+    const unsubscribe = onSnapshot(userRef, async (doc) => {
         if (doc.exists()) {
             const user = doc.data() as UserData;
-            setUserData(user);
+            setUserData(user); // This will update referral count and earnings in real-time
+
             if (user.referrals && user.referrals.length > 0) {
-                // Fetch referrals in batches to avoid large 'in' queries
-                const referralBatches: Promise<Referral[]>[] = [];
-                for (let i = 0; i < user.referrals.length; i += 30) {
-                    const batchIds = user.referrals.slice(i, i + 30);
-                    if(batchIds.length > 0){
-                        referralBatches.push(getReferrals(batchIds));
+                // Check if the referral list needs updating
+                const currentReferralIds = referrals.map(r => r.id).sort().join(',');
+                const newReferralIds = [...user.referrals].sort().join(',');
+
+                if (currentReferralIds !== newReferralIds) {
+                    // Fetch details for new referrals
+                    const referralBatches: Promise<Referral[]>[] = [];
+                    for (let i = 0; i < user.referrals.length; i += 30) {
+                        const batchIds = user.referrals.slice(i, i + 30);
+                        if(batchIds.length > 0){
+                            referralBatches.push(getReferrals(batchIds));
+                        }
                     }
+                    const results = await Promise.all(referralBatches);
+                    setReferrals(results.flat());
                 }
-                const results = await Promise.all(referralBatches);
-                setReferrals(results.flat());
             } else {
                 setReferrals([]);
             }
         }
     }, (error) => {
-        console.error("Error fetching user data:", error);
-        toast({ title: "Error", description: "Could not load user data.", variant: "destructive" });
+        console.error("Error fetching real-time user data:", error);
+        toast({ title: "Error", description: "Could not load real-time user data.", variant: "destructive" });
     });
 
-    return () => {
-      unsubscribeUser();
-    };
-  }, [authContext?.user?.id, toast]);
+    return () => unsubscribe();
+  }, [authContext?.user?.id, toast, referrals]);
 
 
   const copyToClipboard = (text: string, label: string) => {
@@ -302,3 +307,5 @@ export default function ReferPage() {
     </div>
   );
 }
+
+    
