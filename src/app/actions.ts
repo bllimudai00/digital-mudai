@@ -11,8 +11,10 @@ const ADMIN_USER_IDS = ['987654321', '123456789', '555555555']; // Replace with 
 
 // --- Telegram Auth Verification ---
 export async function verifyTelegramAuth(initData: string): Promise<{ user: UserData; isNewUser: boolean } | { error: string }> {
+    const isDevEnv = process.env.NODE_ENV === 'development';
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    if (!botToken) {
+
+    if (!botToken && !isDevEnv) {
         console.error("Telegram Bot Token not found in environment variables.");
         return { error: 'Server configuration error.' };
     }
@@ -21,26 +23,31 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
     const hash = urlParams.get('hash');
     const userParam = urlParams.get('user');
 
-    if (!hash || !userParam) {
-        return { error: 'Invalid authentication data: Missing hash or user data.' };
+    if (!userParam) {
+        return { error: 'Invalid authentication data: Missing user data.' };
     }
     
-    const dataCheckArr = [];
-    urlParams.sort(); // Sort parameters alphabetically by key
-    for (const [key, value] of urlParams.entries()) {
-        if (key !== 'hash') {
-            dataCheckArr.push(`${key}=${value}`);
+    // In dev mode, we might not have a hash, so we can bypass validation.
+    // In production, hash is required.
+    if (!isDevEnv) {
+        if (!hash) {
+            return { error: 'Invalid authentication data: Missing hash.' };
         }
-    }
+        const dataCheckArr = [];
+        urlParams.sort(); // Sort parameters alphabetically by key
+        for (const [key, value] of urlParams.entries()) {
+            if (key !== 'hash') {
+                dataCheckArr.push(`${key}=${value}`);
+            }
+        }
+        const dataCheckString = dataCheckArr.join('\n');
+        const secretKey = createHmac('sha256', 'WebAppData').update(botToken!).digest();
+        const calculatedHash = createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
 
-    const dataCheckString = dataCheckArr.join('\n');
-
-    const secretKey = createHmac('sha256', 'WebAppData').update(botToken).digest();
-    const calculatedHash = createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
-
-    if (calculatedHash !== hash) {
-        console.error("Hash validation failed.", { calculatedHash, hash, dataCheckString });
-        return { error: 'Authentication failed: Invalid hash.' };
+        if (calculatedHash !== hash) {
+            console.error("Hash validation failed.", { calculatedHash, hash });
+            return { error: 'Authentication failed: Invalid hash.' };
+        }
     }
     
     const tgUser: TelegramUser = JSON.parse(userParam);
@@ -831,3 +838,4 @@ export async function saveContestWinners(winners: ContestEntry[]) {
     
 
     
+

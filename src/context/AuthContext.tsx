@@ -19,8 +19,6 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-const ADMIN_USER_IDS = ['987654321', '123456789', '555555555']; // Replace with actual Admin Telegram User IDs
-
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,27 +52,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           } else if (isDevEnv) {
             // Scenario 2: Dev env, but no `initData` at all. Fallback to dummy user.
             setError("Telegram.WebApp.initData is empty. Falling back to dev user.");
-            const devUserId = '987654321';
-            const isDevAdmin = ADMIN_USER_IDS.includes(devUserId);
-            const devUser: UserData = {
-              id: devUserId,
-              pariBalance: 100,
-              baseRate: 10,
-              referrals: [],
-              tasks: [],
-              vip: true,
-              referralCode: 'DEVCODE123',
-              name: `Dev User`,
-              username: 'dev_user',
-              email: '',
-              createdAt: new Date().toISOString(),
-              sessionEndTime: null,
-              history: [],
-              vipStatus: 'approved',
-              isAdmin: isDevAdmin,
-              referralEarnings: 25,
-            };
-            setUser(devUser);
+            // In dev mode, we can simulate a login by directly calling verifyTelegramAuth with a dummy user object
+             const devInitData = "user=" + JSON.stringify({
+                id: 987654321, // Use one of the admin IDs from actions.ts
+                first_name: "Dev",
+                last_name: "Admin",
+                username: "dev_admin",
+                is_premium: true
+            }) + "&hash=dummy_hash_will_be_ignored_in_dev";
+
+            const result = await verifyTelegramAuth(devInitData);
+            if ('user' in result) {
+                setUser(result.user);
+            } else {
+                 setError(result.error);
+            }
             toast({ title: "Developer Mode", description: "initData not found. Using fallback dev user." });
           } else {
              // Scenario 3: Production env, but no `initData`. This is an error.
@@ -83,27 +75,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         } else if (isDevEnv) {
              // Scenario 4: Not even in a Telegram-like environment (no `window.Telegram`), but in dev.
              setError("Telegram context not found. Using fallback dev user.");
-             const devUserId = '987654321';
-             const isDevAdmin = ADMIN_USER_IDS.includes(devUserId);
-             const devUser: UserData = {
-                id: devUserId,
-                pariBalance: 100,
-                baseRate: 10,
-                referrals: [],
-                tasks: [],
-                vip: true,
-                referralCode: 'DEVCODE123',
-                name: `Dev User`,
-                username: 'dev_user',
-                email: '',
-                createdAt: new Date().toISOString(),
-                sessionEndTime: null,
-                history: [],
-                vipStatus: 'approved',
-                isAdmin: isDevAdmin,
-                referralEarnings: 25,
-            };
-            setUser(devUser);
+             // In dev mode, we can simulate a login by directly calling verifyTelegramAuth with a dummy user object
+             const devInitData = "user=" + JSON.stringify({
+                id: 987654321, // Use one of the admin IDs from actions.ts
+                first_name: "Dev",
+                last_name: "Admin",
+                username: "dev_admin",
+                is_premium: true
+            }) + "&hash=dummy_hash_will_be_ignored_in_dev";
+
+            const result = await verifyTelegramAuth(devInitData);
+            if ('user' in result) {
+                setUser(result.user);
+            } else {
+                 setError(result.error);
+            }
             toast({ title: "Developer Mode", description: "Telegram context not found. Using fallback dev user." });
         } else {
             // Scenario 5: Not in Telegram and not in dev. This is an error.
