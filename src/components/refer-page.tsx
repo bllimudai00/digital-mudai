@@ -21,7 +21,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useContext } from "react";
-import { getReferrals } from "@/app/actions";
 import type { UserData, Referral } from "@/lib/types";
 import { onSnapshot, doc, collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
@@ -321,6 +320,8 @@ export default function ReferPage() {
     </div>
   );
 }
+
+    
 
     
 
