@@ -97,7 +97,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                 let referrerId: string | null = null;
                 let referrerRef: any = null;
 
-                if (startParam && startParam !== userIdStr) {
+                if (startParam) { // THIS IS THE FIX: Changed from startParam && startParam !== userIdStr
                     const potentialReferrerRefById = doc(db, "users", startParam);
                     const referrerSnapById = await transaction.get(potentialReferrerRefById);
 
@@ -105,11 +105,11 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                         referrerId = referrerSnapById.id;
                         referrerRef = potentialReferrerRefById;
                     } else {
-                        // This query inside a transaction is not ideal, but we'll allow it.
-                        // For better performance, the start_param should always be the user ID.
+                        // Fallback to check by username if ID fails, though less reliable.
+                        console.log(`[Referral] No referrer found for ID: ${startParam}, trying username.`);
                         const usersRef = collection(db, "users");
                         const q = query(usersRef, where("username", "==", startParam), limit(1));
-                        const querySnapshot = await getDocs(q); // Firestore doesn't support getDocs in transaction, this is a read outside.
+                        const querySnapshot = await getDocs(q); // Read outside transaction
                         if (!querySnapshot.empty) {
                             const referrerDoc = querySnapshot.docs[0];
                             referrerId = referrerDoc.id;
@@ -142,22 +142,23 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                     referralEarnings: 0
                 };
                 
-                if (referrerId) {
+                if (referrerId && referrerId !== userIdStr) {
                     newUserDocData.referredBy = referrerId;
                 }
                 
                 transaction.set(userRef, newUserDocData);
 
-                if (referrerId && referrerRef) {
+                if (referrerId && referrerRef && referrerId !== userIdStr) {
                     // Re-fetch referrer inside transaction to ensure atomicity
                     const finalReferrerSnap = await transaction.get(referrerRef);
                     if (finalReferrerSnap.exists()) {
+                       console.log(`[Referral] Updating referrer ${referrerId} with new referral ${userIdStr}`);
                        transaction.update(referrerRef, {
                             referrals: arrayUnion(userIdStr)
                         });
                     } else {
                         // This case is rare, but good to handle. Referrer might have been deleted.
-                        console.error(`[Referral] Referrer with ID ${referrerId} not found during transaction.`);
+                        console.error(`[Referral] Referrer with ID ${referrerId} not found during transaction update.`);
                     }
                 }
                 
@@ -852,6 +853,8 @@ export async function saveContestWinners(winners: ContestEntry[]) {
     
 
 
+
+    
 
     
 
