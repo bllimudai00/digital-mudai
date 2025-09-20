@@ -116,13 +116,14 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                 newUserDocData.referredBy = referrerId;
             }
 
-            await setDoc(newUserRef, newUserDocData);
+            await setDoc(userRef, newUserDocData);
 
             if (referrerId) {
                 const referrerRefToUpdate = doc(db, 'users', referrerId);
-                await updateDoc(referrerRefToUpdate, {
+                // Use set with merge to safely update the referrer's document
+                await setDoc(referrerRefToUpdate, {
                     referrals: arrayUnion(userIdStr)
-                });
+                }, { merge: true });
             }
             
             const serializedUser: UserData = {
@@ -796,3 +797,5 @@ export async function saveContestWinners(winners: ContestEntry[]) {
         return { success: false, error: error.message };
     }
 }
+
+    
