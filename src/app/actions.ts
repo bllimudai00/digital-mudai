@@ -51,7 +51,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
     const userRef = doc(db, 'users', userIdStr);
     
     let referrerId: string | null = null;
-    if (startParam) {
+    if (startParam && startParam !== userIdStr) {
         // Attempt to find referrer by startParam as User ID first
         const referrerRefById = doc(db, "users", startParam);
         const referrerSnapById = await getDoc(referrerRefById);
