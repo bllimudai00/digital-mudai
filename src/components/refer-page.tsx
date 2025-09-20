@@ -23,7 +23,7 @@ import Link from "next/link";
 import { useEffect, useState, useContext } from "react";
 import { getReferrals } from "@/app/actions";
 import type { UserData, Referral } from "@/lib/types";
-import { onSnapshot, doc } from "firebase/firestore";
+import { onSnapshot, doc, collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -108,6 +108,7 @@ export default function ReferPage() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const { toast } = useToast();
+  const [loadingReferrals, setLoadingReferrals] = useState(true);
 
   useEffect(() => {
     if (!authContext?.user?.id) return;
@@ -116,27 +117,38 @@ export default function ReferPage() {
     const unsubscribe = onSnapshot(userRef, async (doc) => {
         if (doc.exists()) {
             const user = doc.data() as UserData;
-            setUserData(user); // This will update referral count and earnings in real-time
+            setUserData(user);
 
             if (user.referrals && user.referrals.length > 0) {
-                // Check if the referral list needs updating
-                const currentReferralIds = referrals.map(r => r.id).sort().join(',');
-                const newReferralIds = [...user.referrals].sort().join(',');
-
-                if (currentReferralIds !== newReferralIds) {
-                    // Fetch details for new referrals
-                    const referralBatches: Promise<Referral[]>[] = [];
-                    for (let i = 0; i < user.referrals.length; i += 30) {
-                        const batchIds = user.referrals.slice(i, i + 30);
-                        if(batchIds.length > 0){
-                            referralBatches.push(getReferrals(batchIds));
+                setLoadingReferrals(true);
+                const fetchedReferrals: Referral[] = [];
+                const batchSize = 30;
+                for (let i = 0; i < user.referrals.length; i += batchSize) {
+                    const batchIds = user.referrals.slice(i, i + batchSize);
+                    if(batchIds.length > 0) {
+                        try {
+                            const q = query(collection(db, 'users'), where('__name__', 'in', batchIds));
+                            const usersSnapshot = await getDocs(q);
+                            usersSnapshot.forEach(userSnap => {
+                                if (userSnap.exists()) {
+                                    const userData = userSnap.data();
+                                    fetchedReferrals.push({
+                                        id: userSnap.id,
+                                        name: userData.name || `Friend ${userSnap.id.substring(0, 4)}`,
+                                        avatar: `https://picsum.photos/seed/${userSnap.id}/40`
+                                    });
+                                }
+                            });
+                        } catch (error) {
+                            console.error(`Failed to fetch referral batch`, error);
                         }
                     }
-                    const results = await Promise.all(referralBatches);
-                    setReferrals(results.flat());
                 }
+                setReferrals(fetchedReferrals);
+                setLoadingReferrals(false);
             } else {
                 setReferrals([]);
+                setLoadingReferrals(false);
             }
         }
     }, (error) => {
@@ -145,7 +157,7 @@ export default function ReferPage() {
     });
 
     return () => unsubscribe();
-  }, [authContext?.user?.id, toast, referrals]);
+  }, [authContext?.user?.id, toast]);
 
 
   const copyToClipboard = (text: string, label: string) => {
@@ -257,7 +269,9 @@ export default function ReferPage() {
              <Users className="w-8 h-8 text-primary mb-2" />
              <h3 className="text-lg font-bold">Your Referred Users</h3>
            </CardContent>
-            {referrals.length > 0 ? (
+            {loadingReferrals ? (
+                 <div className="flex justify-center p-8"><Loader className="w-6 h-6 animate-spin"/></div>
+            ) : referrals.length > 0 ? (
                 <ul className="space-y-3">
                     {referrals.map(ref => (
                         <li key={ref.id} className="flex items-center gap-4 bg-background p-3 rounded-lg">
