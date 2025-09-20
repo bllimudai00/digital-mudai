@@ -8,7 +8,6 @@ import {
   Gift,
   Users,
   BarChart,
-  Clipboard,
   Link as LinkIcon,
   Send,
   Smartphone,
@@ -121,7 +120,7 @@ export default function ReferPage() {
             if (user.referrals && user.referrals.length > 0) {
                 setLoadingReferrals(true);
                 const fetchedReferrals: Referral[] = [];
-                const batchSize = 30;
+                const batchSize = 30; // Firestore 'in' query limit
                 for (let i = 0; i < user.referrals.length; i += batchSize) {
                     const batchIds = user.referrals.slice(i, i + batchSize);
                     if(batchIds.length > 0) {
@@ -130,46 +129,53 @@ export default function ReferPage() {
                             const usersSnapshot = await getDocs(q);
                             usersSnapshot.forEach(userSnap => {
                                 if (userSnap.exists()) {
-                                    const userData = userSnap.data();
+                                    const referralData = userSnap.data();
                                     fetchedReferrals.push({
                                         id: userSnap.id,
-                                        name: userData.name || `Friend ${userSnap.id.substring(0, 4)}`,
+                                        name: referralData.name || `Friend ${userSnap.id.substring(0, 4)}`,
                                         avatar: `https://picsum.photos/seed/${userSnap.id}/40`
                                     });
                                 }
                             });
                         } catch (error) {
                             console.error(`Failed to fetch referral batch`, error);
+                            toast({ title: "Error", description: "Could not load some referral details.", variant: "destructive" });
                         }
                     }
                 }
-                setReferrals(fetchedReferrals);
+                setReferrals(fetchedReferrals.reverse()); // Show newest referrals first
                 setLoadingReferrals(false);
             } else {
                 setReferrals([]);
                 setLoadingReferrals(false);
             }
+        } else {
+             setUserData(null);
+             setReferrals([]);
+             setLoadingReferrals(false);
         }
     }, (error) => {
         console.error("Error fetching real-time user data:", error);
         toast({ title: "Error", description: "Could not load real-time user data.", variant: "destructive" });
+        setLoadingReferrals(false);
     });
 
     return () => unsubscribe();
   }, [authContext?.user?.id, toast]);
 
 
-  const copyToClipboard = (text: string, label: string) => {
+  const copyToClipboard = (text: string) => {
+    if (!text) return;
     navigator.clipboard.writeText(text).then(() => {
       toast({
         title: "Copied to clipboard",
-        description: `${label} has been copied.`,
+        description: `Your referral link has been copied.`,
       });
     }).catch(err => {
       console.error('Failed to copy: ', err);
        toast({
         title: "Error",
-        description: `Failed to copy ${label}.`,
+        description: `Failed to copy the link.`,
         variant: "destructive",
       });
     });
@@ -234,7 +240,7 @@ export default function ReferPage() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => copyToClipboard(referralLink, "Referral Link")}
+                onClick={() => copyToClipboard(referralLink)}
                 className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground"
               >
                 <LinkIcon className="w-4 h-4" />
@@ -320,9 +326,5 @@ export default function ReferPage() {
     </div>
   );
 }
-
-    
-
-    
 
     

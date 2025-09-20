@@ -7,7 +7,7 @@ import { db } from '@/lib/firebase/firestore';
 import type { UserData, Referral, Task, GlobalSettings, RoadmapPhase, WhitePaperSection, TelegramUser, ContestSettings, ContestEntry } from '@/lib/types';
 import { createHmac } from 'crypto';
 
-const ADMIN_USER_IDS = ['987654321', '991619957', '6869453432']; // Replace with actual Admin Telegram User IDs
+const ADMIN_USER_IDS = ['987654321', '991619957', '6869453432'];
 
 // --- Telegram Auth Verification ---
 export async function verifyTelegramAuth(initData: string): Promise<{ user: UserData; isNewUser: boolean } | { error: string }> {
@@ -58,42 +58,17 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
     const userRef = doc(db, 'users', userIdStr);
     
     try {
-        // Step 1: Resolve Referrer ID outside the transaction to avoid contention.
-        let referrerId: string | null = null;
-        let referrerRef: any = null;
-
-        if (startParam && startParam !== userIdStr) {
-            const potentialReferrerRefById = doc(db, "users", startParam);
-            const referrerSnapById = await getDoc(potentialReferrerRefById);
-
-            if (referrerSnapById.exists()) {
-                referrerId = referrerSnapById.id;
-                referrerRef = potentialReferrerRefById;
-            } else {
-                const usersRef = collection(db, "users");
-                const q = query(usersRef, where("username", "==", startParam), limit(1));
-                const querySnapshot = await getDocs(q);
-                if (!querySnapshot.empty) {
-                    const referrerDoc = querySnapshot.docs[0];
-                    referrerId = referrerDoc.id;
-                    referrerRef = referrerDoc.ref;
-                } else {
-                    console.log(`[Referral] No referrer found for code/ID: ${startParam}`);
-                }
-            }
-        }
-        
-        // Step 2: Run the transaction to create user and update referrer atomically.
         const { user, isNewUser } = await runTransaction(db, async (transaction) => {
             const userSnap = await transaction.get(userRef);
-            const settingsDoc = await getDoc(doc(db, 'settings', 'global'));
-            const settings = settingsDoc.exists() ? settingsDoc.data() as GlobalSettings : null;
-
+            
             if (userSnap.exists()) {
                 // --- EXISTING USER LOGIC ---
                 const existingUser = serializeFirestoreTimestamps({ id: userSnap.id, ...userSnap.data() }) as UserData;
                 const updates: Partial<UserData> = {};
                 let needsUpdate = false;
+                
+                const settingsDoc = await getDoc(doc(db, 'settings', 'global'));
+                const settings = settingsDoc.exists() ? settingsDoc.data() as GlobalSettings : null;
 
                 if (existingUser.isAdmin !== isUserAdmin) {
                     updates.isAdmin = isUserAdmin;
@@ -103,8 +78,12 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                     updates.baseRate = settings.baseRate;
                     needsUpdate = true;
                 }
-                if (existingUser.referralCode !== userIdStr) {
+                if (!existingUser.referralCode) {
                     updates.referralCode = userIdStr;
+                    needsUpdate = true;
+                }
+                 if(existingUser.username !== tgUser.username) {
+                    updates.username = tgUser.username;
                     needsUpdate = true;
                 }
 
@@ -115,6 +94,34 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                 return { user: { ...existingUser, ...updates }, isNewUser: false };
             } else {
                 // --- NEW USER CREATION LOGIC ---
+                let referrerId: string | null = null;
+                let referrerRef: any = null;
+
+                if (startParam && startParam !== userIdStr) {
+                    const potentialReferrerRefById = doc(db, "users", startParam);
+                    const referrerSnapById = await transaction.get(potentialReferrerRefById);
+
+                    if (referrerSnapById.exists()) {
+                        referrerId = referrerSnapById.id;
+                        referrerRef = potentialReferrerRefById;
+                    } else {
+                        // This query inside a transaction is not ideal, but we'll allow it.
+                        // For better performance, the start_param should always be the user ID.
+                        const usersRef = collection(db, "users");
+                        const q = query(usersRef, where("username", "==", startParam), limit(1));
+                        const querySnapshot = await getDocs(q); // Firestore doesn't support getDocs in transaction, this is a read outside.
+                        if (!querySnapshot.empty) {
+                            const referrerDoc = querySnapshot.docs[0];
+                            referrerId = referrerDoc.id;
+                            referrerRef = referrerDoc.ref;
+                        } else {
+                            console.log(`[Referral] No referrer found for code/ID: ${startParam}`);
+                        }
+                    }
+                }
+                
+                const settingsDoc = await getDoc(doc(db, 'settings', 'global'));
+                const settings = settingsDoc.exists() ? settingsDoc.data() as GlobalSettings : null;
                 const referralCode = userIdStr;
                 
                 const newUserDocData: Omit<UserData, 'id' | 'createdAt'> & { createdAt: Timestamp } = {
@@ -139,14 +146,19 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                     newUserDocData.referredBy = referrerId;
                 }
                 
-                // Create new user in the transaction
                 transaction.set(userRef, newUserDocData);
 
-                // If referrer exists, update them in the SAME transaction
                 if (referrerId && referrerRef) {
-                    transaction.update(referrerRef, {
-                        referrals: arrayUnion(userIdStr)
-                    });
+                    // Re-fetch referrer inside transaction to ensure atomicity
+                    const finalReferrerSnap = await transaction.get(referrerRef);
+                    if (finalReferrerSnap.exists()) {
+                       transaction.update(referrerRef, {
+                            referrals: arrayUnion(userIdStr)
+                        });
+                    } else {
+                        // This case is rare, but good to handle. Referrer might have been deleted.
+                        console.error(`[Referral] Referrer with ID ${referrerId} not found during transaction.`);
+                    }
                 }
                 
                 const serializedUser: UserData = {
@@ -160,7 +172,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                     name: newUserDocData.name,
                     username: newUserDocData.username,
                     email: newUserDocData.email,
-                    createdAt: new Date().toISOString(), // Return serializable date to client
+                    createdAt: new Date().toISOString(),
                     sessionEndTime: newUserDocData.sessionEndTime,
                     history: newUserDocData.history,
                     vipStatus: newUserDocData.vipStatus,
@@ -176,7 +188,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
         return { user, isNewUser };
 
     } catch (error: any) {
-        console.error("[User Creation/Verification] Transaction failed: ", error);
+        console.error(`[User Verification Transaction Failed] for user: ${userIdStr}, with startParam: ${startParam}. Error: `, error);
         return { error: `Database transaction error: ${error.message}` };
     }
 }
@@ -840,5 +852,7 @@ export async function saveContestWinners(winners: ContestEntry[]) {
     
 
 
+
+    
 
     
