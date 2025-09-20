@@ -51,38 +51,40 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
     const userRef = doc(db, 'users', userIdStr);
     
     try {
-        const { user, isNewUser } = await runTransaction(db, async (transaction) => {
-            let referrerId: string | null = null;
-            let referrerRef = null;
+        // Step 1: Resolve Referrer ID outside the transaction to avoid contention.
+        let referrerId: string | null = null;
+        let referrerRef: any = null;
 
-            if (startParam && startParam !== userIdStr) {
-                const potentialReferrerRefById = doc(db, "users", startParam);
-                const referrerSnapById = await transaction.get(potentialReferrerRefById);
+        if (startParam && startParam !== userIdStr) {
+            const potentialReferrerRefById = doc(db, "users", startParam);
+            const referrerSnapById = await getDoc(potentialReferrerRefById);
 
-                if (referrerSnapById.exists()) {
-                    referrerId = referrerSnapById.id;
-                    referrerRef = potentialReferrerRefById;
+            if (referrerSnapById.exists()) {
+                referrerId = referrerSnapById.id;
+                referrerRef = potentialReferrerRefById;
+            } else {
+                const usersRef = collection(db, "users");
+                const q = query(usersRef, where("username", "==", startParam), limit(1));
+                const querySnapshot = await getDocs(q);
+                if (!querySnapshot.empty) {
+                    const referrerDoc = querySnapshot.docs[0];
+                    referrerId = referrerDoc.id;
+                    referrerRef = referrerDoc.ref;
                 } else {
-                    const usersRef = collection(db, "users");
-                    const q = query(usersRef, where("username", "==", startParam), limit(1));
-                    const querySnapshot = await getDocs(q); // getDocs is not a transaction operation, run it outside if possible or accept the risk. In this auth flow, it should be fine.
-                    if (!querySnapshot.empty) {
-                        const referrerDoc = querySnapshot.docs[0];
-                        referrerId = referrerDoc.id;
-                        referrerRef = referrerDoc.ref;
-                    } else {
-                        console.log(`[Referral] No referrer found for code/ID: ${startParam}`);
-                    }
+                    console.log(`[Referral] No referrer found for code/ID: ${startParam}`);
                 }
             }
-
+        }
+        
+        // Step 2: Run the transaction to create user and update referrer atomically.
+        const { user, isNewUser } = await runTransaction(db, async (transaction) => {
             const userSnap = await transaction.get(userRef);
             const settingsDoc = await getDoc(doc(db, 'settings', 'global'));
             const settings = settingsDoc.exists() ? settingsDoc.data() as GlobalSettings : null;
 
             if (userSnap.exists()) {
+                // --- EXISTING USER LOGIC ---
                 const existingUser = serializeFirestoreTimestamps({ id: userSnap.id, ...userSnap.data() }) as UserData;
-                
                 const updates: Partial<UserData> = {};
                 let needsUpdate = false;
 
@@ -105,6 +107,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
 
                 return { user: { ...existingUser, ...updates }, isNewUser: false };
             } else {
+                // --- NEW USER CREATION LOGIC ---
                 const referralCode = userIdStr;
                 
                 const newUserDocData: Omit<UserData, 'id' | 'createdAt'> & { createdAt: Timestamp } = {
@@ -128,9 +131,11 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                 if (referrerId) {
                     newUserDocData.referredBy = referrerId;
                 }
-
+                
+                // Create new user in the transaction
                 transaction.set(userRef, newUserDocData);
 
+                // If referrer exists, update them in the SAME transaction
                 if (referrerId && referrerRef) {
                     transaction.update(referrerRef, {
                         referrals: arrayUnion(userIdStr)
@@ -147,7 +152,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                     referralCode: newUserDocData.referralCode,
                     name: newUserDocData.name,
                     username: newUserDocData.username,
-                email: newUserDocData.email,
+                    email: newUserDocData.email,
                     createdAt: new Date().toISOString(), // Return serializable date to client
                     sessionEndTime: newUserDocData.sessionEndTime,
                     history: newUserDocData.history,
