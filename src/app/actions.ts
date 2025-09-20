@@ -113,7 +113,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                 vip: false,
                 referralCode: referralCode,
                 name: `${tgUser.first_name || ''} ${tgUser.last_name || ''}`.trim(),
-                username: tgUser.username,
+                username: tgUser.username || '',
                 email: '', 
                 createdAt: serverTimestamp(),
                 sessionEndTime: null,
