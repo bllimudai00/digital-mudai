@@ -52,12 +52,23 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
     
     let referrerId: string | null = null;
     if (startParam) {
-        const referrerRef = doc(db, "users", startParam);
-        const referrerSnapshot = await getDoc(referrerRef);
-        if (referrerSnapshot.exists()) {
-            referrerId = referrerSnapshot.id;
+        // Attempt to find referrer by startParam as User ID first
+        const referrerRefById = doc(db, "users", startParam);
+        const referrerSnapById = await getDoc(referrerRefById);
+
+        if (referrerSnapById.exists()) {
+            referrerId = referrerSnapById.id;
         } else {
-             console.log(`[Referral] No referrer found for code/ID: ${startParam}`);
+            // If not found by ID, attempt to find by username
+            const usersRef = collection(db, "users");
+            const q = query(usersRef, where("username", "==", startParam), limit(1));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+                const referrerDoc = querySnapshot.docs[0];
+                referrerId = referrerDoc.id;
+            } else {
+                console.log(`[Referral] No referrer found for code/ID: ${startParam}`);
+            }
         }
     }
     
@@ -94,7 +105,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
         } else {
             const referralCode = userIdStr; 
             
-            const newUserDocData: Omit<UserData, 'id'> = {
+            const newUserDocData: Omit<UserData, 'id' | 'createdAt'> & { createdAt: Timestamp } = {
                 pariBalance: 10,
                 baseRate: settings?.baseRate || 10.00,
                 referrals: [],
@@ -137,7 +148,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                 name: newUserDocData.name,
                 username: newUserDocData.username,
                 email: newUserDocData.email,
-                createdAt: new Date().toISOString(),
+                createdAt: new Date().toISOString(), // Return serializable date to client
                 sessionEndTime: newUserDocData.sessionEndTime,
                 history: newUserDocData.history,
                 vipStatus: newUserDocData.vipStatus,
