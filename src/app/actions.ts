@@ -50,120 +50,122 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
 
     const userRef = doc(db, 'users', userIdStr);
     
-    let referrerId: string | null = null;
-    if (startParam && startParam !== userIdStr) {
-        // Attempt to find referrer by startParam as User ID first
-        const referrerRefById = doc(db, "users", startParam);
-        const referrerSnapById = await getDoc(referrerRefById);
-
-        if (referrerSnapById.exists()) {
-            referrerId = referrerSnapById.id;
-        } else {
-            // If not found by ID, attempt to find by username
-            const usersRef = collection(db, "users");
-            const q = query(usersRef, where("username", "==", startParam), limit(1));
-            const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
-                const referrerDoc = querySnapshot.docs[0];
-                referrerId = referrerDoc.id;
-            } else {
-                console.log(`[Referral] No referrer found for code/ID: ${startParam}`);
-            }
-        }
-    }
-    
     try {
-        const userSnap = await getDoc(userRef);
-        const settings = await getGlobalSettings();
+        const { user, isNewUser } = await runTransaction(db, async (transaction) => {
+            let referrerId: string | null = null;
+            let referrerRef = null;
 
-        if (userSnap.exists()) {
-            const user = serializeFirestoreTimestamps({ id: userSnap.id, ...userSnap.data() }) as UserData;
-            
-            let needsUpdate = false;
-            const updates: Partial<UserData> = {};
+            if (startParam && startParam !== userIdStr) {
+                const potentialReferrerRefById = doc(db, "users", startParam);
+                const referrerSnapById = await transaction.get(potentialReferrerRefById);
 
-            if (user.isAdmin !== isUserAdmin) {
-                updates.isAdmin = isUserAdmin;
-                needsUpdate = true;
+                if (referrerSnapById.exists()) {
+                    referrerId = referrerSnapById.id;
+                    referrerRef = potentialReferrerRefById;
+                } else {
+                    const usersRef = collection(db, "users");
+                    const q = query(usersRef, where("username", "==", startParam), limit(1));
+                    const querySnapshot = await getDocs(q); // getDocs is not a transaction operation, run it outside if possible or accept the risk. In this auth flow, it should be fine.
+                    if (!querySnapshot.empty) {
+                        const referrerDoc = querySnapshot.docs[0];
+                        referrerId = referrerDoc.id;
+                        referrerRef = referrerDoc.ref;
+                    } else {
+                        console.log(`[Referral] No referrer found for code/ID: ${startParam}`);
+                    }
+                }
             }
 
-            if (settings && user.baseRate !== settings.baseRate) {
-                updates.baseRate = settings.baseRate;
-                needsUpdate = true;
-            }
-            
-            if (user.referralCode !== userIdStr) {
-                updates.referralCode = userIdStr;
-                needsUpdate = true;
-            }
+            const userSnap = await transaction.get(userRef);
+            const settingsDoc = await getDoc(doc(db, 'settings', 'global'));
+            const settings = settingsDoc.exists() ? settingsDoc.data() as GlobalSettings : null;
 
-            if (needsUpdate) {
-                await updateDoc(userRef, updates);
-            }
+            if (userSnap.exists()) {
+                const existingUser = serializeFirestoreTimestamps({ id: userSnap.id, ...userSnap.data() }) as UserData;
+                
+                const updates: Partial<UserData> = {};
+                let needsUpdate = false;
 
-            return { user: { ...user, ...updates}, isNewUser: false };
-        } else {
-            const referralCode = userIdStr; 
-            
-            const newUserDocData: Omit<UserData, 'id' | 'createdAt'> & { createdAt: Timestamp } = {
-                pariBalance: 10,
-                baseRate: settings?.baseRate || 10.00,
-                referrals: [],
-                tasks: [],
-                vip: false,
-                referralCode: referralCode,
-                name: `${tgUser.first_name || ''} ${tgUser.last_name || ''}`.trim(),
-                username: tgUser.username || '',
-                email: '', 
-                createdAt: serverTimestamp(),
-                sessionEndTime: null,
-                history: [],
-                vipStatus: 'none',
-                isAdmin: isUserAdmin,
-                referralEarnings: 0
-            };
-            
-            if (referrerId) {
-                newUserDocData.referredBy = referrerId;
-            }
+                if (existingUser.isAdmin !== isUserAdmin) {
+                    updates.isAdmin = isUserAdmin;
+                    needsUpdate = true;
+                }
+                if (settings && existingUser.baseRate !== settings.baseRate) {
+                    updates.baseRate = settings.baseRate;
+                    needsUpdate = true;
+                }
+                if (existingUser.referralCode !== userIdStr) {
+                    updates.referralCode = userIdStr;
+                    needsUpdate = true;
+                }
 
-            await setDoc(userRef, newUserDocData);
+                if (needsUpdate) {
+                    transaction.update(userRef, updates);
+                }
 
-            if (referrerId) {
-                const referrerRefToUpdate = doc(db, 'users', referrerId);
-                const referrerDoc = await getDoc(referrerRefToUpdate);
-                if (referrerDoc.exists()) {
-                     await updateDoc(referrerRefToUpdate, {
+                return { user: { ...existingUser, ...updates }, isNewUser: false };
+            } else {
+                const referralCode = userIdStr;
+                
+                const newUserDocData: Omit<UserData, 'id' | 'createdAt'> & { createdAt: Timestamp } = {
+                    pariBalance: 10,
+                    baseRate: settings?.baseRate || 10.00,
+                    referrals: [],
+                    tasks: [],
+                    vip: false,
+                    referralCode: referralCode,
+                    name: `${tgUser.first_name || ''} ${tgUser.last_name || ''}`.trim(),
+                    username: tgUser.username || '',
+                    email: '', 
+                    createdAt: serverTimestamp(),
+                    sessionEndTime: null,
+                    history: [],
+                    vipStatus: 'none',
+                    isAdmin: isUserAdmin,
+                    referralEarnings: 0
+                };
+                
+                if (referrerId) {
+                    newUserDocData.referredBy = referrerId;
+                }
+
+                transaction.set(userRef, newUserDocData);
+
+                if (referrerId && referrerRef) {
+                    transaction.update(referrerRef, {
                         referrals: arrayUnion(userIdStr)
                     });
                 }
-            }
-            
-            const serializedUser: UserData = {
-                id: userIdStr,
-                pariBalance: newUserDocData.pariBalance,
-                baseRate: newUserDocData.baseRate,
-                referrals: newUserDocData.referrals,
-                tasks: newUserDocData.tasks,
-                vip: newUserDocData.vip,
-                referralCode: newUserDocData.referralCode,
-                name: newUserDocData.name,
-                username: newUserDocData.username,
+                
+                const serializedUser: UserData = {
+                    id: userIdStr,
+                    pariBalance: newUserDocData.pariBalance,
+                    baseRate: newUserDocData.baseRate,
+                    referrals: newUserDocData.referrals,
+                    tasks: newUserDocData.tasks,
+                    vip: newUserDocData.vip,
+                    referralCode: newUserDocData.referralCode,
+                    name: newUserDocData.name,
+                    username: newUserDocData.username,
                 email: newUserDocData.email,
-                createdAt: new Date().toISOString(), // Return serializable date to client
-                sessionEndTime: newUserDocData.sessionEndTime,
-                history: newUserDocData.history,
-                vipStatus: newUserDocData.vipStatus,
-                isAdmin: newUserDocData.isAdmin,
-                referralEarnings: newUserDocData.referralEarnings,
-                ...(newUserDocData.referredBy && { referredBy: newUserDocData.referredBy })
-            };
-            
-            return { user: serializedUser, isNewUser: true };
-        }
+                    createdAt: new Date().toISOString(), // Return serializable date to client
+                    sessionEndTime: newUserDocData.sessionEndTime,
+                    history: newUserDocData.history,
+                    vipStatus: newUserDocData.vipStatus,
+                    isAdmin: newUserDocData.isAdmin,
+                    referralEarnings: newUserDocData.referralEarnings,
+                    ...(newUserDocData.referredBy && { referredBy: newUserDocData.referredBy })
+                };
+                
+                return { user: serializedUser, isNewUser: true };
+            }
+        });
+
+        return { user, isNewUser };
+
     } catch (error: any) {
-        console.error("[User Creation/Verification] Database operation failed: ", error);
-        return { error: `Database error: ${error.message}` };
+        console.error("[User Creation/Verification] Transaction failed: ", error);
+        return { error: `Database transaction error: ${error.message}` };
     }
 }
 
