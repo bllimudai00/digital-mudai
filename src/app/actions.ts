@@ -97,7 +97,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                 let referrerId: string | null = null;
                 let referrerRef: any = null;
 
-                if (startParam) { // THIS IS THE FIX: Changed from startParam && startParam !== userIdStr
+                if (startParam) { 
                     const potentialReferrerRefById = doc(db, "users", startParam);
                     const referrerSnapById = await transaction.get(potentialReferrerRefById);
 
@@ -931,3 +931,4 @@ export async function migrateOldReferrals() {
     
 
     
+
