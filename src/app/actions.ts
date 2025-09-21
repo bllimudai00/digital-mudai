@@ -848,21 +848,27 @@ export async function migrateOldReferrals() {
         }
 
         const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserData));
+        const allUserIds = new Set(allUsers.map(u => u.id));
         
         // Step 1: Build a map of who referred whom
         const referrersMap: { [key: string]: string[] } = {};
         allUsers.forEach(user => {
             if (user.referredBy) {
-                if (!referrersMap[user.referredBy]) {
-                    referrersMap[user.referredBy] = [];
+                // Check if the referrer actually exists before adding to map
+                if (allUserIds.has(user.referredBy)) {
+                    if (!referrersMap[user.referredBy]) {
+                        referrersMap[user.referredBy] = [];
+                    }
+                    referrersMap[user.referredBy].push(user.id);
+                } else {
+                    console.warn(`[Migration] Found a user (${user.id}) with a non-existent referrer (${user.referredBy}). Skipping this relation.`);
                 }
-                referrersMap[user.referredBy].push(user.id);
             }
         });
         
         if (Object.keys(referrersMap).length === 0) {
-             console.log("[Migration] No users with 'referredBy' field found. No migration needed.");
-             return { success: true, message: "No referrals found to migrate." };
+             console.log("[Migration] No users with a 'referredBy' field found, or all referrers are non-existent. No migration needed.");
+             return { success: true, message: "No valid referrals found to migrate." };
         }
 
         // Step 2: Create a batch write to update all referrers
@@ -873,7 +879,6 @@ export async function migrateOldReferrals() {
             const userRef = doc(db, 'users', referrerId);
             const referredUserIds = referrersMap[referrerId];
             
-            // To ensure no duplicates, we can merge the existing array with the new one.
             const userToUpdate = allUsers.find(u => u.id === referrerId);
             const existingReferrals = userToUpdate?.referrals || [];
             const mergedReferrals = [...new Set([...existingReferrals, ...referredUserIds])];
