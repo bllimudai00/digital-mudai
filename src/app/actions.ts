@@ -838,6 +838,73 @@ export async function saveContestWinners(winners: ContestEntry[]) {
     }
 }
 
+export async function migrateOldReferrals() {
+    'use server';
+    console.log("[Migration] Starting old referrals migration...");
+    try {
+        const usersSnapshot = await getDocs(collection(db, 'users'));
+        if (usersSnapshot.empty) {
+            return { success: true, message: "No users found to migrate." };
+        }
+
+        const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserData));
+        
+        // Step 1: Build a map of who referred whom
+        const referrersMap: { [key: string]: string[] } = {};
+        allUsers.forEach(user => {
+            if (user.referredBy) {
+                if (!referrersMap[user.referredBy]) {
+                    referrersMap[user.referredBy] = [];
+                }
+                referrersMap[user.referredBy].push(user.id);
+            }
+        });
+        
+        if (Object.keys(referrersMap).length === 0) {
+             console.log("[Migration] No users with 'referredBy' field found. No migration needed.");
+             return { success: true, message: "No referrals found to migrate." };
+        }
+
+        // Step 2: Create a batch write to update all referrers
+        const batch = writeBatch(db);
+        let updatedCount = 0;
+        
+        for (const referrerId in referrersMap) {
+            const userRef = doc(db, 'users', referrerId);
+            const referredUserIds = referrersMap[referrerId];
+            
+            // To ensure no duplicates, we can merge the existing array with the new one.
+            const userToUpdate = allUsers.find(u => u.id === referrerId);
+            const existingReferrals = userToUpdate?.referrals || [];
+            const mergedReferrals = [...new Set([...existingReferrals, ...referredUserIds])];
+
+            if (mergedReferrals.length > existingReferrals.length) {
+                batch.update(userRef, { referrals: mergedReferrals });
+                updatedCount++;
+                console.log(`[Migration] Queued update for referrer ${referrerId} with ${mergedReferrals.length} total referrals.`);
+            }
+        }
+        
+        if (updatedCount === 0) {
+             console.log("[Migration] All referral arrays are already up-to-date.");
+             return { success: true, message: "All referral data is already consistent." };
+        }
+        
+        // Step 3: Commit the batch
+        await batch.commit();
+        
+        console.log(`[Migration] Successfully updated ${updatedCount} user documents.`);
+        revalidatePath('/');
+        revalidatePath('/refer');
+        revalidatePath('/admin');
+        
+        return { success: true, message: `Migration successful. Updated ${updatedCount} referrer documents.` };
+
+    } catch (error: any) {
+        console.error("[Migration Failed] Error during referral migration:", error);
+        return { success: false, error: `Migration failed: ${error.message}` };
+    }
+}
     
 
     

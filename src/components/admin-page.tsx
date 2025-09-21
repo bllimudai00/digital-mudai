@@ -3,8 +3,8 @@
 
 import { useEffect, useState, useContext } from "react";
 import type { UserData, GlobalSettings, Task, RoadmapPhase, WhitePaperSection, RoadmapItem, ContestSettings, ContestEntry } from "@/lib/types";
-import { getVipRequests, updateVipStatus, getUsers, updateUserFromAdmin, deleteUser, getGlobalSettings, updateGlobalSettings, getTasks, deleteTask, addTask, updateTask, saveRoadmap, saveWhitePaper, getContestSettings, saveContestWinners } from "@/app/actions";
-import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck, Zap, ListChecks, ExternalLink, Map, FileText, GripVertical, Plus, Image as ImageIcon, Trophy } from "lucide-react";
+import { getVipRequests, updateVipStatus, getUsers, updateUserFromAdmin, deleteUser, getGlobalSettings, updateGlobalSettings, getTasks, deleteTask, addTask, updateTask, saveRoadmap, saveWhitePaper, getContestSettings, saveContestWinners, migrateOldReferrals } from "@/app/actions";
+import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck, Zap, ListChecks, ExternalLink, Map, FileText, GripVertical, Plus, Image as ImageIcon, Trophy, Database } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -450,6 +450,77 @@ function GlobalSettingsSection({ onUpdate }: { onUpdate: () => void}) {
                 </div>
             </CardContent>
         </Card>
+    );
+}
+
+function DataMigrationSection({ onUpdate }: { onUpdate: () => void}) {
+    const [isMigrating, setIsMigrating] = useState(false);
+    const [showConfirm, setShowConfirm] = useState(false);
+    const { toast } = useToast();
+
+    const handleMigration = async () => {
+        setIsMigrating(true);
+        setShowConfirm(false);
+        toast({ title: "Migration Started", description: "This may take a few moments. Do not close the page." });
+        
+        const result = await migrateOldReferrals();
+        
+        if (result.success) {
+            toast({ title: "Migration Successful", description: result.message });
+            onUpdate();
+        } else {
+            toast({ title: "Migration Failed", description: result.error, variant: "destructive" });
+        }
+        setIsMigrating(false);
+    };
+
+    return (
+        <>
+            <Card className="bg-card/50 backdrop-blur-sm border-orange-500/20">
+                <CardHeader>
+                    <CardTitle>Data Migration</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                        Use these actions for one-time data corrections. Please backup your database before running any migration.
+                    </p>
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-background rounded-lg">
+                        <div>
+                            <h4 className="font-bold">Backfill Old Referrals</h4>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Scans all users and populates the `referrals` array for old users who have referrals but an empty array.
+                            </p>
+                        </div>
+                        <Button 
+                            variant="destructive" 
+                            className="mt-2 sm:mt-0"
+                            onClick={() => setShowConfirm(true)}
+                            disabled={isMigrating}
+                        >
+                            {isMigrating ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : <Database className="w-4 h-4 mr-2" />}
+                            {isMigrating ? 'Migrating...' : 'Migrate Old Referrals'}
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+            <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will scan all user documents and update their `referrals` array. This action is irreversible. It's highly recommended to **backup your Firestore data** before proceeding.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isMigrating}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleMigration} disabled={isMigrating} className={buttonVariants({ variant: "destructive" })}>
+                            {isMigrating ? <Loader className="w-4 h-4 animate-spin mr-2" /> : null}
+                            Yes, run migration
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
     );
 }
 
@@ -1039,6 +1110,7 @@ export default function AdminPage() {
             
             <DashboardStatsSection users={allUsers} vipRequests={vipRequests} />
             <GlobalSettingsSection onUpdate={handleDataUpdate} />
+            <DataMigrationSection onUpdate={handleDataUpdate} />
             <ContestManagementSection onUpdate={handleDataUpdate} />
             <UserManagementSection users={allUsers} loading={loading} onUpdate={handleDataUpdate} />
             <VipRequestSection vipRequests={vipRequests} loading={loading} onUpdate={handleDataUpdate} />
