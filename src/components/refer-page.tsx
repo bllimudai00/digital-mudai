@@ -114,7 +114,7 @@ export default function ReferPage() {
     const userRef = doc(db, 'users', authContext.user.id);
     const unsubscribe = onSnapshot(userRef, async (doc) => {
         if (doc.exists()) {
-            const user = doc.data() as UserData;
+            const user = { id: doc.id, ...doc.data() } as UserData;
             setUserData(user);
 
             if (user.referrals && user.referrals.length > 0) {
@@ -327,4 +327,3 @@ export default function ReferPage() {
   );
 }
 
-    
