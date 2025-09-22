@@ -20,6 +20,7 @@ import {
   User,
   Loader,
   Trophy,
+  Globe,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -215,6 +216,7 @@ export default function ProfilePage() {
             <ProfileMenuItem icon={<MessageSquare className="w-6 h-6 text-muted-foreground" />} label="Join Group Chat" href={settings?.telegramGroupUrl || ""} isExternal />
             <ProfileMenuItem icon={<XIcon />} label="Follow us on X" href={settings?.xUrl || ""} isExternal />
             <ProfileMenuItem icon={<Wrench className="w-6 h-6 text-muted-foreground" />} label="Get Support" href={supportTelegramLink} isExternal={!!supportTelegramLink} />
+            <ProfileMenuItem icon={<Globe className="w-6 h-6 text-muted-foreground" />} label="Website" href="https://www.parinetwork.com/" isExternal />
           </CardContent>
         </Card>
       </main>
