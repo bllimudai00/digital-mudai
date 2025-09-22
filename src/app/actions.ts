@@ -625,11 +625,12 @@ export async function getUsers(): Promise<UserData[]> {
     const userMap = new Map(querySnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as UserData]));
 
     const usersWithReferrerNames = Array.from(userMap.values()).map(user => {
-        const serializedData = serializeFirestoreTimestamps(user);
+        const serializedData = serializeFirestoreTimestamps(user) as UserData;
         const referrerName = user.referredBy ? userMap.get(user.referredBy)?.name : undefined;
 
         return {
             ...serializedData,
+            id: user.id, // Ensure ID is present
             referralCount: (user.referrals || []).length,
             referredByName: referrerName || 'N/A'
         } as UserData;
@@ -869,8 +870,11 @@ export async function migrateOldReferrals() {
             
             const userToUpdate = allUsers.find(u => u.id === referrerId);
             const existingReferrals = userToUpdate?.referrals || [];
+            
+            // Merge existing and newly found referrals, ensuring no duplicates
             const mergedReferrals = [...new Set([...existingReferrals, ...referredUserIds])];
 
+            // Only update if there are new referrals to add
             if (mergedReferrals.length > existingReferrals.length) {
                 batch.update(userRef, { referrals: mergedReferrals });
                 updatedCount++;
@@ -907,12 +911,6 @@ export async function migrateOldReferrals() {
 
 
     
-
-    
-
-    
-
-
 
     
 
