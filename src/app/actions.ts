@@ -621,19 +621,25 @@ export async function getUsers(): Promise<UserData[]> {
     const usersRef = collection(db, 'users');
     const querySnapshot = await getDocs(usersRef);
 
-    // Create a map of user IDs to user data for quick lookups
-    const userMap = new Map(querySnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as UserData]));
+    // Create a map of user IDs to their full data for quick lookups
+    const userMap = new Map<string, UserData>();
+    querySnapshot.docs.forEach(doc => {
+        userMap.set(doc.id, { id: doc.id, ...doc.data() } as UserData);
+    });
 
     const usersWithReferrerNames = Array.from(userMap.values()).map(user => {
         const serializedData = serializeFirestoreTimestamps(user) as UserData;
         const referrerName = user.referredBy ? userMap.get(user.referredBy)?.name : undefined;
+        
+        // Ensure the referral count is derived from the complete data in the map
+        const fullUserData = userMap.get(user.id);
+        const referralCount = fullUserData?.referrals?.length || 0;
 
         return {
             ...serializedData,
-            id: user.id, // Ensure ID is present
-            referralCount: (user.referrals || []).length,
+            referralCount: referralCount,
             referredByName: referrerName || 'N/A'
-        } as UserData;
+        };
     });
 
     return usersWithReferrerNames.sort((a, b) => (b.referralCount || 0) - (a.referralCount || 0));
