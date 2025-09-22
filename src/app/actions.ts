@@ -624,7 +624,8 @@ export async function getUsers(): Promise<UserData[]> {
     // Create a map of user IDs to their full data for quick lookups
     const userMap = new Map<string, UserData>();
     querySnapshot.docs.forEach(doc => {
-        userMap.set(doc.id, { id: doc.id, ...doc.data() } as UserData);
+        const userData = { id: doc.id, ...doc.data() } as UserData;
+        userMap.set(doc.id, userData);
     });
 
     const usersWithReferrerNames = Array.from(userMap.values()).map(user => {
@@ -923,3 +924,4 @@ export async function migrateOldReferrals() {
     
 
     
+
