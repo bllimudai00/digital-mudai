@@ -622,15 +622,14 @@ export async function getUsers(): Promise<UserData[]> {
     const querySnapshot = await getDocs(usersRef);
 
     // Create a map of user IDs to user data for quick lookups
-    const userMap = new Map(querySnapshot.docs.map(doc => [doc.id, doc.data() as UserData]));
+    const userMap = new Map(querySnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as UserData]));
 
     const usersWithReferrerNames = Array.from(userMap.values()).map(user => {
-        const serializedData = serializeFirestoreTimestamps({ id: user.id, ...user });
+        const serializedData = serializeFirestoreTimestamps(user);
         const referrerName = user.referredBy ? userMap.get(user.referredBy)?.name : undefined;
 
         return {
             ...serializedData,
-            id: user.id, // Ensure ID is a string
             referralCount: (user.referrals || []).length,
             referredByName: referrerName || 'N/A'
         } as UserData;
@@ -916,12 +915,6 @@ export async function migrateOldReferrals() {
 
 
     
-
-    
-
-    
-
-
 
     
 
