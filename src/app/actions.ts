@@ -97,7 +97,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                 let referrerId: string | null = null;
                 let referrerRef: any = null;
 
-                if (startParam) { 
+                if (startParam && startParam !== userIdStr) { 
                     const potentialReferrerRefById = doc(db, "users", startParam);
                     const referrerSnapById = await transaction.get(potentialReferrerRefById);
 
@@ -105,18 +105,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                         referrerId = referrerSnapById.id;
                         referrerRef = potentialReferrerRefById;
                     } else {
-                        // Fallback to check by username if ID fails, though less reliable.
-                        console.log(`[Referral] No referrer found for ID: ${startParam}, trying username.`);
-                        const usersRef = collection(db, "users");
-                        const q = query(usersRef, where("username", "==", startParam), limit(1));
-                        const querySnapshot = await getDocs(q); // Read outside transaction
-                        if (!querySnapshot.empty) {
-                            const referrerDoc = querySnapshot.docs[0];
-                            referrerId = referrerDoc.id;
-                            referrerRef = referrerDoc.ref;
-                        } else {
-                            console.log(`[Referral] No referrer found for code/ID: ${startParam}`);
-                        }
+                        console.log(`[Referral] No referrer found for ID: ${startParam}`);
                     }
                 }
                 
@@ -142,24 +131,17 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                     referralEarnings: 0
                 };
                 
-                if (referrerId && referrerId !== userIdStr) {
+                if (referrerId) {
                     newUserDocData.referredBy = referrerId;
                 }
                 
                 transaction.set(userRef, newUserDocData);
 
-                if (referrerId && referrerRef && referrerId !== userIdStr) {
-                    // Re-fetch referrer inside transaction to ensure atomicity
-                    const finalReferrerSnap = await transaction.get(referrerRef);
-                    if (finalReferrerSnap.exists()) {
-                       console.log(`[Referral] Updating referrer ${referrerId} with new referral ${userIdStr}`);
-                       transaction.update(referrerRef, {
-                            referrals: arrayUnion(userIdStr)
-                        });
-                    } else {
-                        // This case is rare, but good to handle. Referrer might have been deleted.
-                        console.error(`[Referral] Referrer with ID ${referrerId} not found during transaction update.`);
-                    }
+                if (referrerId && referrerRef) {
+                    console.log(`[Referral] Updating referrer ${referrerId} with new referral ${userIdStr}`);
+                    transaction.update(referrerRef, {
+                        referrals: arrayUnion(userIdStr)
+                    });
                 }
                 
                 const serializedUser: UserData = {
@@ -932,3 +914,6 @@ export async function migrateOldReferrals() {
 
     
 
+
+
+    
