@@ -934,118 +934,6 @@ function WhitePaperManagementSection({ onUpdate }: { onUpdate: () => void }) {
     )
 }
 
-function ContestManagementSection({ onUpdate }: { onUpdate: () => void }) {
-    const manualRanks = 5;
-    const [winners, setWinners] = useState<ContestEntry[]>(Array(manualRanks).fill({ name: "", referralCount: 0 }));
-    const [loading, setLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState(false);
-    const { toast } = useToast();
-
-    useEffect(() => {
-        const fetchContestSettings = async () => {
-            setLoading(true);
-            const settings = await getContestSettings(true); // Get only manual winners
-            if (settings && settings.winners && settings.winners.length > 0) {
-                const currentWinners = settings.winners;
-                const fullWinnersList = Array(manualRanks).fill({ name: "", referralCount: 0 }).map((_, index) => 
-                    currentWinners[index] || { name: "", referralCount: 0 }
-                );
-                setWinners(fullWinnersList);
-            } else {
-                 setWinners(Array(manualRanks).fill({ name: "", referralCount: 0 }));
-            }
-            setLoading(false);
-        };
-        fetchContestSettings();
-    }, []);
-
-    const handleInputChange = (index: number, field: 'name' | 'referralCount', value: string) => {
-        const newWinners = [...winners];
-        const entry = { ...newWinners[index] };
-        if (field === 'referralCount') {
-            entry.referralCount = parseInt(value, 10) || 0;
-        } else {
-            entry.name = value;
-        }
-        newWinners[index] = entry;
-        setWinners(newWinners);
-    };
-    
-    const handleSave = async () => {
-        setIsSaving(true);
-        const result = await saveContestWinners(winners);
-        if (result.success) {
-            toast({ title: "Success", description: "Contest winners saved." });
-            onUpdate();
-        } else {
-            toast({ title: "Error", description: result.error, variant: "destructive" });
-        }
-        setIsSaving(false);
-    };
-
-    const rankColors = {
-        1: 'text-yellow-400',
-        2: 'text-gray-300',
-        3: 'text-orange-400',
-    };
-
-    return (
-        <Card className="bg-card/50 backdrop-blur-sm border-blue-500/20">
-            <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Referral Contest Management (Top {manualRanks})</CardTitle>
-                <Button onClick={handleSave} disabled={isSaving || loading}>
-                    {isSaving ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : <Trophy className="w-4 h-4 mr-2" />}
-                    Save Winners
-                </Button>
-            </CardHeader>
-            <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
-                    Manually set the top {manualRanks} winners. Ranks 6-10 will be automatically populated based on actual referral counts.
-                </p>
-                {loading ? <div className="flex justify-center p-8"><Loader className="w-6 h-6 animate-spin"/></div> :
-                <div className="space-y-4">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-16">Rank</TableHead>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Referrals</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {winners.map((winner, index) => (
-                                <TableRow key={index}>
-                                    <TableCell>
-                                        <span className={`font-bold text-lg ${rankColors[index + 1 as keyof typeof rankColors] || ''}`}>
-                                            {index + 1}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Input
-                                            value={winner.name}
-                                            onChange={(e) => handleInputChange(index, 'name', e.target.value)}
-                                            placeholder="Enter name"
-                                        />
-                                    </TableCell>
-                                    <TableCell>
-                                        <Input
-                                            type="number"
-                                            value={winner.referralCount}
-                                            onChange={(e) => handleInputChange(index, 'referralCount', e.target.value)}
-                                            placeholder="Enter count"
-                                        />
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </div>
-                }
-            </CardContent>
-        </Card>
-    );
-}
-
 export default function AdminPage() {
     const authContext = useContext(AuthContext);
     const { user: currentUser } = authContext || {};
@@ -1113,7 +1001,6 @@ export default function AdminPage() {
             <DashboardStatsSection users={allUsers} vipRequests={vipRequests} />
             <GlobalSettingsSection onUpdate={handleDataUpdate} />
             <DataMigrationSection onUpdate={handleDataUpdate} />
-            <ContestManagementSection onUpdate={handleDataUpdate} />
             <UserManagementSection users={allUsers} loading={loading} onUpdate={handleDataUpdate} />
             <VipRequestSection vipRequests={vipRequests} loading={loading} onUpdate={handleDataUpdate} />
             <TaskManagementSection onUpdate={handleDataUpdate} />
@@ -1123,5 +1010,4 @@ export default function AdminPage() {
         </div>
     );
 }
-
     
