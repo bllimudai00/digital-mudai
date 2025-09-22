@@ -97,7 +97,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                 let referrerId: string | null = null;
                 let referrerRef: any = null;
 
-                if (startParam && startParam !== userIdStr) { 
+                if (startParam) { 
                     const potentialReferrerRefById = doc(db, "users", startParam);
                     const referrerSnapById = await transaction.get(potentialReferrerRefById);
 
@@ -618,20 +618,27 @@ export async function updateVipStatus(userId: string, status: 'approved' | 'reje
 }
 
 export async function getUsers(): Promise<UserData[]> {
-  const usersRef = collection(db, 'users');
-  const querySnapshot = await getDocs(usersRef);
-  const users = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        const docId = doc.id;
-        const serializedData = serializeFirestoreTimestamps({ id: docId, ...data });
+    const usersRef = collection(db, 'users');
+    const querySnapshot = await getDocs(usersRef);
+
+    // Create a map of user IDs to user data for quick lookups
+    const userMap = new Map(querySnapshot.docs.map(doc => [doc.id, doc.data() as UserData]));
+
+    const usersWithReferrerNames = Array.from(userMap.values()).map(user => {
+        const serializedData = serializeFirestoreTimestamps({ id: user.id, ...user });
+        const referrerName = user.referredBy ? userMap.get(user.referredBy)?.name : undefined;
+
         return {
             ...serializedData,
-            referralCount: (data.referrals || []).length
+            id: user.id, // Ensure ID is a string
+            referralCount: (user.referrals || []).length,
+            referredByName: referrerName || 'N/A'
         } as UserData;
     });
 
-    return users.sort((a, b) => (b.referralCount || 0) - (a.referralCount || 0));
+    return usersWithReferrerNames.sort((a, b) => (b.referralCount || 0) - (a.referralCount || 0));
 }
+
 
 export async function updateUserFromAdmin(userId: string, dataToUpdate: Partial<UserData>) {
     'use server';
@@ -915,5 +922,7 @@ export async function migrateOldReferrals() {
     
 
 
+
+    
 
     

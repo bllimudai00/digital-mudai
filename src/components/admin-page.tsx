@@ -13,9 +13,9 @@ import { format } from "date-fns";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "./ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Label } from "./ui/label";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { onSnapshot, collection, doc, query, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -256,7 +256,8 @@ function UserManagementSection({ users, loading, onUpdate }: { users: UserData[]
                     <TableHeader>
                         <TableRow>
                             <TableHead>Name</TableHead>
-                            <TableHead>Email</TableHead>
+                            <TableHead>Referred By</TableHead>
+                            <TableHead className="text-center">Referrals</TableHead>
                             <TableHead className="text-right">Balance</TableHead>
                             <TableHead className="text-center">VIP</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
@@ -266,7 +267,8 @@ function UserManagementSection({ users, loading, onUpdate }: { users: UserData[]
                         {users.map((user) => (
                             <TableRow key={user.id}>
                                 <TableCell className="font-medium">{user.name}</TableCell>
-                                <TableCell>{user.email}</TableCell>
+                                <TableCell className="text-sm text-muted-foreground">{user.referredByName || 'N/A'}</TableCell>
+                                <TableCell className="text-center font-bold">{user.referralCount || 0}</TableCell>
                                 <TableCell className="text-right">{(typeof user.pariBalance === 'number' ? user.pariBalance : parseFloat(user.pariBalance || '0')).toFixed(4)}</TableCell>
                                 <TableCell className="text-center">
                                     {user.vip ? (
@@ -1121,3 +1123,5 @@ export default function AdminPage() {
         </div>
     );
 }
+
+    

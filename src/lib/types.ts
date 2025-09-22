@@ -38,6 +38,7 @@ export type UserData = {
   isAdmin?: boolean;
   referralEarnings?: number;
   referralCount?: number;
+  referredByName?: string;
 };
 
 export type GlobalSettings = {
@@ -104,3 +105,5 @@ export type ContestEntry = {
 export type ContestSettings = {
     winners: ContestEntry[];
 }
+
+    
