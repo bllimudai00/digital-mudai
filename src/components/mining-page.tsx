@@ -327,7 +327,7 @@ export default function MiningPage() {
 
         <div className="grid grid-cols-2 gap-4">
           <StatCard icon={<Zap className="w-6 h-6 text-cyan-400" />} title="Base Rate" value={`${baseRate.toFixed(2)}/hr`} />
-          <StatCard icon={<TrendingUp className="w-6 h-6 text-cyan-400" />} title="Sessions" value={(userData.history?.filter(h => h.type === 'mining').length || 0).toString()} />
+          <StatCard icon={<TrendingUp className="w-6 h-6 text-cyan-400" />} title="Streak" value={(userData.history?.filter(h => h.type === 'mining').length || 0).toString()} />
         </div>
 
         <Card className="bg-card/50 backdrop-blur-sm text-center p-6 space-y-4 border-0 shadow-xl shadow-blue-500/5">
@@ -409,5 +409,7 @@ export default function MiningPage() {
     </div>
   );
 }
+
+    
 
     
