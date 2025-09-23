@@ -4,7 +4,7 @@
 import { useEffect, useState, useContext } from "react";
 import type { UserData, GlobalSettings, Task, RoadmapPhase, WhitePaperSection, RoadmapItem, ContestSettings, ContestEntry } from "@/lib/types";
 import { getVipRequests, updateVipStatus, getUsers, updateUserFromAdmin, deleteUser, getGlobalSettings, updateGlobalSettings, getTasks, deleteTask, addTask, updateTask, saveRoadmap, saveWhitePaper, getContestSettings, saveContestWinners, migrateOldReferrals } from "@/app/actions";
-import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck, Zap, ListChecks, ExternalLink, Map, FileText, GripVertical, Plus, Image as ImageIcon, Trophy, Database, Search, Settings, FileEdit, Tool, UserCog } from "lucide-react";
+import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck, Zap, ListChecks, ExternalLink, Map, FileText, GripVertical, Plus, Image as ImageIcon, Trophy, Database, Search, Settings, FileEdit, Wrench, UserCog } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -1122,7 +1122,7 @@ export default function AdminPage() {
                     </div>
                 </AdminAccordionItem>
 
-                 <AdminAccordionItem value="advanced-tools" title="Advanced Tools" icon={<Tool className="w-5 h-5 text-primary" />}>
+                 <AdminAccordionItem value="advanced-tools" title="Advanced Tools" icon={<Wrench className="w-5 h-5 text-primary" />}>
                     <DataMigrationSection onUpdate={handleDataUpdate} />
                 </AdminAccordionItem>
             </Accordion>
