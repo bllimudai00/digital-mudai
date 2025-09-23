@@ -4,7 +4,7 @@
 import { useEffect, useState, useContext } from "react";
 import type { UserData, GlobalSettings, Task, RoadmapPhase, WhitePaperSection, RoadmapItem, ContestSettings, ContestEntry } from "@/lib/types";
 import { getVipRequests, updateVipStatus, getUsers, updateUserFromAdmin, deleteUser, getGlobalSettings, updateGlobalSettings, getTasks, deleteTask, addTask, updateTask, saveRoadmap, saveWhitePaper, getContestSettings, saveContestWinners, migrateOldReferrals } from "@/app/actions";
-import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck, Zap, ListChecks, ExternalLink, Map, FileText, GripVertical, Plus, Image as ImageIcon, Trophy, Database } from "lucide-react";
+import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck, Zap, ListChecks, ExternalLink, Map, FileText, GripVertical, Plus, Image as ImageIcon, Trophy, Database, Search } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -226,6 +226,7 @@ function DeleteUserDialog({ user, isOpen, onOpenChange, onUserDelete }: { user: 
 function UserManagementSection({ users, loading, onUpdate }: { users: UserData[], loading: boolean, onUpdate: () => void }) {
     const [editingUser, setEditingUser] = useState<UserData | null>(null);
     const [deletingUser, setDeletingUser] = useState<UserData | null>(null);
+    const [searchTerm, setSearchTerm] = useState("");
 
     const handleEditClick = (user: UserData) => {
         setEditingUser(user);
@@ -241,6 +242,9 @@ function UserManagementSection({ users, loading, onUpdate }: { users: UserData[]
         onUpdate();
     }
 
+    const filteredUsers = users.filter(user => 
+        user.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     if (loading) {
         return <div className="flex justify-center p-8"><Loader className="w-6 h-6 animate-spin" /></div>;
@@ -250,6 +254,15 @@ function UserManagementSection({ users, loading, onUpdate }: { users: UserData[]
         <Card className="bg-card/50 backdrop-blur-sm border-blue-500/20">
             <CardHeader>
                 <CardTitle>User Management</CardTitle>
+                 <div className="relative mt-2">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                        placeholder="Search by name..."
+                        className="pl-10"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
             </CardHeader>
             <CardContent>
                 <Table>
@@ -264,7 +277,7 @@ function UserManagementSection({ users, loading, onUpdate }: { users: UserData[]
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {users.map((user) => (
+                        {filteredUsers.map((user) => (
                             <TableRow key={user.id}>
                                 <TableCell className="font-medium">{user.name}</TableCell>
                                 <TableCell className="text-sm text-muted-foreground">{user.referredByName || 'N/A'}</TableCell>
@@ -440,7 +453,7 @@ function GlobalSettingsSection({ onUpdate }: { onUpdate: () => void}) {
                         </div>
                          <div>
                             <Label htmlFor="supportTelegramUsername">1-to-1 Support (Telegram Username)</Label>
-                            <Input id="supportTelegramUsername" name="supportTelegramUsername" placeholder="e.g. PariSupport (without @)" value={settings.supportTelegramUsername || ""} onChange={handleInputChange} className="mt-1" />
+                            <Input id="supportTelegramUsername" placeholder="e.g. PariSupport (without @)" value={settings.supportTelegramUsername || ""} onChange={handleInputChange} className="mt-1" />
                         </div>
                     </div>
                 </div>
@@ -1010,4 +1023,6 @@ export default function AdminPage() {
         </div>
     );
 }
+    
+
     
