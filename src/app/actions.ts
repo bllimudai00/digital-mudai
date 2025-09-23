@@ -111,7 +111,6 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                 
                 const settingsDoc = await getDoc(doc(db, 'settings', 'global'));
                 const settings = settingsDoc.exists() ? settingsDoc.data() as GlobalSettings : null;
-                const referralCode = userIdStr;
                 
                 const newUserDocData: Omit<UserData, 'id' | 'createdAt'> & { createdAt: Timestamp } = {
                     pariBalance: 10,
@@ -119,7 +118,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                     referrals: [],
                     tasks: [],
                     vip: false,
-                    referralCode: referralCode,
+                    referralCode: userIdStr,
                     name: `${tgUser.first_name || ''} ${tgUser.last_name || ''}`.trim(),
                     username: tgUser.username || '', 
                     email: '', 
@@ -927,3 +926,6 @@ export async function migrateOldReferrals() {
 
 
 
+
+
+    
