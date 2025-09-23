@@ -21,6 +21,7 @@ import { db } from "@/lib/firebase/firestore";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 import { AuthContext } from "@/context/AuthContext";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
 function StatCard({ title, value, icon }: { title: string, value: string | number, icon: React.ReactNode }) {
@@ -223,10 +224,56 @@ function DeleteUserDialog({ user, isOpen, onOpenChange, onUserDelete }: { user: 
 }
 
 
+function UserTable({ users, onEdit, onDelete }: { users: UserData[], onEdit: (user: UserData) => void, onDelete: (user: UserData) => void }) {
+    if (users.length === 0) {
+        return <p className="text-muted-foreground text-center p-8">No users found in this category.</p>;
+    }
+    return (
+        <Table>
+            <TableHeader>
+                <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Referred By</TableHead>
+                    <TableHead className="text-center">Referrals</TableHead>
+                    <TableHead className="text-right">Balance</TableHead>
+                    <TableHead className="text-center">VIP</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {users.map((user) => (
+                    <TableRow key={user.id}>
+                        <TableCell className="font-medium">{user.name}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{user.referredByName || 'N/A'}</TableCell>
+                        <TableCell className="text-center font-bold">{user.referralCount || 0}</TableCell>
+                        <TableCell className="text-right">{(typeof user.pariBalance === 'number' ? user.pariBalance : parseFloat(user.pariBalance || '0')).toFixed(4)}</TableCell>
+                        <TableCell className="text-center">
+                            {user.vip ? (
+                                <Badge className="bg-green-500 text-white">Yes</Badge>
+                            ) : (
+                                <Badge variant="secondary">No</Badge>
+                            )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" onClick={() => onEdit(user)}>
+                                <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => onDelete(user)}>
+                                <Trash2 className="w-4 h-4" />
+                            </Button>
+                        </TableCell>
+                    </TableRow>
+                ))}
+            </TableBody>
+        </Table>
+    );
+}
+
 function UserManagementSection({ users, loading, onUpdate }: { users: UserData[], loading: boolean, onUpdate: () => void }) {
     const [editingUser, setEditingUser] = useState<UserData | null>(null);
     const [deletingUser, setDeletingUser] = useState<UserData | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
+    const [activeTab, setActiveTab] = useState("all");
 
     const handleEditClick = (user: UserData) => {
         setEditingUser(user);
@@ -242,9 +289,15 @@ function UserManagementSection({ users, loading, onUpdate }: { users: UserData[]
         onUpdate();
     }
 
-    const filteredUsers = users.filter(user => 
-        user.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredUsers = users
+        .filter(user => {
+            if (activeTab === "vip") return user.vipStatus === 'approved' || user.vip;
+            if (activeTab === "normal") return user.vipStatus !== 'approved' && !user.vip;
+            return true;
+        })
+        .filter(user => 
+            user.name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
 
     if (loading) {
         return <div className="flex justify-center p-8"><Loader className="w-6 h-6 animate-spin" /></div>;
@@ -265,43 +318,22 @@ function UserManagementSection({ users, loading, onUpdate }: { users: UserData[]
                 </div>
             </CardHeader>
             <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Referred By</TableHead>
-                            <TableHead className="text-center">Referrals</TableHead>
-                            <TableHead className="text-right">Balance</TableHead>
-                            <TableHead className="text-center">VIP</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {filteredUsers.map((user) => (
-                            <TableRow key={user.id}>
-                                <TableCell className="font-medium">{user.name}</TableCell>
-                                <TableCell className="text-sm text-muted-foreground">{user.referredByName || 'N/A'}</TableCell>
-                                <TableCell className="text-center font-bold">{user.referralCount || 0}</TableCell>
-                                <TableCell className="text-right">{(typeof user.pariBalance === 'number' ? user.pariBalance : parseFloat(user.pariBalance || '0')).toFixed(4)}</TableCell>
-                                <TableCell className="text-center">
-                                    {user.vip ? (
-                                        <Badge className="bg-green-500 text-white">Yes</Badge>
-                                    ) : (
-                                        <Badge variant="secondary">No</Badge>
-                                    )}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    <Button variant="ghost" size="icon" onClick={() => handleEditClick(user)}>
-                                        <Edit className="w-4 h-4" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setDeletingUser(user)}>
-                                        <Trash2 className="w-4 h-4" />
-                                    </Button>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
+                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                    <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="all">All</TabsTrigger>
+                        <TabsTrigger value="vip">VIP Users</TabsTrigger>
+                        <TabsTrigger value="normal">Normal Users</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="all" className="mt-4">
+                        <UserTable users={filteredUsers} onEdit={handleEditClick} onDelete={setDeletingUser} />
+                    </TabsContent>
+                     <TabsContent value="vip" className="mt-4">
+                        <UserTable users={filteredUsers} onEdit={handleEditClick} onDelete={setDeletingUser} />
+                    </TabsContent>
+                     <TabsContent value="normal" className="mt-4">
+                        <UserTable users={filteredUsers} onEdit={handleEditClick} onDelete={setDeletingUser} />
+                    </TabsContent>
+                </Tabs>
             </CardContent>
              <EditUserDialog 
                 user={editingUser}
@@ -1129,9 +1161,5 @@ export default function AdminPage() {
         </div>
     );
 }
-
-    
-
-    
 
     
