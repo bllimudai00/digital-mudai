@@ -542,7 +542,7 @@ export async function claimReward(userId: string) {
             const baseRate = settings?.baseRate || 10.0;
 
             const baseReward = baseRate * 4;
-            const finalReward = userData.vip ? baseReward * 2 : baseReward;
+            const finalReward = userData.vipStatus === 'approved' ? baseReward * 2 : baseReward;
             rewardAmount = finalReward;
 
             const newHistoryItem = {
