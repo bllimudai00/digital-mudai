@@ -27,14 +27,12 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
         return { error: 'Invalid authentication data: Missing user data.' };
     }
     
-    // In dev mode, we might not have a hash, so we can bypass validation.
-    // In production, hash is required.
     if (!isDevEnv) {
         if (!hash) {
             return { error: 'Invalid authentication data: Missing hash.' };
         }
         const dataCheckArr = [];
-        urlParams.sort(); // Sort parameters alphabetically by key
+        urlParams.sort();
         for (const [key, value] of urlParams.entries()) {
             if (key !== 'hash') {
                 dataCheckArr.push(`${key}=${value}`);
@@ -62,7 +60,6 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
             const userSnap = await transaction.get(userRef);
             
             if (userSnap.exists()) {
-                // --- EXISTING USER LOGIC ---
                 const existingUser = serializeFirestoreTimestamps({ id: userSnap.id, ...userSnap.data() }) as UserData;
                 const updates: Partial<UserData> = {};
                 let needsUpdate = false;
@@ -93,9 +90,9 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
 
                 return { user: { ...existingUser, ...updates }, isNewUser: false };
             } else {
-                // --- NEW USER CREATION LOGIC ---
                 let referrerId: string | null = null;
                 let referrerRef: any = null;
+                let referrerUsername: string | null = null;
 
                 if (startParam) { 
                     const potentialReferrerRefById = doc(db, "users", startParam);
@@ -104,6 +101,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                     if (referrerSnapById.exists()) {
                         referrerId = referrerSnapById.id;
                         referrerRef = potentialReferrerRefById;
+                        referrerUsername = referrerSnapById.data()?.username || referrerSnapById.data()?.name || null;
                     } else {
                         console.log(`[Referral] No referrer found for ID: ${startParam}`);
                     }
@@ -141,6 +139,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                     transaction.update(referrerRef, {
                         referrals: arrayUnion(userIdStr)
                     });
+                     // We will call the message sending function after the transaction
                 }
                 
                 const serializedUser: UserData = {
@@ -163,6 +162,13 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                     ...(newUserDocData.referredBy && { referredBy: newUserDocData.referredBy })
                 };
                 
+                // If a new user was created via referral, send them a message.
+                if (referrerUsername) {
+                    // This must be called outside the transaction
+                    const newUsername = tgUser.username || tgUser.first_name || 'there';
+                    sendWelcomeMessageOnUserCreate(userIdStr, newUsername, referrerUsername);
+                }
+                
                 return { user: serializedUser, isNewUser: true };
             }
         });
@@ -172,6 +178,57 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
     } catch (error: any) {
         console.error(`[User Verification Transaction Failed] for user: ${userIdStr}, with startParam: ${startParam}. Error: `, error);
         return { error: `Database transaction error: ${error.message}` };
+    }
+}
+
+
+/**
+ * Sends a welcome message to a new user via Telegram Bot API.
+ * This function is intended to be triggered after a new user is created.
+ * NOTE: This is a server-side action and requires the TELEGRAM_BOT_TOKEN env var.
+ */
+export async function sendWelcomeMessageOnUserCreate(newUserId: string, newUsername: string, referrerUsername: string) {
+    'use server';
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+
+    if (!botToken) {
+        console.error('[sendWelcomeMessage] TELEGRAM_BOT_TOKEN is not set.');
+        return { success: false, error: "Server misconfiguration: Bot token not found." };
+    }
+    
+    if (!newUserId || !referrerUsername) {
+        console.log('[sendWelcomeMessage] Skipping message, missing new user ID or referrer username.');
+        return { success: false, error: "Missing user or referrer details." };
+    }
+
+    const message = `👋 Hey, @${newUsername}!\n\nYou have been invited by @${referrerUsername}.\n\nPARI was added on your balance.`;
+    const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                chat_id: newUserId,
+                text: message,
+            }),
+        });
+
+        const result = await response.json();
+
+        if (!result.ok) {
+            console.error('[sendWelcomeMessage] Telegram API Error:', result.description);
+            return { success: false, error: `Telegram API error: ${result.description}` };
+        }
+        
+        console.log(`[sendWelcomeMessage] Successfully sent welcome message to user ${newUserId}`);
+        return { success: true };
+
+    } catch (error: any) {
+        console.error('[sendWelcomeMessage] Failed to send message:', error);
+        return { success: false, error: `Failed to send message: ${error.message}` };
     }
 }
 
@@ -927,5 +984,7 @@ export async function migrateOldReferrals() {
 
 
 
+
+    
 
     
