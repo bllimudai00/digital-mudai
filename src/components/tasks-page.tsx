@@ -199,8 +199,6 @@ export default function TasksPage() {
   useEffect(() => {
     if (!authContext?.user?.id) return;
 
-    let tasksLoaded = false;
-
     // Listen for user data
     const userRef = doc(db, 'users', authContext.user.id);
     const unsubscribeUser = onSnapshot(userRef, (doc) => {
@@ -217,10 +215,8 @@ export default function TasksPage() {
     const unsubscribeTasks = onSnapshot(q, (snapshot) => {
         const tasksList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Task);
         setTasks(tasksList);
-        tasksLoaded = true;
     }, (error) => {
         console.error("Error fetching real-time tasks:", error);
-        tasksLoaded = true;
     });
 
     return () => {
@@ -246,6 +242,8 @@ export default function TasksPage() {
     }
   };
 
+  const pendingTasks = userData ? tasks.filter(task => !userData.tasks.includes(task.id)) : [];
+
   if (authContext?.loading || !userData) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -263,9 +261,21 @@ export default function TasksPage() {
         </div>
         {tasks.length > 0 ? (
             <div className="space-y-4">
-            {tasks.map((task) => (
+            {pendingTasks.length > 0 ? (
+              pendingTasks.map((task) => (
                 <TaskCard key={task.id} task={task} userData={userData} onClaim={handleClaim} />
-            ))}
+              ))
+            ) : (
+              <Card className="bg-card/80 backdrop-blur-sm text-center p-8">
+                <CardContent className="p-0 flex flex-col items-center">
+                  <BadgeCheck className="w-12 h-12 text-green-400 mb-4" />
+                  <h2 className="text-lg font-semibold">All Tasks Completed!</h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    You've completed all available tasks. Check back later for more.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
             </div>
         ) : (
              <Card className="bg-card/80 backdrop-blur-sm text-center p-8">
@@ -291,5 +301,3 @@ export default function TasksPage() {
     </div>
   );
 }
-
-    
