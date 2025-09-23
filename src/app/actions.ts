@@ -56,6 +56,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
     const userRef = doc(db, 'users', userIdStr);
     
     try {
+        let postTransactionAction: (() => Promise<void>) | null = null;
         const { user, isNewUser } = await runTransaction(db, async (transaction) => {
             const userSnap = await transaction.get(userRef);
             
@@ -139,7 +140,11 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                     transaction.update(referrerRef, {
                         referrals: arrayUnion(userIdStr)
                     });
-                     // We will call the message sending function after the transaction
+                     
+                    if (referrerUsername) {
+                        const newUsername = tgUser.username || tgUser.first_name || 'there';
+                        postTransactionAction = () => sendWelcomeMessageOnUserCreate(userIdStr, newUsername, referrerUsername!);
+                    }
                 }
                 
                 const serializedUser: UserData = {
@@ -162,16 +167,13 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                     ...(newUserDocData.referredBy && { referredBy: newUserDocData.referredBy })
                 };
                 
-                // If a new user was created via referral, send them a message.
-                if (referrerUsername) {
-                    // This must be called outside the transaction
-                    const newUsername = tgUser.username || tgUser.first_name || 'there';
-                    sendWelcomeMessageOnUserCreate(userIdStr, newUsername, referrerUsername);
-                }
-                
                 return { user: serializedUser, isNewUser: true };
             }
         });
+
+        if (postTransactionAction) {
+            await postTransactionAction();
+        }
 
         return { user, isNewUser };
 
