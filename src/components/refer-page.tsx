@@ -181,7 +181,7 @@ export default function ReferPage() {
     });
   };
 
-  const referralLink = userData?.referralCode ? `https://t.me/Parinetworkbot/main?startapp=${userData.referralCode}` : "";
+  const referralLink = userData?.referralCode ? `http://t.me/Parinetworkbot/parinetwork?startapp=${userData.referralCode}` : "";
 
   if (authContext?.loading || !userData) {
     return (
@@ -326,7 +326,5 @@ export default function ReferPage() {
     </div>
   );
 }
-
-
 
     
