@@ -4,7 +4,7 @@
 import { useEffect, useState, useContext } from "react";
 import type { UserData, GlobalSettings, Task, RoadmapPhase, WhitePaperSection, RoadmapItem, ContestSettings, ContestEntry } from "@/lib/types";
 import { getVipRequests, updateVipStatus, getUsers, updateUserFromAdmin, deleteUser, getGlobalSettings, updateGlobalSettings, getTasks, deleteTask, addTask, updateTask, saveRoadmap, saveWhitePaper, getContestSettings, saveContestWinners, migrateOldReferrals } from "@/app/actions";
-import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck, Zap, ListChecks, ExternalLink, Map, FileText, GripVertical, Plus, Image as ImageIcon, Trophy, Database, Search } from "lucide-react";
+import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck, Zap, ListChecks, ExternalLink, Map, FileText, GripVertical, Plus, Image as ImageIcon, Trophy, Database, Search, Settings, FileEdit, Tool, UserCog } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -373,10 +373,7 @@ function GlobalSettingsSection({ onUpdate }: { onUpdate: () => void}) {
 
     return (
         <Card className="bg-card/50 backdrop-blur-sm border-blue-500/20">
-            <CardHeader>
-                <CardTitle>Global Settings</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 pt-6">
                  <div className="grid md:grid-cols-2 gap-6">
                     <div>
                         <Label htmlFor="baseRate">Global Base Rate (/hr)</Label>
@@ -492,10 +489,7 @@ function DataMigrationSection({ onUpdate }: { onUpdate: () => void}) {
     return (
         <>
             <Card className="bg-card/50 backdrop-blur-sm border-orange-500/20">
-                <CardHeader>
-                    <CardTitle>Data Migration</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 pt-6">
                     <p className="text-sm text-muted-foreground">
                         Use these actions for one-time data corrections. Please backup your database before running any migration.
                     </p>
@@ -1026,6 +1020,20 @@ function ContestManagementSection({ onUpdate }: { onUpdate: () => void }) {
     );
 }
 
+const AdminAccordionItem = ({ icon, title, value, children }: { icon: React.ReactNode, title: string, value: string, children: React.ReactNode }) => (
+    <AccordionItem value={value} className="bg-card/30 backdrop-blur-sm border border-blue-500/10 rounded-lg">
+        <AccordionTrigger className="p-4 text-lg hover:no-underline">
+            <div className="flex items-center gap-3">
+                {icon}
+                {title}
+            </div>
+        </AccordionTrigger>
+        <AccordionContent className="p-4 pt-0">
+            {children}
+        </AccordionContent>
+    </AccordionItem>
+)
+
 export default function AdminPage() {
     const authContext = useContext(AuthContext);
     const { user: currentUser } = authContext || {};
@@ -1091,15 +1099,33 @@ export default function AdminPage() {
             </header>
             
             <DashboardStatsSection users={allUsers} vipRequests={vipRequests} />
-            <GlobalSettingsSection onUpdate={handleDataUpdate} />
-            <DataMigrationSection onUpdate={handleDataUpdate} />
-            <UserManagementSection users={allUsers} loading={loading} onUpdate={handleDataUpdate} />
-            <VipRequestSection vipRequests={vipRequests} loading={loading} onUpdate={handleDataUpdate} />
-            <TaskManagementSection onUpdate={handleDataUpdate} />
-            <ContestManagementSection onUpdate={handleDataUpdate} />
-            <RoadmapManagementSection onUpdate={handleDataUpdate} />
-            <WhitePaperManagementSection onUpdate={handleDataUpdate} />
 
+            <Accordion type="multiple" className="w-full space-y-4">
+                <AdminAccordionItem value="global-settings" title="Global App Settings" icon={<Settings className="w-5 h-5 text-primary" />}>
+                    <GlobalSettingsSection onUpdate={handleDataUpdate} />
+                </AdminAccordionItem>
+                
+                <AdminAccordionItem value="user-management" title="User Management" icon={<UserCog className="w-5 h-5 text-primary" />}>
+                     <UserManagementSection users={allUsers} loading={loading} onUpdate={handleDataUpdate} />
+                </AdminAccordionItem>
+                
+                <AdminAccordionItem value="vip-requests" title="VIP Requests" icon={<ShieldCheck className="w-5 h-5 text-primary" />}>
+                    <VipRequestSection vipRequests={vipRequests} loading={loading} onUpdate={handleDataUpdate} />
+                </AdminAccordionItem>
+                
+                <AdminAccordionItem value="content-management" title="Content Management" icon={<FileEdit className="w-5 h-5 text-primary" />}>
+                    <div className="space-y-4">
+                        <TaskManagementSection onUpdate={handleDataUpdate} />
+                        <ContestManagementSection onUpdate={handleDataUpdate} />
+                        <RoadmapManagementSection onUpdate={handleDataUpdate} />
+                        <WhitePaperManagementSection onUpdate={handleDataUpdate} />
+                    </div>
+                </AdminAccordionItem>
+
+                 <AdminAccordionItem value="advanced-tools" title="Advanced Tools" icon={<Tool className="w-5 h-5 text-primary" />}>
+                    <DataMigrationSection onUpdate={handleDataUpdate} />
+                </AdminAccordionItem>
+            </Accordion>
         </div>
     );
 }
