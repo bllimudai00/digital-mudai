@@ -201,8 +201,10 @@ export async function sendWelcomeMessageOnUserCreate(newUserId: string, newUsern
         return { success: false, error: "Missing user or referrer details." };
     }
 
-    const message = `👋 Hey, @${newUsername}!\n\nYou have been invited by @${referrerUsername}.\n\nPARI was added on your balance.`;
+    const message = `👋 Hey, @${newUsername}!\n\nYou have been invited by @${referrerUsername}.\n\nPARI COIN was added on your balance.`;
     const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+    
+    const botUrl = `https://t.me/${process.env.TELEGRAM_BOT_USERNAME || 'parinetworkbot'}`;
 
     try {
         const response = await fetch(url, {
@@ -213,13 +215,23 @@ export async function sendWelcomeMessageOnUserCreate(newUserId: string, newUsern
             body: JSON.stringify({
                 chat_id: newUserId,
                 text: message,
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            {
+                                text: '⚡️ Start Mining',
+                                web_app: { url: `${botUrl}/parinetwork?startapp` }
+                            }
+                        ]
+                    ]
+                }
             }),
         });
 
         const result = await response.json();
 
         if (!result.ok) {
-            console.error('[sendWelcomeMessage] Telegram API Error:', result.description);
+            console.error('[sendWelcomeMessage] Telegram API Error:', result.description, result);
             return { success: false, error: `Telegram API error: ${result.description}` };
         }
         
