@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useContext } from "react";
 import type { UserData, GlobalSettings, Task, RoadmapPhase, WhitePaperSection, RoadmapItem, ContestSettings, ContestEntry } from "@/lib/types";
-import { getVipRequests, updateVipStatus, getUsers, updateUserFromAdmin, deleteUser, getGlobalSettings, updateGlobalSettings, getTasks, deleteTask, addTask, updateTask, saveRoadmap, saveWhitePaper, getContestSettings, saveContestWinners, migrateOldReferrals } from "@/app/actions";
+import { getVipRequests, updateVipStatus, getUsers, updateUserFromAdmin, deleteUser, getGlobalSettings, updateGlobalSettings, getTasks, deleteTask, addTask, updateTask, getRoadmap, saveRoadmap, getWhitePaper, saveWhitePaper, getContestSettings, saveContestWinners, migrateOldReferrals } from "@/app/actions";
 import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck, Zap, ListChecks, ExternalLink, Map, FileText, GripVertical, Plus, Image as ImageIcon, Trophy, Database, Search, Settings, FileEdit, Wrench, UserCog } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -126,6 +126,7 @@ function EditUserDialog({ user, isOpen, onOpenChange, onUserUpdate }: { user: Us
                 name: user.name,
                 email: user.email,
                 pariBalance: user.pariBalance,
+                referralEarnings: user.referralEarnings,
             });
         }
     }, [user]);
@@ -134,12 +135,22 @@ function EditUserDialog({ user, isOpen, onOpenChange, onUserUpdate }: { user: Us
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        setEditedUser(prev => ({ ...prev, [name]: name === 'pariBalance' ? parseFloat(value) || 0 : value }));
+        setEditedUser(prev => ({ ...prev, [name]: value }));
     };
-
+    
     const handleSave = async () => {
         setIsSaving(true);
-        const result = await updateUserFromAdmin(user.id, editedUser);
+    
+        const dataToUpdate: Partial<UserData> = { ...editedUser };
+        
+        if (dataToUpdate.pariBalance !== undefined) {
+            dataToUpdate.pariBalance = parseFloat(dataToUpdate.pariBalance as any) || 0;
+        }
+        if (dataToUpdate.referralEarnings !== undefined) {
+            dataToUpdate.referralEarnings = parseFloat(dataToUpdate.referralEarnings as any) || 0;
+        }
+
+        const result = await updateUserFromAdmin(user.id, dataToUpdate);
         setIsSaving(false);
         if (result.success) {
             toast({ title: "Success", description: "User updated successfully." });
@@ -168,6 +179,10 @@ function EditUserDialog({ user, isOpen, onOpenChange, onUserUpdate }: { user: Us
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="pariBalance" className="text-right">PARI Balance</Label>
                         <Input id="pariBalance" name="pariBalance" type="number" value={editedUser.pariBalance || 0} onChange={handleInputChange} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="referralEarnings" className="text-right">Referral Earnings</Label>
+                        <Input id="referralEarnings" name="referralEarnings" type="number" value={editedUser.referralEarnings || 0} onChange={handleInputChange} className="col-span-3" />
                     </div>
                 </div>
                 <DialogFooter>
@@ -771,23 +786,21 @@ function RoadmapManagementSection({ onUpdate }: { onUpdate: () => void }) {
     const { toast } = useToast();
 
     useEffect(() => {
-        const roadmapCollection = collection(db, 'roadmap');
-        const q = query(roadmapCollection, orderBy('order'));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            if (snapshot.empty) {
-                // Seed initial data if empty
-                const initialPhases: RoadmapPhase[] = [
+        const fetchRoadmap = async () => {
+            setLoading(true);
+            const roadmapData = await getRoadmap();
+             if (roadmapData.length === 0) {
+                 const initialPhases: RoadmapPhase[] = [
                     { id: "1", order: 1, phase: "Phase 1", title: "Foundation & Launch", status: "Completed", items: [{ text: "Concept and Idea Finalization" }, { text: "Core Team Formation" }] },
                     { id: "2", order: 2, phase: "Phase 2", title: "Growth & Engagement", status: "In Progress", items: [{ text: "VIP Membership Program Launch" }, { text: "Referral Contest Implementation" }] }
                 ];
                 setPhases(initialPhases);
-            } else {
-                const phasesList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RoadmapPhase));
-                setPhases(phasesList);
-            }
+             } else {
+                setPhases(roadmapData);
+             }
             setLoading(false);
-        });
-        return () => unsubscribe();
+        };
+        fetchRoadmap();
     }, []);
 
     const handlePhaseChange = (index: number, field: keyof RoadmapPhase, value: any) => {
@@ -892,22 +905,21 @@ function WhitePaperManagementSection({ onUpdate }: { onUpdate: () => void }) {
     const { toast } = useToast();
 
     useEffect(() => {
-        const whitepaperCollection = collection(db, 'whitepaper');
-        const q = query(whitepaperCollection, orderBy('order'));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            if (snapshot.empty) {
-                const initialSections: WhitePaperSection[] = [
+        const fetchWhitePaper = async () => {
+            setLoading(true);
+            const wpData = await getWhitePaper();
+            if (wpData.length === 0) {
+                 const initialSections: WhitePaperSection[] = [
                     { id: "1", order: 1, title: "1. Introduction", content: "PARI Network is a pioneering mobile-first platform..." },
                     { id: "2", order: 2, title: "2. Vision & Mission", content: "Our vision is to onboard the next billion users into Web3..." }
                 ];
                 setSections(initialSections);
             } else {
-                const sectionsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WhitePaperSection));
-                setSections(sectionsList);
+                setSections(wpData);
             }
             setLoading(false);
-        });
-        return () => unsubscribe();
+        };
+       fetchWhitePaper();
     }, []);
 
     const handleSectionChange = (index: number, field: keyof WhitePaperSection, value: any) => {
@@ -1132,7 +1144,7 @@ export default function AdminPage() {
             
             <DashboardStatsSection users={allUsers} vipRequests={vipRequests} />
 
-            <Accordion type="multiple" className="w-full space-y-4">
+            <Accordion type="multiple" className="w-full space-y-4" defaultValue={["user-management"]}>
                 <AdminAccordionItem value="global-settings" title="Global App Settings" icon={<Settings className="w-5 h-5 text-primary" />}>
                     <GlobalSettingsSection onUpdate={handleDataUpdate} />
                 </AdminAccordionItem>
