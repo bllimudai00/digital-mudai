@@ -83,7 +83,7 @@ function StatCard({ icon, title, value, className }: { icon: React.ReactNode, ti
       <CardContent className="p-0 flex items-center gap-4">
         <div className="p-3 bg-black/20 rounded-xl">{icon}</div>
         <div>
-          <h3 className="font-bold text-white text-2xl">{value}</h3>
+          <h3 className="font-bold text-white text-xl">{value}</h3>
           <p className="text-sm text-muted-foreground">{title}</p>
         </div>
       </CardContent>
@@ -267,7 +267,7 @@ export default function MiningPage() {
   }
 
   const baseRate = settings?.baseRate ?? userData?.baseRate ?? 10.0;
-  const rewardAmount = userData ? (baseRate * 4 * (userData.vip ? 2 : 1)) : 40;
+  const rewardAmount = userData ? (baseRate * 4 * (userData.vipStatus === 'approved' ? 2 : 1)) : 40;
 
   const getCardContent = () => {
     switch(miningState){
