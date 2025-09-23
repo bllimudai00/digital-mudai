@@ -39,7 +39,7 @@ function StatCard({ title, value, icon }: { title: string, value: string | numbe
 
 function DashboardStatsSection({ users, vipRequests }: { users: UserData[], vipRequests: UserData[] }) {
     const totalUsers = users.length;
-    const vipUsers = users.filter(u => u.vip).length;
+    const vipUsers = users.filter(u => u.vipStatus === 'approved').length;
     const pendingRequests = vipRequests.length;
 
     return (
@@ -1129,3 +1129,5 @@ export default function AdminPage() {
         </div>
     );
 }
+
+    
