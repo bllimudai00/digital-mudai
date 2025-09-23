@@ -809,20 +809,27 @@ export async function getRoadmap(): Promise<RoadmapPhase[]> {
 export async function saveRoadmap(phases: RoadmapPhase[]) {
     'use server';
     try {
-        const batch = writeBatch(db);
-        phases.forEach(phase => {
-            const { id, ...data } = phase;
-            const docRef = doc(db, 'roadmap', id || doc(collection(db, 'roadmap')).id);
-            batch.set(docRef, data);
+        await runTransaction(db, async (transaction) => {
+            phases.forEach(phase => {
+                const { id, ...data } = phase;
+                let docRef;
+                 if (id && !id.startsWith('new_')) {
+                    docRef = doc(db, 'roadmap', id);
+                } else {
+                    docRef = doc(collection(db, 'roadmap'));
+                }
+                transaction.set(docRef, data);
+            });
         });
-        await batch.commit();
         revalidatePath('/admin');
         revalidatePath('/roadmap');
         return { success: true };
     } catch (error: any) {
+        console.error("Error saving roadmap:", error);
         return { success: false, error: error.message };
     }
 }
+
 
 export async function getWhitePaper(): Promise<WhitePaperSection[]> {
     const whitepaperRef = collection(db, 'whitepaper');
@@ -837,20 +844,27 @@ export async function getWhitePaper(): Promise<WhitePaperSection[]> {
 export async function saveWhitePaper(sections: WhitePaperSection[]) {
     'use server';
     try {
-        const batch = writeBatch(db);
-        sections.forEach(section => {
-            const { id, ...data } = section;
-            const docRef = doc(db, 'whitepaper', id || doc(collection(db, 'whitepaper')).id);
-            batch.set(docRef, data);
+        await runTransaction(db, async (transaction) => {
+            sections.forEach(section => {
+                const { id, ...data } = section;
+                let docRef;
+                if (id && !id.startsWith('new_')) {
+                    docRef = doc(db, 'whitepaper', id);
+                } else {
+                    docRef = doc(collection(db, 'whitepaper'));
+                }
+                transaction.set(docRef, data);
+            });
         });
-        await batch.commit();
         revalidatePath('/admin');
         revalidatePath('/white-paper');
         return { success: true };
     } catch (error: any) {
+        console.error("Error saving white paper:", error);
         return { success: false, error: error.message };
     }
 }
+
 
 // --- Contest ---
 
