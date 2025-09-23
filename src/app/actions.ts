@@ -82,8 +82,8 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                     updates.referralCode = userIdStr;
                     needsUpdate = true;
                 }
-                 if(existingUser.username !== tgUser.username) {
-                    updates.username = tgUser.username;
+                 if(existingUser.username !== (tgUser.username || '')) {
+                    updates.username = tgUser.username || '';
                     needsUpdate = true;
                 }
 
@@ -121,7 +121,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                     vip: false,
                     referralCode: referralCode,
                     name: `${tgUser.first_name || ''} ${tgUser.last_name || ''}`.trim(),
-                    username: tgUser.username || '',
+                    username: tgUser.username || '', 
                     email: '', 
                     createdAt: serverTimestamp(),
                     sessionEndTime: null,
@@ -924,4 +924,5 @@ export async function migrateOldReferrals() {
     
 
     
+
 
