@@ -720,6 +720,15 @@ export async function updateUserFromAdmin(userId: string, dataToUpdate: Partial<
     const userRef = doc(db, 'users', userId);
 
     const { id, ...updateData } = dataToUpdate; 
+    
+    // Ensure numeric fields are correctly typed
+    if (updateData.pariBalance !== undefined) {
+        updateData.pariBalance = parseFloat(updateData.pariBalance as any) || 0;
+    }
+    if (updateData.referralEarnings !== undefined) {
+        updateData.referralEarnings = parseFloat(updateData.referralEarnings as any) || 0;
+    }
+
 
     try {
         await updateDoc(userRef, updateData as any);
