@@ -7,7 +7,7 @@ import { ArrowLeft, Loader, Trophy, Users } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useContext } from "react";
 import type { UserData, ContestSettings, ContestEntry } from "@/lib/types";
-import { getContestSettings, getUsers } from "@/app/actions";
+import { getContestSettings } from "@/app/actions";
 import { AuthContext } from "@/context/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 

@@ -947,6 +947,85 @@ function WhitePaperManagementSection({ onUpdate }: { onUpdate: () => void }) {
     )
 }
 
+function ContestManagementSection({ onUpdate }: { onUpdate: () => void }) {
+    const [winners, setWinners] = useState<ContestEntry[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const { toast } = useToast();
+
+    useEffect(() => {
+        const fetchWinners = async () => {
+            setLoading(true);
+            const settings = await getContestSettings();
+            setWinners(settings.winners);
+            setLoading(false);
+        };
+        fetchWinners();
+    }, []);
+
+    const handleWinnerChange = (index: number, field: keyof ContestEntry, value: string | number) => {
+        const newWinners = [...winners];
+        (newWinners[index] as any)[field] = value;
+        setWinners(newWinners);
+    };
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        const result = await saveContestWinners(winners);
+        if (result.success) {
+            toast({ title: "Success", description: "Contest winners updated." });
+            onUpdate();
+        } else {
+            toast({ title: "Error", description: result.error, variant: "destructive" });
+        }
+        setIsSaving(false);
+    };
+
+    return (
+        <Card className="bg-card/50 backdrop-blur-sm border-blue-500/20">
+            <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Referral Contest Management</CardTitle>
+                <Button onClick={handleSave} disabled={isSaving || loading}>
+                    {isSaving ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : <Trophy className="w-4 h-4 mr-2" />}
+                    Save Winners
+                </Button>
+            </CardHeader>
+            <CardContent>
+                {loading ? <div className="flex justify-center p-8"><Loader className="w-6 h-6 animate-spin"/></div> :
+                <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">Manually set the top 10 winners for the referral contest leaderboard.</p>
+                    {winners.map((winner, index) => (
+                        <div key={index} className="flex items-center gap-4 p-3 bg-background rounded-lg">
+                            <span className="font-bold text-lg w-6 text-center">{index + 1}</span>
+                            <div className="flex-1 grid grid-cols-2 gap-4">
+                                <div>
+                                    <Label htmlFor={`winner-name-${index}`} className="text-xs">Winner Name</Label>
+                                    <Input
+                                        id={`winner-name-${index}`}
+                                        value={winner.name}
+                                        onChange={e => handleWinnerChange(index, 'name', e.target.value)}
+                                        placeholder="e.g. John Doe"
+                                    />
+                                </div>
+                                <div>
+                                    <Label htmlFor={`winner-count-${index}`} className="text-xs">Referral Count</Label>
+                                    <Input
+                                        id={`winner-count-${index}`}
+                                        type="number"
+                                        value={winner.referralCount}
+                                        onChange={e => handleWinnerChange(index, 'referralCount', parseInt(e.target.value) || 0)}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                }
+            </CardContent>
+        </Card>
+    );
+}
+
 export default function AdminPage() {
     const authContext = useContext(AuthContext);
     const { user: currentUser } = authContext || {};
@@ -1017,12 +1096,10 @@ export default function AdminPage() {
             <UserManagementSection users={allUsers} loading={loading} onUpdate={handleDataUpdate} />
             <VipRequestSection vipRequests={vipRequests} loading={loading} onUpdate={handleDataUpdate} />
             <TaskManagementSection onUpdate={handleDataUpdate} />
+            <ContestManagementSection onUpdate={handleDataUpdate} />
             <RoadmapManagementSection onUpdate={handleDataUpdate} />
             <WhitePaperManagementSection onUpdate={handleDataUpdate} />
 
         </div>
     );
 }
-    
-
-    

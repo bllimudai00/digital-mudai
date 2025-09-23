@@ -220,7 +220,7 @@ export async function sendWelcomeMessageOnUserCreate(newUserId: string, newUsern
                         [
                             {
                                 text: '⚡️ Start Mining',
-                                web_app: { url: `${botUrl}/parinetwork?startapp` }
+                                web_app: { url: `${botUrl}` }
                             }
                         ]
                     ]
@@ -296,7 +296,7 @@ export async function seedInitialData() {
     const contestSnap = await getDoc(contestRef);
     if (!contestSnap.exists()) {
         await setDoc(contestRef, { 
-            winners: Array(5).fill({ name: "N/A", referralCount: 0 })
+            winners: Array(10).fill({ name: "N/A", referralCount: 0 })
         });
         console.log("Initial contest settings seeded.");
     }
@@ -845,55 +845,30 @@ export async function saveWhitePaper(sections: WhitePaperSection[]) {
 
 // --- Contest ---
 
-export async function getContestSettings(manualOnly = false): Promise<ContestSettings> {
+export async function getContestSettings(): Promise<ContestSettings> {
     const contestRef = doc(db, 'contest', 'settings');
     const contestSnap = await getDoc(contestRef);
-    let manualWinners: ContestEntry[] = Array(5).fill({ name: "N/A", referralCount: 0 });
 
     if (contestSnap.exists()) {
         const data = contestSnap.data() as ContestSettings;
-        if (data.winners) {
-            manualWinners = data.winners;
+        // Ensure there are always 10 winners, filling with N/A if needed
+        const winners = data.winners || [];
+        while (winners.length < 10) {
+            winners.push({ name: "N/A", referralCount: 0 });
         }
+        return { winners: winners.slice(0, 10) };
     }
-
-    if (manualOnly) {
-        return { winners: manualWinners };
-    }
-
-    const manualWinnerNames = manualWinners.map(w => w.name).filter(name => name !== "N/A");
     
-    // Fetch all users and calculate referralCount on the fly
-    const allUsers = await getUsers(); 
-
-    const automaticWinners: ContestEntry[] = allUsers
-        .filter(user => user.name && !manualWinnerNames.includes(user.name))
-        .map(user => ({
-            name: user.name,
-            referralCount: user.referrals?.length || 0,
-        }))
-        .sort((a, b) => b.referralCount - a.referralCount);
-
-    const finalWinners = [...manualWinners];
-    const remainingSlots = 10 - finalWinners.length;
-    if (remainingSlots > 0) {
-      finalWinners.push(...automaticWinners.slice(0, remainingSlots));
-    }
-
-    // Ensure we always have 10 winners, filling with N/A if needed
-    while (finalWinners.length < 10) {
-        finalWinners.push({ name: 'N/A', referralCount: 0 });
-    }
-
-    return { winners: finalWinners.slice(0, 10) };
+    // Default if not set
+    return { winners: Array(10).fill({ name: "N/A", referralCount: 0 }) };
 }
 
 export async function saveContestWinners(winners: ContestEntry[]) {
     'use server';
     const contestRef = doc(db, 'contest', 'settings');
     try {
-        // We only save the manually entered winners (top 5)
-        await setDoc(contestRef, { winners: winners.slice(0, 5) });
+        // Save all 10 winners
+        await setDoc(contestRef, { winners: winners.slice(0, 10) });
         revalidatePath('/admin');
         revalidatePath('/referral-contest');
         return { success: true };
@@ -977,26 +952,3 @@ export async function migrateOldReferrals() {
         return { success: false, error: `Migration failed: ${error.message}` };
     }
 }
-    
-
-    
-
-    
-
-
-
-    
-
-    
-
-    
-
-    
-
-
-
-
-
-    
-
-    

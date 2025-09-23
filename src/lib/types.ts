@@ -105,5 +105,3 @@ export type ContestEntry = {
 export type ContestSettings = {
     winners: ContestEntry[];
 }
-
-    
