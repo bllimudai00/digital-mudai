@@ -409,5 +409,3 @@ export default function MiningPage() {
     </div>
   );
 }
-
-    
