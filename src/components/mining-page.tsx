@@ -45,7 +45,7 @@ function BalanceCard({
           {icon}
           <span>{label}</span>
         </div>
-        <div className="font-bold mt-1 text-4xl">
+        <div className="font-bold mt-1 text-[clamp(1.75rem,1.25rem+2.5vw,2.25rem)]">
           {value}
         </div>
       </CardContent>
@@ -83,7 +83,7 @@ function StatCard({ icon, title, value, className }: { icon: React.ReactNode, ti
       <CardContent className="p-0 flex items-center gap-4">
         <div className="p-3 bg-black/20 rounded-xl">{icon}</div>
         <div>
-          <h3 className="font-bold text-white text-xl">{value}</h3>
+          <h3 className="font-bold text-white text-[clamp(1.125rem,1rem+0.625vw,1.25rem)]">{value}</h3>
           <p className="text-sm text-muted-foreground">{title}</p>
         </div>
       </CardContent>
@@ -274,21 +274,21 @@ export default function MiningPage() {
         case 'mining':
             return (
                 <>
-                    <h2 className="text-3xl font-bold font-mono tracking-widest">{formatTime(timeRemaining)}</h2>
+                    <h2 className="text-[clamp(1.5rem,1rem+2.5vw,1.875rem)] font-bold font-mono tracking-widest">{formatTime(timeRemaining)}</h2>
                     <p className="text-muted-foreground text-sm">Until session complete</p>
                 </>
             );
         case 'claimable':
              return (
                 <>
-                    <h2 className="text-3xl font-bold">Session Complete</h2>
+                    <h2 className="text-[clamp(1.5rem,1rem+2.5vw,1.875rem)] font-bold">Session Complete</h2>
                     <p className="text-muted-foreground text-sm">Claim your {rewardAmount.toFixed(4)} PARI reward!</p>
                 </>
             );
         default:
              return (
                 <>
-                    <h2 className="text-3xl font-bold">Start New Session</h2>
+                    <h2 className="text-[clamp(1.5rem,1rem+2.5vw,1.875rem)] font-bold">Start New Session</h2>
                     <p className="text-muted-foreground text-sm">Tap to start mining PARI</p>
                 </>
             );
@@ -413,3 +413,4 @@ export default function MiningPage() {
     
 
     
+
