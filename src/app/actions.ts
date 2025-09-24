@@ -977,7 +977,3 @@ export async function migrateOldReferrals() {
         return { success: false, error: `Migration failed: ${error.message}` };
     }
 }
-
-    
-
-    
