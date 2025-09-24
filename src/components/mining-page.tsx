@@ -45,7 +45,7 @@ function BalanceCard({
           {icon}
           <span>{label}</span>
         </div>
-        <div className="font-bold mt-1 text-4xl">
+        <div className="font-bold mt-1 text-[clamp(2.25rem,10vw,2.5rem)]">
           {value}
         </div>
       </CardContent>
@@ -274,21 +274,21 @@ export default function MiningPage() {
         case 'mining':
             return (
                 <>
-                    <h2 className="text-3xl font-bold font-mono tracking-widest">{formatTime(timeRemaining)}</h2>
+                    <h2 className="text-[clamp(1.875rem,8vw,2.25rem)] font-bold font-mono tracking-widest">{formatTime(timeRemaining)}</h2>
                     <p className="text-muted-foreground text-sm">Until session complete</p>
                 </>
             );
         case 'claimable':
              return (
                 <>
-                    <h2 className="text-3xl font-bold">Session Complete</h2>
+                    <h2 className="text-[clamp(1.5rem,7vw,1.875rem)] font-bold">Session Complete</h2>
                     <p className="text-muted-foreground text-sm">Claim your {rewardAmount.toFixed(4)} PARI reward!</p>
                 </>
             );
         default:
              return (
                 <>
-                    <h2 className="text-3xl font-bold">Start New Session</h2>
+                    <h2 className="text-[clamp(1.5rem,7vw,1.875rem)] font-bold">Start New Session</h2>
                     <p className="text-muted-foreground text-sm">Tap to start mining PARI</p>
                 </>
             );
@@ -409,6 +409,8 @@ export default function MiningPage() {
     </div>
   );
 }
+
+    
 
     
 

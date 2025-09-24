@@ -18,6 +18,7 @@ body {
 
 @layer base {
   :root {
+    font-size: clamp(14px, 1.5vw, 16px);
     --background: 222 83% 4%; /* #03071E */
     --foreground: 210 40% 98%;
     --card: 222 83% 8%; /* #0A102A */
@@ -96,3 +97,5 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+    
