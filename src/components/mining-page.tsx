@@ -411,6 +411,3 @@ export default function MiningPage() {
 }
 
     
-
-    
-
