@@ -1,3 +1,4 @@
+
 import type {Config} from 'tailwindcss';
 
 export default {
@@ -101,6 +102,10 @@ export default {
           '0%': { transform: 'translateX(-100%)' },
           '100%': { transform: 'translateX(100%)' },
         },
+        'line-across-reverse': {
+            'from': { transform: 'translateX(100%)' },
+            'to': { transform: 'translateX(-100%)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
@@ -108,7 +113,7 @@ export default {
         'ripple': 'ripple 1s cubic-bezier(0, 0, 0.2, 1) forwards',
         'float-up': 'float-up 1.5s ease-out forwards',
         'line-across': 'line-across 1.5s linear infinite',
-        'line-across-reverse': 'line-across 1.5s linear infinite reverse',
+        'line-across-reverse': 'line-across-reverse 1.5s linear infinite',
       },
     },
   },
