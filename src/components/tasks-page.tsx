@@ -214,7 +214,19 @@ export default function TasksPage() {
     const q = query(tasksCollection, orderBy("order"));
     const unsubscribeTasks = onSnapshot(q, (snapshot) => {
         const tasksList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Task);
-        setTasks(tasksList);
+        
+        // Custom sorting: referral tasks at the bottom, others on top
+        const sortedTasks = tasksList.sort((a, b) => {
+            if (a.type === 'referral_milestone' && b.type !== 'referral_milestone') {
+                return 1;
+            }
+            if (a.type !== 'referral_milestone' && b.type === 'referral_milestone') {
+                return -1;
+            }
+            return a.order - b.order; // Keep original order among same-type tasks
+        });
+
+        setTasks(sortedTasks);
     }, (error) => {
         console.error("Error fetching real-time tasks:", error);
     });

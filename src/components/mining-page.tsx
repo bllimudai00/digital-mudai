@@ -5,7 +5,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
-  Link as LinkIcon,
   TrendingUp,
   Zap,
   Crown,
@@ -15,7 +14,7 @@ import {
   User,
   Loader,
   ShieldCheck,
-  Droplets,
+  Coins,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -25,8 +24,6 @@ import type { UserData, GlobalSettings } from "@/lib/types";
 import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 import { AuthContext } from "@/context/AuthContext";
-
-
 function BalanceCard({
   icon,
   label,
@@ -77,19 +74,32 @@ function BenefitCard({
   );
 }
 
-function StatCard({ icon, title, value, className }: { icon: React.ReactNode, title: string, value: string, className?: string }) {
+function StatCard({
+  icon,
+  title,
+  value,
+  className,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  value: string;
+  className?: string;
+}) {
   return (
     <Card className={`bg-card/80 backdrop-blur-sm p-4 ${className}`}>
       <CardContent className="p-0 flex items-center gap-4">
         <div className="p-3 bg-black/20 rounded-xl">{icon}</div>
         <div>
-          <h3 className="font-bold text-white text-[clamp(1.125rem,1rem+0.625vw,1.25rem)]">{value}</h3>
+          <h3 className="font-bold text-white text-[clamp(1.125rem,1rem+0.625vw,1.25rem)]">
+            {value}
+          </h3>
           <p className="text-sm text-muted-foreground">{title}</p>
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
+
 
 function BottomNavItem({
   icon,
@@ -105,9 +115,10 @@ function BottomNavItem({
   return (
     <Link
       href={href}
-      className={`flex flex-col items-center gap-1 ${
-        isActive ? "text-primary" : "text-muted-foreground"
-      } transition-colors duration-200`}
+      className={cn(
+        "flex flex-col items-center gap-1 text-muted-foreground transition-colors duration-200 hover:text-primary",
+        isActive && "text-primary"
+      )}
     >
       {icon}
       <span className="text-xs font-medium">{label}</span>
@@ -124,7 +135,6 @@ function formatTime(ms: number) {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
-
 export default function MiningPage() {
   const authContext = useContext(AuthContext);
   const [userData, setUserData] = useState<UserData | null>(null);
@@ -138,7 +148,6 @@ export default function MiningPage() {
   useEffect(() => {
     if (!authContext?.user?.id) return;
     
-    // Real-time listener for user updates
     const userRef = doc(db, 'users', authContext.user.id);
     const unsubscribeUser = onSnapshot(userRef, (doc) => {
         if (doc.exists()) {
@@ -156,7 +165,6 @@ export default function MiningPage() {
         console.error("Error fetching real-time user data:", error);
     });
 
-    // Real-time listener for settings updates
     const settingsRef = doc(db, 'settings', 'global');
     const unsubscribeSettings = onSnapshot(settingsRef, (doc) => {
         if (doc.exists()) {
@@ -169,7 +177,6 @@ export default function MiningPage() {
         unsubscribeSettings();
     };
   }, [authContext?.user?.id]);
-
 
   useEffect(() => {
     if (!userData) {
@@ -192,7 +199,6 @@ export default function MiningPage() {
     }
   }, [userData]);
 
-
   useEffect(() => {
     if (miningState !== 'mining' || timeRemaining <= 0) {
       return;
@@ -209,7 +215,6 @@ export default function MiningPage() {
     }, 1000);
     return () => clearInterval(interval);
   }, [miningState, timeRemaining]);
-
 
   const handleStartMining = async () => {
     if (!userData || miningState !== 'idle') return;
@@ -249,8 +254,8 @@ export default function MiningPage() {
         );
       case 'mining':
         return (
-          <Button size="lg" className="w-full bg-secondary text-white/70 mt-6" disabled>
-            <Zap className="w-5 h-5 mr-2 animate-pulse" />
+          <Button size="lg" className="w-full bg-secondary text-white/70 mt-6 animate-pulse" disabled>
+            <Zap className="w-5 h-5 mr-2" />
             Mining...
           </Button>
         );
@@ -274,7 +279,9 @@ export default function MiningPage() {
         case 'mining':
             return (
                 <>
-                    <h2 className="text-[clamp(1.5rem,1rem+2.5vw,1.875rem)] font-bold font-mono tracking-widest">{formatTime(timeRemaining)}</h2>
+                    <h2 className="text-[clamp(1.5rem,1rem+2.5vw,1.875rem)] font-bold font-mono tracking-widest">
+                      {formatTime(timeRemaining)}
+                    </h2>
                     <p className="text-muted-foreground text-sm">Until session complete</p>
                 </>
             );
@@ -282,7 +289,9 @@ export default function MiningPage() {
              return (
                 <>
                     <h2 className="text-[clamp(1.5rem,1rem+2.5vw,1.875rem)] font-bold">Session Complete</h2>
-                    <p className="text-muted-foreground text-sm">Claim your {rewardAmount.toFixed(4)} PARI reward!</p>
+                    <p className="text-muted-foreground text-sm">
+                      Claim your {rewardAmount.toFixed(4)} PARI reward!
+                    </p>
                 </>
             );
         default:
@@ -295,9 +304,10 @@ export default function MiningPage() {
     }
   }
 
+
   const claimedSlots = settings?.claimedVipSlots || 0;
   const totalSlots = settings?.totalVipSlots || 1;
-  const progressPercentage = (claimedSlots / totalSlots) * 100;
+  const vipProgress = (claimedSlots / totalSlots) * 100;
 
   if (authContext?.loading || !userData || !settings) {
     return (
@@ -322,12 +332,30 @@ export default function MiningPage() {
         </div>
       </header>
       
-      <main className="flex-1 p-4 space-y-6 pb-24">
-        <BalanceCard icon={<LinkIcon className="w-5 h-5 text-cyan-400" />} label="PARI Balance" value={(userData.pariBalance as number).toFixed(4)} />
+      <main className="flex-1 p-4 space-y-4 pb-24">
+        
+        <div className="text-center space-y-2">
+            <p className="text-sm text-cyan-400 flex items-center justify-center gap-2">
+                <Coins className="w-4 h-4" /> PARI Balance
+            </p>
+            <h2 className="text-5xl font-bold text-white animate-text-glow">
+              {(userData.pariBalance as number).toFixed(4)}
+            </h2>
+        </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <StatCard icon={<Zap className="w-6 h-6 text-cyan-400" />} title="Base Rate" value={`${baseRate.toFixed(2)}/hr`} />
-          <StatCard icon={<TrendingUp className="w-6 h-6 text-cyan-400" />} title="Streak" value={(userData.history?.filter(h => h.type === 'mining').length || 0).toString()} />
+          <Card className="bg-card/50 backdrop-blur-sm p-3 border-blue-500/20">
+              <CardContent className="p-0 text-center">
+                  <p className="text-xs text-muted-foreground flex items-center justify-center gap-1"><Zap className="w-3 h-3"/>Base Rate</p>
+                  <p className="text-lg font-bold">{baseRate.toFixed(2)}/hr</p>
+              </CardContent>
+          </Card>
+          <Card className="bg-card/50 backdrop-blur-sm p-3 border-blue-500/20">
+              <CardContent className="p-0 text-center">
+                  <p className="text-xs text-muted-foreground flex items-center justify-center gap-1"><TrendingUp className="w-3 h-3"/>Streak</p>
+                  <p className="text-lg font-bold">{(userData.history?.filter(h => h.type === 'mining').length || 0).toString()}</p>
+              </CardContent>
+          </Card>
         </div>
 
         <Card className="bg-card/50 backdrop-blur-sm text-center p-6 space-y-4 border-0 shadow-xl shadow-blue-500/5">
@@ -345,7 +373,7 @@ export default function MiningPage() {
                   width={160}
                   height={160}
                   data-ai-hint="network logo"
-                  className="rounded-full shadow-2xl shadow-blue-500/20"
+                  className="rounded-full shadow-2xl shadow-blue-500/20 animate-logo-glow"
                 />
                  {userData.vip && (
                     <div className="absolute top-0 right-0 bg-blue-500 rounded-full p-2.5 border-4 border-background shadow-lg">
@@ -357,22 +385,28 @@ export default function MiningPage() {
                 </div>
               </div>
             </div>
-            {getCardContent()}
+            
             {miningState === 'mining' && (
-              <div className="relative w-full my-2 h-2 overflow-hidden">
-                  <div className="absolute top-1/2 left-0 h-0.5 w-full bg-primary/70 animate-line-across" />
-                  <div className="absolute top-1/2 left-0 h-0.5 w-full bg-accent/70 animate-line-across-reverse" />
-              </div>
+                <div className="space-y-2">
+                    <h3 className="text-4xl font-bold font-mono tracking-widest animate-text-glow">{formatTime(timeRemaining)}</h3>
+                    <p className="text-sm text-muted-foreground">Until session complete</p>
+                    <Progress value={progressPercentage} className="h-1.5 !bg-primary/20 animate-progress-glow" />
+                </div>
             )}
-            <MiningButton />
-          </CardContent>
-        </Card>
+             {miningState === 'claimable' && (
+                <div className="space-y-2">
+                    <h3 className="text-2xl font-bold">Session Complete</h3>
+                    <p className="text-muted-foreground text-sm">Claim your reward!</p>
+                </div>
+            )}
+            {miningState === 'idle' && (
+                <div className="space-y-2">
+                    <h3 className="text-2xl font-bold">Start New Session</h3>
+                    <p className="text-muted-foreground text-sm">Tap to start mining PARI</p>
+                </div>
+            )}
 
-        <Card className="bg-card/50 backdrop-blur-sm p-4 border border-blue-500/20">
-          <CardContent className="p-0">
-            <p className="text-sm text-muted-foreground">Next Reward</p>
-            <p className="text-2xl font-bold text-green-400 mt-1">{rewardAmount.toFixed(4)} PARI</p>
-            <p className="text-xs text-muted-foreground">{baseRate.toFixed(2)} x 4h x ({userData.vip ? "VIP 2x" : "Normal 1x"})</p>
+            <MiningButton />
           </CardContent>
         </Card>
 
@@ -390,7 +424,7 @@ export default function MiningPage() {
                           <Users className="w-4 h-4" />
                           <span>FCFS Limited Slots</span>
                       </div>
-                  <Progress value={progressPercentage} className="h-2" />
+                  <Progress value={vipProgress} className="h-2" />
                   <div className="text-right text-sm text-muted-foreground mt-1">{claimedSlots} / {totalSlots}</div>
                   </div>
               </CardContent>
@@ -398,7 +432,7 @@ export default function MiningPage() {
         )}
       </main>
 
-      <footer className="fixed bottom-0 left-0 right-0 bg-card/50 backdrop-blur-sm border-t p-2 z-50">
+      <footer className="fixed bottom-0 left-0 right-0 bg-card/50 backdrop-blur-sm border-t border-border/20 p-2 z-50">
         <div className="flex justify-around">
           <BottomNavItem icon={<Zap className="w-6 h-6" />} label="Mining" href="/" isActive={true} />
           <BottomNavItem icon={<ListChecks className="w-6 h-6" />} label="Tasks" href="/tasks" />
