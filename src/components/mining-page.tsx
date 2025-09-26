@@ -24,6 +24,7 @@ import type { UserData, GlobalSettings } from "@/lib/types";
 import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 import { AuthContext } from "@/context/AuthContext";
+import { cn } from "@/lib/utils";
 function BalanceCard({
   icon,
   label,
@@ -308,6 +309,7 @@ export default function MiningPage() {
   const claimedSlots = settings?.claimedVipSlots || 0;
   const totalSlots = settings?.totalVipSlots || 1;
   const vipProgress = (claimedSlots / totalSlots) * 100;
+  const progressPercentage = timeRemaining > 0 && userData?.sessionEndTime ? 100 - (timeRemaining / (4 * 60 * 60 * 1000)) * 100 : 0;
 
   if (authContext?.loading || !userData || !settings) {
     return (
@@ -443,3 +445,5 @@ export default function MiningPage() {
     </div>
   );
 }
+
+    
