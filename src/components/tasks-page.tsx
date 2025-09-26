@@ -254,7 +254,17 @@ export default function TasksPage() {
     }
   };
 
-  const pendingTasks = userData ? tasks.filter(task => !userData.tasks.includes(task.id)) : [];
+  const pendingTasks = userData 
+    ? tasks
+        .filter(task => !userData.tasks.includes(task.id))
+        .sort((a, b) => {
+            // Move referral_milestone tasks to the bottom
+            if (a.type === 'referral_milestone' && b.type !== 'referral_milestone') return 1;
+            if (a.type !== 'referral_milestone' && b.type === 'referral_milestone') return -1;
+            // Otherwise, sort by the original order
+            return a.order - b.order;
+        })
+    : [];
 
   if (authContext?.loading || !userData) {
     return (

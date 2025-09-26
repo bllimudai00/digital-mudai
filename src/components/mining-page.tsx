@@ -25,6 +25,82 @@ import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 import { AuthContext } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
+function BalanceCard({
+  icon,
+  label,
+  value,
+  className,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  className?: string;
+}) {
+  return (
+    <Card className={`bg-card/50 backdrop-blur-sm p-4 border border-blue-500/20 shadow-lg shadow-blue-500/5 ${className}`}>
+      <CardContent className="p-0 text-center">
+        <div className="flex items-center justify-center gap-3 text-sm text-muted-foreground">
+          {icon}
+          <span>{label}</span>
+        </div>
+        <div className="font-bold mt-1 text-[clamp(1.75rem,1.25rem+2.5vw,2.25rem)]">
+          {value}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function BenefitCard({
+  icon,
+  title,
+  description,
+  className,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  className?: string;
+}) {
+  return (
+    <Card className={`bg-card/80 backdrop-blur-sm p-4 ${className}`}>
+      <CardContent className="p-0 flex items-center gap-4">
+        <div className="p-2 bg-black/20 rounded-lg">{icon}</div>
+        <div>
+          <h3 className="font-bold text-white">{title}</h3>
+          <p className="text-sm text-muted-foreground">{description}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function StatCard({
+  icon,
+  title,
+  value,
+  className,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  value: string;
+  className?: string;
+}) {
+  return (
+    <Card className={`bg-card/80 backdrop-blur-sm p-4 ${className}`}>
+      <CardContent className="p-0 flex items-center gap-4">
+        <div className="p-3 bg-black/20 rounded-xl">{icon}</div>
+        <div>
+          <h3 className="font-bold text-white text-[clamp(1.125rem,1rem+0.625vw,1.25rem)]">
+            {value}
+          </h3>
+          <p className="text-sm text-muted-foreground">{title}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 
 function BottomNavItem({
   icon,
@@ -197,12 +273,43 @@ export default function MiningPage() {
   }
 
   const baseRate = settings?.baseRate ?? userData?.baseRate ?? 10.0;
-  const totalMiningTime = 4 * 60 * 60 * 1000;
-  const progressPercentage = miningState === 'mining' ? ((totalMiningTime - timeRemaining) / totalMiningTime) * 100 : (miningState === 'claimable' ? 100 : 0);
+  const rewardAmount = userData ? (baseRate * 4 * (userData.vipStatus === 'approved' ? 2 : 1)) : 40;
+
+  const getCardContent = () => {
+    switch(miningState){
+        case 'mining':
+            return (
+                <>
+                    <h2 className="text-[clamp(1.5rem,1rem+2.5vw,1.875rem)] font-bold font-mono tracking-widest">
+                      {formatTime(timeRemaining)}
+                    </h2>
+                    <p className="text-muted-foreground text-sm">Until session complete</p>
+                </>
+            );
+        case 'claimable':
+             return (
+                <>
+                    <h2 className="text-[clamp(1.5rem,1rem+2.5vw,1.875rem)] font-bold">Session Complete</h2>
+                    <p className="text-muted-foreground text-sm">
+                      Claim your {rewardAmount.toFixed(4)} PARI reward!
+                    </p>
+                </>
+            );
+        default:
+             return (
+                <>
+                    <h2 className="text-[clamp(1.5rem,1rem+2.5vw,1.875rem)] font-bold">Start New Session</h2>
+                    <p className="text-muted-foreground text-sm">Tap to start mining PARI</p>
+                </>
+            );
+    }
+  }
+
 
   const claimedSlots = settings?.claimedVipSlots || 0;
   const totalSlots = settings?.totalVipSlots || 1;
   const vipProgress = (claimedSlots / totalSlots) * 100;
+  const progressPercentage = timeRemaining > 0 && userData?.sessionEndTime ? 100 - (timeRemaining / (4 * 60 * 60 * 1000)) * 100 : 0;
 
   if (authContext?.loading || !userData || !settings) {
     return (
@@ -338,3 +445,5 @@ export default function MiningPage() {
     </div>
   );
 }
+
+    

@@ -1,8 +1,10 @@
+
 import type {Config} from 'tailwindcss';
 
-export default {
+const config: Config = {
   darkMode: ['class'],
   content: [
+    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
@@ -105,6 +107,14 @@ export default {
             '0%': { transform: 'translateY(0) translateX(-50%)', opacity: '1' },
             '100%': { transform: 'translateY(-60px) translateX(-50%)', opacity: '0' },
         },
+        'line-across': {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(100%)' },
+        },
+        'line-across-reverse': {
+            'from': { transform: 'translateX(100%)' },
+            'to': { transform: 'translateX(-100%)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
@@ -113,8 +123,13 @@ export default {
         'logo-glow': 'logo-glow 4s ease-in-out infinite',
         'progress-glow': 'progress-glow 2s ease-in-out infinite',
         'float-up': 'float-up 1.5s ease-out forwards',
+        'line-across': 'line-across 1.5s linear infinite',
+        'line-across-reverse': 'line-across-reverse 1.5s linear infinite',
+      },
+
       },
     },
-  },
   plugins: [require('tailwindcss-animate')],
 } satisfies Config;
+
+module.exports = config;
