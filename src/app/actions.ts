@@ -469,12 +469,14 @@ export async function claimTaskReward(userId: string, taskId: string) {
             reward = taskData.reward;
             taskTitle = taskData.title;
 
-            if (userData.tasks.includes(taskId)) {
+            // Safely check if the tasks array exists and includes the taskId
+            if (userData.tasks && userData.tasks.includes(taskId)) {
                 return "Task already completed.";
             }
 
             if (taskData.type === 'referral_milestone') {
-                const referralCount = userData.referrals?.length || 0;
+                // Safely check referrals length
+                const referralCount = userData.referrals ? userData.referrals.length : 0;
                 if (referralCount < (taskData.requiredCount || 0)) {
                     return "Referral requirement not met.";
                 }
