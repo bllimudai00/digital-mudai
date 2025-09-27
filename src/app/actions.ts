@@ -461,39 +461,43 @@ export async function claimTaskReward(userId: string, taskId: string) {
             if (!userDoc.exists() || !taskDoc.exists()) {
                 return "User or Task not found";
             }
+            
+            // Ensure userData always has default arrays to prevent crashes
+            const userData = {
+                tasks: [],
+                referrals: [],
+                history: [],
+                ...userDoc.data()
+            } as UserData;
 
-            const userData = userDoc.data() as UserData;
             const taskData = taskDoc.data() as Task;
             reward = taskData.reward;
 
-            if (userData.tasks?.includes(taskId)) {
+            if (userData.tasks.includes(taskId)) {
                 return "Task already completed.";
             }
 
             if (taskData.type === 'referral_milestone') {
-                const referralCount = userData.referrals?.length || 0;
+                const referralCount = userData.referrals.length;
                 if (referralCount < (taskData.requiredCount || 0)) {
                     return "Referral requirement not met.";
                 }
             }
             
             const newHistoryItem = {
-                type: 'task',
+                type: 'task' as 'task' | 'mining',
                 title: taskData.title,
                 amount: reward,
                 claimedAt: new Date().toISOString()
             };
 
-            const currentHistory = userData.history || [];
-            const newHistory = [...currentHistory, newHistoryItem];
-
-            const currentTasks = userData.tasks || [];
-            const newTasks = [...currentTasks, taskId];
+            const updatedHistory = [...userData.history, newHistoryItem];
+            const updatedTasks = [...userData.tasks, taskId];
 
             transaction.update(userRef, {
                 pariBalance: increment(reward),
-                tasks: newTasks,
-                history: newHistory
+                tasks: updatedTasks,
+                history: updatedHistory
             });
             
             return null;
