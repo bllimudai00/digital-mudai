@@ -465,13 +465,11 @@ export async function claimTaskReward(userId: string, taskId: string) {
             const userData = userDoc.data() as UserData;
             const taskData = taskDoc.data() as Task;
             reward = taskData.reward;
-            
-            // Safely check if task is already completed
+
             if (userData.tasks?.includes(taskId)) {
                 return "Task already completed.";
             }
 
-            // Check referral milestone requirements
             if (taskData.type === 'referral_milestone') {
                 const referralCount = userData.referrals?.length || 0;
                 if (referralCount < (taskData.requiredCount || 0)) {
@@ -486,7 +484,6 @@ export async function claimTaskReward(userId: string, taskId: string) {
                 claimedAt: new Date().toISOString()
             };
 
-            // Safely update history
             const currentHistory = userData.history || [];
             const newHistory = [...currentHistory, newHistoryItem];
 
