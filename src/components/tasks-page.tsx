@@ -23,6 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { onSnapshot, doc, collection, query, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 import { AuthContext } from "@/context/AuthContext";
+import { cn } from "@/lib/utils";
 
 function BottomNavItem({
   icon,
