@@ -462,7 +462,7 @@ export async function claimTaskReward(userId: string, taskId: string) {
                 return "User or Task not found";
             }
             
-            // This is the robust fix: provide default empty arrays.
+            // This is the robust fix: provide default empty arrays for safety.
             const userData = {
                 tasks: [],
                 referrals: [],
@@ -485,7 +485,7 @@ export async function claimTaskReward(userId: string, taskId: string) {
             }
             
             const newHistoryItem = {
-                type: 'task' as 'task' | 'mining',
+                type: 'task' as const,
                 title: taskData.title,
                 amount: reward,
                 claimedAt: new Date().toISOString()
@@ -984,5 +984,7 @@ export async function migrateOldReferrals() {
         return { success: false, error: `Migration failed: ${error.message}` };
     }
 }
+
+    
 
     
