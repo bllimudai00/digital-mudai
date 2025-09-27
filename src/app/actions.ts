@@ -484,12 +484,15 @@ export async function claimTaskReward(userId: string, taskId: string) {
                 claimedAt: new Date().toISOString()
             };
 
-            const currentHistory = userData.history || [];
-            const newHistory = [...currentHistory, newHistoryItem];
+            const newHistory = userData.history || [];
+            newHistory.push(newHistoryItem);
+
+            const newTasks = userData.tasks || [];
+            newTasks.push(taskId);
 
             transaction.update(userRef, {
                 pariBalance: increment(reward),
-                tasks: arrayUnion(taskId),
+                tasks: newTasks,
                 history: newHistory
             });
             
