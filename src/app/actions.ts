@@ -454,8 +454,6 @@ export async function claimTaskReward(userId: string, taskId: string) {
 
     try {
         let reward = 0;
-        let taskTitle = "";
-
         const error = await runTransaction(db, async (transaction) => {
             const userDoc = await transaction.get(userRef);
             const taskDoc = await transaction.get(taskRef);
@@ -467,12 +465,13 @@ export async function claimTaskReward(userId: string, taskId: string) {
             const userData = userDoc.data() as UserData;
             const taskData = taskDoc.data() as Task;
             reward = taskData.reward;
-            taskTitle = taskData.title;
-
+            
+            // Safely check if task is already completed
             if (userData.tasks?.includes(taskId)) {
                 return "Task already completed.";
             }
 
+            // Check referral milestone requirements
             if (taskData.type === 'referral_milestone') {
                 const referralCount = userData.referrals?.length || 0;
                 if (referralCount < (taskData.requiredCount || 0)) {
@@ -482,15 +481,19 @@ export async function claimTaskReward(userId: string, taskId: string) {
             
             const newHistoryItem = {
                 type: 'task',
-                title: taskTitle,
+                title: taskData.title,
                 amount: reward,
                 claimedAt: new Date().toISOString()
             };
 
+            // Safely update history
+            const currentHistory = userData.history || [];
+            const newHistory = [...currentHistory, newHistoryItem];
+
             transaction.update(userRef, {
                 pariBalance: increment(reward),
                 tasks: arrayUnion(taskId),
-                history: arrayUnion(newHistoryItem)
+                history: newHistory
             });
             
             return null;
