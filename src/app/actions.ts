@@ -462,7 +462,6 @@ export async function claimTaskReward(userId: string, taskId: string) {
                 return "User or Task not found";
             }
             
-            // Ensure userData always has default arrays to prevent crashes
             const userData = {
                 tasks: [],
                 referrals: [],
