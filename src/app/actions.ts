@@ -469,7 +469,7 @@ export async function claimTaskReward(userId: string, taskId: string) {
             
             const userDataFromDb = userDoc.data();
             
-            // Validate and initialize arrays to prevent TypeErrors
+            // This is the robust fix: provide default empty arrays.
             const completedTasks = Array.isArray(userDataFromDb.tasks) ? userDataFromDb.tasks : [];
             const referrals = Array.isArray(userDataFromDb.referrals) ? userDataFromDb.referrals : [];
             const history = Array.isArray(userDataFromDb.history) ? userDataFromDb.history : [];
@@ -544,7 +544,9 @@ export async function claimReward(userId: string) {
                 return "User not found.";
             }
 
-            const userData = { history: [], ...userDoc.data() } as UserData;
+            const userDataFromDb = userDoc.data();
+            const userData = { history: [], ...userDataFromDb } as UserData;
+            
             if (!userData.sessionEndTime || userData.sessionEndTime > Date.now()) {
                 return "Mining session not yet complete.";
             }
