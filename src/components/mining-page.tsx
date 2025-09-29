@@ -392,7 +392,10 @@ export default function MiningPage() {
                 <div className="space-y-2">
                     <h3 className="text-4xl font-bold font-mono tracking-widest animate-text-glow">{formatTime(timeRemaining)}</h3>
                     <p className="text-sm text-muted-foreground">Until session complete</p>
-                    <Progress value={progressPercentage} className="h-1.5 !bg-primary/20 animate-progress-glow" />
+                     <div className="relative w-full h-1 overflow-hidden mt-4">
+                        <div className="absolute h-full w-1/2 bg-primary animate-line-across"></div>
+                        <div className="absolute h-full w-1/2 bg-accent animate-line-across-reverse"></div>
+                    </div>
                 </div>
             )}
              {miningState === 'claimable' && (
