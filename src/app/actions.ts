@@ -467,22 +467,22 @@ export async function claimTaskReward(userId: string, taskId: string) {
                 return "User or Task not found";
             }
             
-            const userData = {
-                tasks: [],
-                referrals: [],
-                history: [],
-                ...userDoc.data()
-            } as UserData;
+            const userData = userDoc.data() as UserData;
+            
+            // Validate and initialize arrays to prevent TypeErrors
+            const completedTasks = Array.isArray(userData.tasks) ? userData.tasks : [];
+            const referrals = Array.isArray(userData.referrals) ? userData.referrals : [];
+            const history = Array.isArray(userData.history) ? userData.history : [];
 
             const taskData = taskDoc.data() as Task;
             reward = taskData.reward;
 
-            if (userData.tasks.includes(taskId)) {
+            if (completedTasks.includes(taskId)) {
                 return "Task already completed.";
             }
 
             if (taskData.type === 'referral_milestone') {
-                const referralCount = userData.referrals.length;
+                const referralCount = referrals.length;
                 if (referralCount < (taskData.requiredCount || 0)) {
                     return "Referral requirement not met.";
                 }
@@ -495,8 +495,8 @@ export async function claimTaskReward(userId: string, taskId: string) {
                 claimedAt: new Date().toISOString()
             };
 
-            const updatedHistory = [...userData.history, newHistoryItem];
-            const updatedTasks = [...userData.tasks, taskId];
+            const updatedHistory = [...history, newHistoryItem];
+            const updatedTasks = [...completedTasks, taskId];
 
             transaction.update(userRef, {
                 pariBalance: increment(reward),
