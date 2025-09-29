@@ -48,13 +48,12 @@ function BottomNavItem({
   );
 }
 
-function TaskCard({ task, userData, onClaim }: { task: Task, userData: UserData | null, onClaim: (taskId: string) => void }) {
+function TaskCard({ task, completedTasks, referralCount, onClaim }: { task: Task, completedTasks: string[], referralCount: number, onClaim: (taskId: string) => void }) {
     const [isLoading, setIsLoading] = useState(false);
     const [isExternalTaskPending, setIsExternalTaskPending] = useState(false);
     const { toast } = useToast();
 
-    const isCompleted = userData?.tasks?.includes(task.id);
-    const referralCount = userData?.referrals?.length || 0;
+    const isCompleted = completedTasks.includes(task.id);
 
     let buttonState: 'claim' | 'completed' | 'go_to_refer' | 'loading' | 'requirement_not_met' | 'external_verify' | 'external_initial' = 'external_initial';
     
@@ -193,18 +192,21 @@ function TaskCard({ task, userData, onClaim }: { task: Task, userData: UserData 
 
 export default function TasksPage() {
   const authContext = useContext(AuthContext);
-  const [userData, setUserData] = useState<UserData | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [completedTasks, setCompletedTasks] = useState<string[]>([]);
+  const [referralCount, setReferralCount] = useState<number>(0);
   const { toast } = useToast();
 
   useEffect(() => {
     if (!authContext?.user?.id) return;
 
-    // Listen for user data
+    // Listen for user data to get completed tasks and referrals
     const userRef = doc(db, 'users', authContext.user.id);
     const unsubscribeUser = onSnapshot(userRef, (doc) => {
         if (doc.exists()) {
-            setUserData(doc.data() as UserData);
+            const userData = doc.data() as UserData;
+            setCompletedTasks(userData.tasks || []);
+            setReferralCount(userData.referrals?.length || 0);
         }
     }, (error) => {
         console.error("Error fetching real-time user data:", error);
@@ -239,8 +241,8 @@ export default function TasksPage() {
   }, [authContext?.user?.id]);
 
   const handleClaim = async (taskId: string) => {
-    if (!userData) return;
-    const result = await claimTaskReward(userData.id, taskId);
+    if (!authContext?.user?.id) return;
+    const result = await claimTaskReward(authContext.user.id, taskId);
     if (result.success) {
       toast({
         title: "Reward Claimed!",
@@ -255,19 +257,15 @@ export default function TasksPage() {
     }
   };
 
-  const pendingTasks = userData 
-    ? tasks
-        .filter(task => !userData.tasks.includes(task.id))
+  const pendingTasks = tasks
+        .filter(task => !completedTasks.includes(task.id))
         .sort((a, b) => {
-            // Move referral_milestone tasks to the bottom
             if (a.type === 'referral_milestone' && b.type !== 'referral_milestone') return 1;
             if (a.type !== 'referral_milestone' && b.type === 'referral_milestone') return -1;
-            // Otherwise, sort by the original order
             return a.order - b.order;
-        })
-    : [];
+        });
 
-  if (authContext?.loading || !userData) {
+  if (authContext?.loading || !authContext.user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader className="w-8 h-8 animate-spin text-primary" />
@@ -286,7 +284,13 @@ export default function TasksPage() {
             <div className="space-y-4">
             {pendingTasks.length > 0 ? (
               pendingTasks.map((task) => (
-                <TaskCard key={task.id} task={task} userData={userData} onClaim={handleClaim} />
+                <TaskCard 
+                    key={task.id} 
+                    task={task} 
+                    completedTasks={completedTasks} 
+                    referralCount={referralCount} 
+                    onClaim={handleClaim} 
+                />
               ))
             ) : (
               <Card className="bg-card/80 backdrop-blur-sm text-center p-8">

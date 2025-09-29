@@ -1,3 +1,4 @@
+
 'use server';
 
 import { doc, updateDoc, arrayUnion, getDoc, runTransaction, increment, collection, getDocs, writeBatch, setDoc, query, where, addDoc, deleteDoc, serverTimestamp, Timestamp, orderBy, limit } from 'firebase/firestore';
@@ -454,6 +455,9 @@ export async function getTasks(): Promise<Task[]> {
 
 export async function claimTaskReward(userId: string, taskId: string) {
     'use server';
+    if (!userId || !taskId) {
+        return { success: false, error: "User ID and Task ID are required." };
+    }
     const userRef = doc(db, 'users', userId);
     const taskRef = doc(db, 'tasks', taskId);
 
@@ -469,7 +473,6 @@ export async function claimTaskReward(userId: string, taskId: string) {
             
             const userDataFromDb = userDoc.data();
             
-            // This is the robust fix: provide default empty arrays.
             const completedTasks = Array.isArray(userDataFromDb.tasks) ? userDataFromDb.tasks : [];
             const referrals = Array.isArray(userDataFromDb.referrals) ? userDataFromDb.referrals : [];
             const history = Array.isArray(userDataFromDb.history) ? userDataFromDb.history : [];
@@ -980,5 +983,3 @@ export async function migrateOldReferrals() {
         return { success: false, error: `Migration failed: ${error.message}` };
     }
 }
-
-    
