@@ -120,7 +120,7 @@ export default function ReferPage() {
             if (user.referrals && user.referrals.length > 0) {
                 setLoadingReferrals(true);
                 const fetchedReferrals: Referral[] = [];
-                const batchSize = 30; // Firestore 'in' query limit
+                const batchSize = 30; // Firestore 'in' query limit is 30
                 for (let i = 0; i < user.referrals.length; i += batchSize) {
                     const batchIds = user.referrals.slice(i, i + batchSize);
                     if(batchIds.length > 0) {
@@ -254,7 +254,7 @@ export default function ReferPage() {
                 <WhatsAppIcon />
                 WhatsApp
             </ShareButton>
-            <ShareButton platform="telegram" referralLink={referralLink} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-blue-500 text-white hover:bg-blue-600 h-12 text-md">
+            <ShareButton platform="telegram" referralLink={referralLink} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible-outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-blue-500 text-white hover:bg-blue-600 h-12 text-md">
                 <Send className="w-5 h-5" />
                 Telegram
             </ShareButton>
@@ -326,5 +326,3 @@ export default function ReferPage() {
     </div>
   );
 }
-
-    
