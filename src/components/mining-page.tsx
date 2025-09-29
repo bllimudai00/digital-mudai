@@ -340,7 +340,7 @@ export default function MiningPage() {
             <p className="text-sm text-cyan-400 flex items-center justify-center gap-2">
                 <Coins className="w-4 h-4" /> PARI Balance
             </p>
-            <h2 className="text-5xl font-bold text-white animate-text-glow">
+            <h2 className="text-5xl font-bold text-white">
               {(userData.pariBalance as number).toFixed(4)}
             </h2>
         </div>
@@ -390,7 +390,7 @@ export default function MiningPage() {
             
             {miningState === 'mining' && (
                 <div className="space-y-2">
-                    <h3 className="text-4xl font-bold font-mono tracking-widest animate-text-glow">{formatTime(timeRemaining)}</h3>
+                    <h3 className="text-4xl font-bold font-mono tracking-widest">{formatTime(timeRemaining)}</h3>
                     <p className="text-sm text-muted-foreground">Until session complete</p>
                      <div className="relative w-full h-1 overflow-hidden mt-4">
                         <div className="absolute h-full w-1/2 bg-primary animate-line-across"></div>
@@ -448,5 +448,7 @@ export default function MiningPage() {
     </div>
   );
 }
+
+    
 
     
