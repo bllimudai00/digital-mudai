@@ -467,12 +467,12 @@ export async function claimTaskReward(userId: string, taskId: string) {
                 return "User or Task not found";
             }
             
-            const userData = userDoc.data() as UserData;
+            const userDataFromDb = userDoc.data();
             
             // Validate and initialize arrays to prevent TypeErrors
-            const completedTasks = Array.isArray(userData.tasks) ? userData.tasks : [];
-            const referrals = Array.isArray(userData.referrals) ? userData.referrals : [];
-            const history = Array.isArray(userData.history) ? userData.history : [];
+            const completedTasks = Array.isArray(userDataFromDb.tasks) ? userDataFromDb.tasks : [];
+            const referrals = Array.isArray(userDataFromDb.referrals) ? userDataFromDb.referrals : [];
+            const history = Array.isArray(userDataFromDb.history) ? userDataFromDb.history : [];
 
             const taskData = taskDoc.data() as Task;
             reward = taskData.reward;
@@ -978,3 +978,5 @@ export async function migrateOldReferrals() {
         return { success: false, error: `Migration failed: ${error.message}` };
     }
 }
+
+    
