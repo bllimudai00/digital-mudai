@@ -1,4 +1,3 @@
-
 'use server';
 
 import { doc, updateDoc, arrayUnion, getDoc, runTransaction, increment, collection, getDocs, writeBatch, setDoc, query, where, addDoc, deleteDoc, serverTimestamp, Timestamp, orderBy, limit } from 'firebase/firestore';
@@ -468,7 +467,6 @@ export async function claimTaskReward(userId: string, taskId: string) {
                 return "User or Task not found";
             }
             
-            // Definitive fix: Ensure arrays exist by providing default empty arrays.
             const userData = {
                 tasks: [],
                 referrals: [],
@@ -479,12 +477,10 @@ export async function claimTaskReward(userId: string, taskId: string) {
             const taskData = taskDoc.data() as Task;
             reward = taskData.reward;
 
-            // Safe check: This will no longer fail.
             if (userData.tasks.includes(taskId)) {
                 return "Task already completed.";
             }
 
-            // Safe check: This will no longer fail.
             if (taskData.type === 'referral_milestone') {
                 const referralCount = userData.referrals.length;
                 if (referralCount < (taskData.requiredCount || 0)) {
@@ -499,7 +495,6 @@ export async function claimTaskReward(userId: string, taskId: string) {
                 claimedAt: new Date().toISOString()
             };
 
-            // Safe update: These arrays are guaranteed to exist.
             const updatedHistory = [...userData.history, newHistoryItem];
             const updatedTasks = [...userData.tasks, taskId];
 
@@ -707,7 +702,7 @@ export async function updateVipStatus(userId: string, status: 'approved' | 'reje
 
 export async function getUsers(): Promise<UserData[]> {
     const usersRef = collection(db, 'users');
-    const querySnapshot = await getDocs(q);
+    const querySnapshot = await getDocs(usersRef);
 
     const userMap = new Map<string, UserData>();
     querySnapshot.docs.forEach(doc => {
@@ -983,5 +978,3 @@ export async function migrateOldReferrals() {
         return { success: false, error: `Migration failed: ${error.message}` };
     }
 }
-
-    
