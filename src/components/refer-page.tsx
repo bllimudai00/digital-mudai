@@ -21,11 +21,12 @@ import {
 import Link from "next/link";
 import { useEffect, useState, useContext } from "react";
 import type { UserData, Referral } from "@/lib/types";
-import { onSnapshot, doc, collection, query, where, getDocs } from "firebase/firestore";
+import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AuthContext } from "@/context/AuthContext";
+import { getReferrals } from "@/app/actions";
 
 
 function BottomNavItem({
@@ -119,41 +120,20 @@ export default function ReferPage() {
 
             if (user.referrals && user.referrals.length > 0) {
                 setLoadingReferrals(true);
-                
-                // Get the latest 30 referral IDs
                 const latestReferralIds = user.referrals.slice(-30).reverse();
-
-                if (latestReferralIds.length > 0) {
-                    try {
-                        const q = query(collection(db, 'users'), where('__name__', 'in', latestReferralIds));
-                        const usersSnapshot = await getDocs(q);
-                        
-                        const fetchedReferrals: Referral[] = [];
-                        usersSnapshot.forEach(userSnap => {
-                            if (userSnap.exists()) {
-                                const referralData = userSnap.data();
-                                fetchedReferrals.push({
-                                    id: userSnap.id,
-                                    name: referralData.name || `Friend ${userSnap.id.substring(0, 4)}`,
-                                    avatar: `https://picsum.photos/seed/${userSnap.id}/40`
-                                });
-                            }
-                        });
-                        
-                        // Sort the fetched referrals to match the order of latestReferralIds
-                        const sortedReferrals = latestReferralIds.map(id => 
-                            fetchedReferrals.find(ref => ref.id === id)
-                        ).filter((ref): ref is Referral => ref !== undefined);
-
-                        setReferrals(sortedReferrals);
-                    } catch (error) {
-                        console.error(`Failed to fetch referral batch`, error);
-                        toast({ title: "Error", description: "Could not load referral details.", variant: "destructive" });
-                    }
-                } else {
-                    setReferrals([]);
+                
+                try {
+                    const fetchedReferrals = await getReferrals(latestReferralIds);
+                    const sortedReferrals = latestReferralIds.map(id => 
+                        fetchedReferrals.find(ref => ref.id === id)
+                    ).filter((ref): ref is Referral => ref !== undefined);
+                    setReferrals(sortedReferrals);
+                } catch (error) {
+                    console.error("Failed to fetch referrals:", error);
+                    toast({ title: "Error", description: "Could not load referral details.", variant: "destructive" });
+                } finally {
+                    setLoadingReferrals(false);
                 }
-                setLoadingReferrals(false);
             } else {
                 setReferrals([]);
                 setLoadingReferrals(false);
