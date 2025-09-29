@@ -473,6 +473,7 @@ export async function claimTaskReward(userId: string, taskId: string) {
             
             const userDataFromDb = userDoc.data();
             
+            // This is the robust fix: provide default empty arrays.
             const completedTasks = Array.isArray(userDataFromDb.tasks) ? userDataFromDb.tasks : [];
             const referrals = Array.isArray(userDataFromDb.referrals) ? userDataFromDb.referrals : [];
             const history = Array.isArray(userDataFromDb.history) ? userDataFromDb.history : [];
@@ -548,6 +549,7 @@ export async function claimReward(userId: string) {
             }
 
             const userDataFromDb = userDoc.data();
+            // Robust fix: Ensure history is always an array
             const userData = { history: [], ...userDataFromDb } as UserData;
             
             if (!userData.sessionEndTime || userData.sessionEndTime > Date.now()) {
