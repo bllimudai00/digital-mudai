@@ -21,11 +21,12 @@ import {
 import Link from "next/link";
 import { useEffect, useState, useContext } from "react";
 import type { UserData, Referral } from "@/lib/types";
-import { onSnapshot, doc, collection, query, where, getDocs } from "firebase/firestore";
+import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AuthContext } from "@/context/AuthContext";
+import { getReferrals } from "@/app/actions";
 
 
 function BottomNavItem({
@@ -119,32 +120,20 @@ export default function ReferPage() {
 
             if (user.referrals && user.referrals.length > 0) {
                 setLoadingReferrals(true);
-                const fetchedReferrals: Referral[] = [];
-                const batchSize = 30; // Firestore 'in' query limit
-                for (let i = 0; i < user.referrals.length; i += batchSize) {
-                    const batchIds = user.referrals.slice(i, i + batchSize);
-                    if(batchIds.length > 0) {
-                        try {
-                            const q = query(collection(db, 'users'), where('__name__', 'in', batchIds));
-                            const usersSnapshot = await getDocs(q);
-                            usersSnapshot.forEach(userSnap => {
-                                if (userSnap.exists()) {
-                                    const referralData = userSnap.data();
-                                    fetchedReferrals.push({
-                                        id: userSnap.id,
-                                        name: referralData.name || `Friend ${userSnap.id.substring(0, 4)}`,
-                                        avatar: `https://picsum.photos/seed/${userSnap.id}/40`
-                                    });
-                                }
-                            });
-                        } catch (error) {
-                            console.error(`Failed to fetch referral batch`, error);
-                            toast({ title: "Error", description: "Could not load some referral details.", variant: "destructive" });
-                        }
-                    }
+                const latestReferralIds = user.referrals.slice(-30).reverse();
+                
+                try {
+                    const fetchedReferrals = await getReferrals(latestReferralIds);
+                    const sortedReferrals = latestReferralIds.map(id => 
+                        fetchedReferrals.find(ref => ref.id === id)
+                    ).filter((ref): ref is Referral => ref !== undefined);
+                    setReferrals(sortedReferrals);
+                } catch (error) {
+                    console.error("Failed to fetch referrals:", error);
+                    toast({ title: "Error", description: "Could not load referral details.", variant: "destructive" });
+                } finally {
+                    setLoadingReferrals(false);
                 }
-                setReferrals(fetchedReferrals.reverse()); // Show newest referrals first
-                setLoadingReferrals(false);
             } else {
                 setReferrals([]);
                 setLoadingReferrals(false);
@@ -254,7 +243,7 @@ export default function ReferPage() {
                 <WhatsAppIcon />
                 WhatsApp
             </ShareButton>
-            <ShareButton platform="telegram" referralLink={referralLink} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-blue-500 text-white hover:bg-blue-600 h-12 text-md">
+            <ShareButton platform="telegram" referralLink={referralLink} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible-outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-blue-500 text-white hover:bg-blue-600 h-12 text-md">
                 <Send className="w-5 h-5" />
                 Telegram
             </ShareButton>
@@ -326,5 +315,3 @@ export default function ReferPage() {
     </div>
   );
 }
-
-    

@@ -61,7 +61,15 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
             const userSnap = await transaction.get(userRef);
             
             if (userSnap.exists()) {
-                const existingUser = serializeFirestoreTimestamps({ id: userSnap.id, ...userSnap.data() }) as UserData;
+                const existingData = userSnap.data();
+                const existingUser = serializeFirestoreTimestamps({ 
+                    id: userSnap.id, 
+                    tasks: [], 
+                    referrals: [], 
+                    history: [], 
+                    ...existingData 
+                }) as UserData;
+
                 const updates: Partial<UserData> = {};
                 let needsUpdate = false;
                 
@@ -358,30 +366,30 @@ export async function getUserData(userId: string): Promise<UserData | null> {
 
     if (userSnap.exists()) {
         const data = userSnap.data();
-        let userData = serializeFirestoreTimestamps(data) as UserData;
+        let userData = serializeFirestoreTimestamps({id: userSnap.id, ...data}) as UserData;
         
         let needsUpdate = false;
         const updates: Partial<UserData> = {};
 
         if (userData.vipStatus === 'approved' && !userData.vip) {
             updates.vip = true;
-needsUpdate = true;
+            needsUpdate = true;
         } else if (userData.vipStatus !== 'approved' && userData.vip) {
             updates.vip = false;
-needsUpdate = true;
+            needsUpdate = true;
         }
         
         const isUserAdmin = ADMIN_USER_IDS.includes(userId);
         if (userData.isAdmin !== isUserAdmin) {
             updates.isAdmin = isUserAdmin;
-needsUpdate = true;
+            needsUpdate = true;
         }
 
         // Sync baseRate with global settings
         const settings = await getGlobalSettings();
         if (settings && userData.baseRate !== settings.baseRate) {
             updates.baseRate = settings.baseRate;
-needsUpdate = true;
+            needsUpdate = true;
         }
         
         if (needsUpdate) {
@@ -401,8 +409,6 @@ export async function getReferrals(referralIds: string[]): Promise<Referral[]> {
     if (!referralIds || referralIds.length === 0) return [];
 
     const referrals: Referral[] = [];
-    // To avoid hitting DB for each referral, fetch them in batches.
-    // Firestore `in` query supports up to 30 items.
     const batchSize = 30;
     for (let i = 0; i < referralIds.length; i += batchSize) {
         const batchIds = referralIds.slice(i, i + batchSize);
@@ -449,13 +455,14 @@ export async function getTasks(): Promise<Task[]> {
 
 export async function claimTaskReward(userId: string, taskId: string) {
     'use server';
+    if (!userId || !taskId) {
+        return { success: false, error: "User ID and Task ID are required." };
+    }
     const userRef = doc(db, 'users', userId);
     const taskRef = doc(db, 'tasks', taskId);
 
     try {
         let reward = 0;
-        let taskTitle = "";
-
         const error = await runTransaction(db, async (transaction) => {
             const userDoc = await transaction.get(userRef);
             const taskDoc = await transaction.get(taskRef);
@@ -463,34 +470,42 @@ export async function claimTaskReward(userId: string, taskId: string) {
             if (!userDoc.exists() || !taskDoc.exists()) {
                 return "User or Task not found";
             }
+            
+            const userDataFromDb = userDoc.data();
+            
+            // This is the robust fix: provide default empty arrays.
+            const completedTasks = Array.isArray(userDataFromDb.tasks) ? userDataFromDb.tasks : [];
+            const referrals = Array.isArray(userDataFromDb.referrals) ? userDataFromDb.referrals : [];
+            const history = Array.isArray(userDataFromDb.history) ? userDataFromDb.history : [];
 
-            const userData = userDoc.data() as UserData;
             const taskData = taskDoc.data() as Task;
             reward = taskData.reward;
-            taskTitle = taskData.title;
 
-            if (userData.tasks.includes(taskId)) {
+            if (completedTasks.includes(taskId)) {
                 return "Task already completed.";
             }
 
             if (taskData.type === 'referral_milestone') {
-                const referralCount = userData.referrals?.length || 0;
+                const referralCount = referrals.length;
                 if (referralCount < (taskData.requiredCount || 0)) {
                     return "Referral requirement not met.";
                 }
             }
             
             const newHistoryItem = {
-                type: 'task',
-                title: taskTitle,
+                type: 'task' as const,
+                title: taskData.title,
                 amount: reward,
                 claimedAt: new Date().toISOString()
             };
 
+            const updatedHistory = [...history, newHistoryItem];
+            const updatedTasks = [...completedTasks, taskId];
+
             transaction.update(userRef, {
                 pariBalance: increment(reward),
-                tasks: arrayUnion(taskId),
-                history: arrayUnion(newHistoryItem)
+                tasks: updatedTasks,
+                history: updatedHistory
             });
             
             return null;
@@ -512,8 +527,8 @@ export async function claimTaskReward(userId: string, taskId: string) {
 
 export async function startMiningSession(userId: string) {
   'use server';
-  const FOUR_HOURS_IN_MS = 4 * 60 * 60 * 1000;
-  const sessionEndTime = Date.now() + FOUR_HOURS_IN_MS;
+  const TWELVE_HOURS_IN_MS = 12 * 60 * 60 * 1000;
+  const sessionEndTime = Date.now() + TWELVE_HOURS_IN_MS;
   const userRef = doc(db, 'users', userId);
   await updateDoc(userRef, { sessionEndTime });
 
@@ -533,7 +548,10 @@ export async function claimReward(userId: string) {
                 return "User not found.";
             }
 
-            const userData = userDoc.data() as UserData;
+            const userDataFromDb = userDoc.data();
+            // Robust fix: Ensure history is always an array
+            const userData = { history: [], ...userDataFromDb } as UserData;
+            
             if (!userData.sessionEndTime || userData.sessionEndTime > Date.now()) {
                 return "Mining session not yet complete.";
             }
@@ -541,21 +559,23 @@ export async function claimReward(userId: string) {
             const settings = await getGlobalSettings();
             const baseRate = settings?.baseRate || 10.0;
 
-            const baseReward = baseRate * 4;
+            const baseReward = baseRate * 12;
             const finalReward = userData.vipStatus === 'approved' ? baseReward * 2 : baseReward;
             rewardAmount = finalReward;
 
             const newHistoryItem = {
-                type: 'mining',
+                type: 'mining' as const,
                 title: 'Mining Session Reward',
                 amount: finalReward,
                 claimedAt: new Date().toISOString(),
             };
+            
+            const updatedHistory = [...userData.history, newHistoryItem];
 
             transaction.update(userRef, {
                 pariBalance: increment(finalReward),
                 sessionEndTime: null,
-                history: arrayUnion(newHistoryItem)
+                history: updatedHistory
             });
 
             if (userData.referredBy) {
@@ -691,7 +711,6 @@ export async function getUsers(): Promise<UserData[]> {
     const usersRef = collection(db, 'users');
     const querySnapshot = await getDocs(usersRef);
 
-    // Create a map of user IDs to their full data for quick lookups
     const userMap = new Map<string, UserData>();
     querySnapshot.docs.forEach(doc => {
         const userData = { id: doc.id, ...doc.data() } as UserData;
@@ -702,7 +721,6 @@ export async function getUsers(): Promise<UserData[]> {
         const serializedData = serializeFirestoreTimestamps(user) as UserData;
         const referrerName = user.referredBy ? userMap.get(user.referredBy)?.name : undefined;
         
-        // Ensure the referral count is derived from the complete data in the map
         const fullUserData = userMap.get(user.id);
         const referralCount = fullUserData?.referrals?.length || 0;
 
@@ -723,7 +741,6 @@ export async function updateUserFromAdmin(userId: string, dataToUpdate: Partial<
 
     const { id, ...updateData } = dataToUpdate; 
     
-    // Ensure numeric fields are correctly typed
     if (updateData.pariBalance !== undefined) {
         updateData.pariBalance = parseFloat(updateData.pariBalance as any) || 0;
     }
@@ -876,7 +893,6 @@ export async function getContestSettings(): Promise<ContestSettings> {
 
     if (contestSnap.exists()) {
         const data = contestSnap.data() as ContestSettings;
-        // Ensure there are always 10 winners, filling with N/A if needed
         const winners = data.winners || [];
         while (winners.length < 10) {
             winners.push({ name: "N/A", referralCount: 0 });
@@ -884,7 +900,6 @@ export async function getContestSettings(): Promise<ContestSettings> {
         return { winners: winners.slice(0, 10) };
     }
     
-    // Default if not set
     return { winners: Array(10).fill({ name: "N/A", referralCount: 0 }) };
 }
 
@@ -892,7 +907,6 @@ export async function saveContestWinners(winners: ContestEntry[]) {
     'use server';
     const contestRef = doc(db, 'contest', 'settings');
     try {
-        // Save all 10 winners
         await setDoc(contestRef, { winners: winners.slice(0, 10) });
         revalidatePath('/admin');
         revalidatePath('/referral-contest');
@@ -914,11 +928,9 @@ export async function migrateOldReferrals() {
         const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserData));
         const allUserIds = new Set(allUsers.map(u => u.id));
         
-        // Step 1: Build a map of who referred whom
         const referrersMap: { [key: string]: string[] } = {};
         allUsers.forEach(user => {
             if (user.referredBy) {
-                // Check if the referrer actually exists before adding to map
                 if (allUserIds.has(user.referredBy)) {
                     if (!referrersMap[user.referredBy]) {
                         referrersMap[user.referredBy] = [];
@@ -935,7 +947,6 @@ export async function migrateOldReferrals() {
              return { success: true, message: "No valid referrals found to migrate." };
         }
 
-        // Step 2: Create a batch write to update all referrers
         const batch = writeBatch(db);
         let updatedCount = 0;
         
@@ -946,10 +957,8 @@ export async function migrateOldReferrals() {
             const userToUpdate = allUsers.find(u => u.id === referrerId);
             const existingReferrals = userToUpdate?.referrals || [];
             
-            // Merge existing and newly found referrals, ensuring no duplicates
             const mergedReferrals = [...new Set([...existingReferrals, ...referredUserIds])];
 
-            // Only update if there are new referrals to add
             if (mergedReferrals.length > existingReferrals.length) {
                 batch.update(userRef, { referrals: mergedReferrals });
                 updatedCount++;
@@ -962,7 +971,6 @@ export async function migrateOldReferrals() {
              return { success: true, message: "All referral data is already consistent." };
         }
         
-        // Step 3: Commit the batch
         await batch.commit();
         
         console.log(`[Migration] Successfully updated ${updatedCount} user documents.`);

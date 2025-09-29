@@ -273,7 +273,7 @@ export default function MiningPage() {
   }
 
   const baseRate = settings?.baseRate ?? userData?.baseRate ?? 10.0;
-  const rewardAmount = userData ? (baseRate * 4 * (userData.vipStatus === 'approved' ? 2 : 1)) : 40;
+  const rewardAmount = userData ? (baseRate * 12 * (userData.vipStatus === 'approved' ? 2 : 1)) : 120;
 
   const getCardContent = () => {
     switch(miningState){
@@ -309,7 +309,7 @@ export default function MiningPage() {
   const claimedSlots = settings?.claimedVipSlots || 0;
   const totalSlots = settings?.totalVipSlots || 1;
   const vipProgress = (claimedSlots / totalSlots) * 100;
-  const progressPercentage = timeRemaining > 0 && userData?.sessionEndTime ? 100 - (timeRemaining / (4 * 60 * 60 * 1000)) * 100 : 0;
+  const progressPercentage = timeRemaining > 0 && userData?.sessionEndTime ? 100 - (timeRemaining / (12 * 60 * 60 * 1000)) * 100 : 0;
 
   if (authContext?.loading || !userData || !settings) {
     return (
@@ -340,7 +340,7 @@ export default function MiningPage() {
             <p className="text-sm text-cyan-400 flex items-center justify-center gap-2">
                 <Coins className="w-4 h-4" /> PARI Balance
             </p>
-            <h2 className="text-5xl font-bold text-white animate-text-glow">
+            <h2 className="text-5xl font-bold text-white">
               {(userData.pariBalance as number).toFixed(4)}
             </h2>
         </div>
@@ -390,9 +390,12 @@ export default function MiningPage() {
             
             {miningState === 'mining' && (
                 <div className="space-y-2">
-                    <h3 className="text-4xl font-bold font-mono tracking-widest animate-text-glow">{formatTime(timeRemaining)}</h3>
+                    <h3 className="text-4xl font-bold font-mono tracking-widest">{formatTime(timeRemaining)}</h3>
                     <p className="text-sm text-muted-foreground">Until session complete</p>
-                    <Progress value={progressPercentage} className="h-1.5 !bg-primary/20 animate-progress-glow" />
+                     <div className="relative w-full h-1 overflow-hidden mt-4">
+                        <div className="absolute h-full w-1/2 bg-primary animate-line-across"></div>
+                        <div className="absolute h-full w-1/2 bg-accent animate-line-across-reverse"></div>
+                    </div>
                 </div>
             )}
              {miningState === 'claimable' && (
@@ -445,5 +448,3 @@ export default function MiningPage() {
     </div>
   );
 }
-
-    
