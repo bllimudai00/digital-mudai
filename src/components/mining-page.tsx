@@ -273,7 +273,7 @@ export default function MiningPage() {
   }
 
   const baseRate = settings?.baseRate ?? userData?.baseRate ?? 10.0;
-  const rewardAmount = userData ? (baseRate * 4 * (userData.vipStatus === 'approved' ? 2 : 1)) : 40;
+  const rewardAmount = userData ? (baseRate * 12 * (userData.vipStatus === 'approved' ? 2 : 1)) : 120;
 
   const getCardContent = () => {
     switch(miningState){
@@ -309,7 +309,7 @@ export default function MiningPage() {
   const claimedSlots = settings?.claimedVipSlots || 0;
   const totalSlots = settings?.totalVipSlots || 1;
   const vipProgress = (claimedSlots / totalSlots) * 100;
-  const progressPercentage = timeRemaining > 0 && userData?.sessionEndTime ? 100 - (timeRemaining / (4 * 60 * 60 * 1000)) * 100 : 0;
+  const progressPercentage = timeRemaining > 0 && userData?.sessionEndTime ? 100 - (timeRemaining / (12 * 60 * 60 * 1000)) * 100 : 0;
 
   if (authContext?.loading || !userData || !settings) {
     return (

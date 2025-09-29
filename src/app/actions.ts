@@ -527,8 +527,8 @@ export async function claimTaskReward(userId: string, taskId: string) {
 
 export async function startMiningSession(userId: string) {
   'use server';
-  const FOUR_HOURS_IN_MS = 4 * 60 * 60 * 1000;
-  const sessionEndTime = Date.now() + FOUR_HOURS_IN_MS;
+  const TWELVE_HOURS_IN_MS = 12 * 60 * 60 * 1000;
+  const sessionEndTime = Date.now() + TWELVE_HOURS_IN_MS;
   const userRef = doc(db, 'users', userId);
   await updateDoc(userRef, { sessionEndTime });
 
@@ -559,7 +559,7 @@ export async function claimReward(userId: string) {
             const settings = await getGlobalSettings();
             const baseRate = settings?.baseRate || 10.0;
 
-            const baseReward = baseRate * 4;
+            const baseReward = baseRate * 12;
             const finalReward = userData.vipStatus === 'approved' ? baseReward * 2 : baseReward;
             rewardAmount = finalReward;
 
