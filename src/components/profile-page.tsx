@@ -21,6 +21,7 @@ import {
   Loader,
   Trophy,
   Globe,
+  Wallet
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -189,6 +190,7 @@ export default function ProfilePage() {
 
         <Card className="bg-card/50 backdrop-blur-sm border-0">
           <CardContent className="p-4 divide-y divide-border">
+            <ProfileMenuItem icon={<Wallet className="w-6 h-6 text-cyan-400" />} label="Wallet" href="/wallet" />
             <ProfileMenuItem icon={<ShieldCheck className="w-6 h-6 text-cyan-400" />} label="VIP Membership" href="/vip" />
             <ProfileMenuItem icon={<History className="w-6 h-6 text-cyan-400" />} label="History" href="/history" />
             <ProfileMenuItem icon={<Users className="w-6 h-6 text-cyan-400" />} label="My Referrals" href="/refer" />

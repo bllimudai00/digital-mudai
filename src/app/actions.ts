@@ -985,3 +985,23 @@ export async function migrateOldReferrals() {
         return { success: false, error: `Migration failed: ${error.message}` };
     }
 }
+
+// --- TON Wallet ---
+export async function updateTonWalletAddress(userId: string, address: string) {
+    'use server';
+    if (!userId || !address) {
+        return { success: false, error: 'User ID and address are required.' };
+    }
+
+    try {
+        const userRef = doc(db, 'users', userId);
+        await updateDoc(userRef, {
+            tonAddress: address
+        });
+        revalidatePath('/wallet');
+        return { success: true };
+    } catch (error: any) {
+        console.error('Error updating TON wallet address:', error);
+        return { success: false, error: 'Failed to update wallet address in database.' };
+    }
+}

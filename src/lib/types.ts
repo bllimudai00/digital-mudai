@@ -39,6 +39,7 @@ export type UserData = {
   referralEarnings?: number;
   referralCount?: number;
   referredByName?: string;
+  tonAddress?: string; // Raw TON wallet address
 };
 
 export type GlobalSettings = {
