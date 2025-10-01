@@ -24,6 +24,7 @@ import { onSnapshot, doc, collection, query, orderBy } from "firebase/firestore"
 import { db } from "@/lib/firebase/firestore";
 import { AuthContext } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
+import { TonConnectButton } from "@tonconnect/ui-react";
 
 function BottomNavItem({
   icon,
@@ -275,11 +276,15 @@ export default function TasksPage() {
 
   return (
     <div className="text-foreground min-h-screen flex flex-col font-body">
-      <main className="flex-1 p-4 space-y-6 pb-24">
+       <header className="p-4 flex justify-between items-center">
         <div className="flex items-center gap-2 text-xl font-bold">
           <ListChecks className="w-6 h-6" />
           <h1>Earn More with Tasks</h1>
         </div>
+        <TonConnectButton />
+      </header>
+
+      <main className="flex-1 space-y-6 pb-24 pt-2 px-4">
         {tasks.length > 0 ? (
             <div className="space-y-4">
             {pendingTasks.length > 0 ? (
@@ -328,3 +333,5 @@ export default function TasksPage() {
     </div>
   );
 }
+
+    
