@@ -5,7 +5,7 @@ import { ReactNode } from "react";
 
 // The manifest is used to configure the TonConnect UI.
 // It includes metadata about your app that will be displayed to the user in the connection modal.
-const manifestUrl = "https://gist.githubusercontent.com/siandree/034b2f56755a544ad5544710100238e8/raw/d513723de3165cb640538006dab1539f3c834079/gistfile1.txt";
+const manifestUrl = "https://raw.githubusercontent.com/ton-community/tutorials/main/03-client/test/public/tonconnect-manifest.json";
 
 export function TonConnectProvider({ children }: { children: ReactNode }) {
     return (
