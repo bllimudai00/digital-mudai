@@ -49,9 +49,6 @@ function SendTokenDialog() {
                 {
                     address: parsedRecipientAddress.toString(),
                     amount: amountInNano.toString(),
-                    // For sending Jettons (like FIR), you'd include a payload:
-                    // payload: body.toBoc().toString("base64") 
-                    // This is a simplified TON transfer for now.
                 }
             ]
         };
@@ -61,11 +58,8 @@ function SendTokenDialog() {
             toast({ title: "Confirm Transaction", description: "Please confirm the transaction in your wallet." });
             const result = await tonConnectUI.sendTransaction(transaction);
             toast({ title: "Transaction Sent!", description: "Your transaction has been broadcasted to the network." });
-            console.log("Transaction result:", result);
-             // You can add logic here to track the transaction status using the boc hash from the result
         } catch (error) {
             toast({ title: "Transaction Failed", description: (error as Error)?.message || "The transaction was rejected or failed.", variant: "destructive" });
-            console.error(error);
         } finally {
             setIsSending(false);
         }
@@ -74,7 +68,7 @@ function SendTokenDialog() {
     return (
         <DialogContent>
             <DialogHeader>
-                <DialogTitle>Send FIR Token</DialogTitle>
+                <DialogTitle>Send TON</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
                 <div>
@@ -84,7 +78,7 @@ function SendTokenDialog() {
                 <div>
                     <Label htmlFor="amount">Amount (TON)</Label>
                     <Input id="amount" type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" />
-                    <p className="text-xs text-muted-foreground mt-1">Note: This sends native TON. FIR token logic needs a jetton payload.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Note: This sends native TON. Sending custom tokens (Jettons) like FIR would require a different transaction payload.</p>
                 </div>
             </div>
             <DialogFooter>
@@ -110,7 +104,6 @@ function WalletInfo() {
 
     const isWalletConnected = !!wallet;
     
-    // Use connected wallet address if available, otherwise fallback to saved address in user data
     const rawAddress = isWalletConnected ? wallet.account.address : user?.tonAddress;
     const userFriendlyAddress = rawAddress ? Address.parse(rawAddress).toString({ bounceable: true, urlSafe: true }) : '';
 
@@ -125,7 +118,6 @@ function WalletInfo() {
     
     useEffect(() => {
         const saveAddress = async () => {
-            // Save address only if a wallet is connected and it's different from the saved one
             if (isWalletConnected && user && user.tonAddress !== wallet.account.address) {
                 setIsSaving(true);
                 const result = await updateTonWalletAddress(user.id, wallet.account.address);
@@ -145,7 +137,7 @@ function WalletInfo() {
         return <div className="flex justify-center p-8"><Loader className="w-6 h-6 animate-spin"/></div>;
     }
 
-    if (!rawAddress) { // Show connect button if no connected wallet and no saved address
+    if (!rawAddress) {
         return (
              <Card className="bg-card/80 backdrop-blur-sm text-center p-8">
                 <CardContent className="p-0 flex flex-col items-center">
@@ -192,7 +184,8 @@ function WalletInfo() {
                     {isWalletConnected ? (
                          <Button variant="link" className="w-full text-center text-red-500" onClick={() => tonConnectUI.disconnect()}>Disconnect Wallet</Button>
                     ) : (
-                         <div className="pt-2">
+                         <div className="pt-2 flex flex-col items-center">
+                             <p className="text-xs text-muted-foreground mb-2">Connect wallet to send tokens.</p>
                             <TonConnectButton />
                          </div>
                     )}
@@ -223,3 +216,5 @@ export default function WalletPage() {
         </div>
     )
 }
+
+    
