@@ -8,7 +8,7 @@ import Link from "next/link";
 import { Card, CardContent } from "./ui/card";
 import { useCallback, useContext, useEffect, useState } from "react";
 import { AuthContext } from "@/context/AuthContext";
-import { Address } from "@ton/core";
+import { Address, toNano } from "@ton/core";
 import { updateTonWalletAddress } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "./ui/dialog";
@@ -20,32 +20,55 @@ function SendTokenDialog() {
     const [amount, setAmount] = useState('');
     const [isSending, setIsSending] = useState(false);
     const { toast } = useToast();
+    const [tonConnectUI] = useTonConnectUI();
+    const wallet = useTonWallet();
 
     const handleSend = async () => {
+        if (!wallet) {
+            toast({ title: "Wallet not connected", description: "Please connect your wallet to send tokens.", variant: "destructive" });
+            return;
+        }
         if (!recipient || !amount) {
             toast({ title: "Error", description: "Please fill in all fields.", variant: "destructive" });
             return;
         }
         
+        let parsedRecipientAddress;
         try {
-            Address.parse(recipient);
+            parsedRecipientAddress = Address.parse(recipient);
         } catch (error) {
             toast({ title: "Invalid Address", description: "The recipient wallet address is not valid.", variant: "destructive" });
             return;
         }
 
+        const amountInNano = toNano(amount);
+
+        const transaction = {
+            validUntil: Math.floor(Date.now() / 1000) + 600, // 10 minutes from now
+            messages: [
+                {
+                    address: parsedRecipientAddress.toString(),
+                    amount: amountInNano.toString(),
+                    // For sending Jettons (like FIR), you'd include a payload:
+                    // payload: body.toBoc().toString("base64") 
+                    // This is a simplified TON transfer for now.
+                }
+            ]
+        };
+
         setIsSending(true);
-        toast({ title: "Processing...", description: "Please confirm the transaction in your wallet." });
-
-        // In a real app, you would use useTonConnect() to send the transaction
-        // For now, we simulate the process.
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        
-        console.log(`Simulating sending ${amount} FIR to ${recipient}`);
-
-        setIsSending(false);
-        toast({ title: "Success", description: "Transaction has been sent." });
-        // Close dialog logic would be here
+        try {
+            toast({ title: "Confirm Transaction", description: "Please confirm the transaction in your wallet." });
+            const result = await tonConnectUI.sendTransaction(transaction);
+            toast({ title: "Transaction Sent!", description: "Your transaction has been broadcasted to the network." });
+            console.log("Transaction result:", result);
+             // You can add logic here to track the transaction status using the boc hash from the result
+        } catch (error) {
+            toast({ title: "Transaction Failed", description: (error as Error)?.message || "The transaction was rejected or failed.", variant: "destructive" });
+            console.error(error);
+        } finally {
+            setIsSending(false);
+        }
     }
 
     return (
@@ -59,8 +82,9 @@ function SendTokenDialog() {
                     <Input id="recipient" value={recipient} onChange={e => setRecipient(e.target.value)} placeholder="Enter TON wallet address" />
                 </div>
                 <div>
-                    <Label htmlFor="amount">Amount</Label>
+                    <Label htmlFor="amount">Amount (TON)</Label>
                     <Input id="amount" type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" />
+                    <p className="text-xs text-muted-foreground mt-1">Note: This sends native TON. FIR token logic needs a jetton payload.</p>
                 </div>
             </div>
             <DialogFooter>
@@ -141,8 +165,8 @@ function WalletInfo() {
                 <CardContent className="p-0 space-y-4">
                     <div className="text-center">
                         <p className="text-sm text-muted-foreground">Total Balance</p>
-                        <p className="text-4xl font-bold">1,250.75 FIR</p>
-                        <p className="text-sm text-green-400">≈ $50.25</p>
+                        <p className="text-4xl font-bold">0.00 FIR</p>
+                        <p className="text-sm text-muted-foreground">≈ $0.00</p>
                     </div>
                     <div>
                         <label className="text-xs text-muted-foreground">Your Wallet Address</label>
@@ -160,7 +184,7 @@ function WalletInfo() {
                                 Send
                             </Button>
                         </DialogTrigger>
-                        <Button size="lg" variant="outline">
+                        <Button size="lg" variant="outline" disabled>
                             <RefreshCw className="w-4 h-4 mr-2" />
                             Transactions
                         </Button>
@@ -199,5 +223,3 @@ export default function WalletPage() {
         </div>
     )
 }
-
-    
