@@ -6,7 +6,7 @@ import { ArrowLeft, Copy, Loader, RefreshCw, Send, WalletCards, Coins } from "lu
 import { Button } from "./ui/button";
 import Link from "next/link";
 import { Card, CardContent } from "./ui/card";
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { AuthContext } from "@/context/AuthContext";
 import { Address, fromNano, toNano } from "@ton/core";
 import { TonClient } from "@ton/ton";
@@ -128,10 +128,10 @@ function WalletInfo() {
     const [balance, setBalance] = useState<string | null>(null);
     const [isBalanceLoading, setIsBalanceLoading] = useState(false);
 
-    // Initialize TonClient
-    const client = new TonClient({
+    // Initialize TonClient, memoize to prevent re-creation on every render
+    const client = useMemo(() => new TonClient({
         endpoint: 'https://toncenter.com/api/v2/jsonRPC',
-    });
+    }), []);
 
     const isWalletConnected = !!wallet;
     const rawAddress = isWalletConnected ? wallet.account.address : user?.tonAddress;
@@ -148,11 +148,11 @@ function WalletInfo() {
         } catch (error) {
             console.error("Failed to fetch balance:", error);
             setBalance('0.0000');
-            toast({ title: "Balance Error", description: "Could not fetch wallet balance.", variant: "destructive" });
+            // Do not toast error on initial load or frequent refresh
         } finally {
             setIsBalanceLoading(false);
         }
-    }, [rawAddress, toast]);
+    }, [rawAddress, client]);
 
 
     useEffect(() => {
