@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState, useContext } from "react";
@@ -434,7 +435,7 @@ function GlobalSettingsSection({ onUpdate }: { onUpdate: () => void}) {
                         />
                     </div>
                      <div>
-                        <Label htmlFor="vipPrice">VIP Price (USDT)</Label>
+                        <Label htmlFor="vipPrice">VIP Price (in TON)</Label>
                         <Input 
                             id="vipPrice"
                             name="vipPrice"
@@ -467,7 +468,7 @@ function GlobalSettingsSection({ onUpdate }: { onUpdate: () => void}) {
                         />
                     </div>
                     <div className="md:col-span-2">
-                        <Label htmlFor="vipWalletAddress">VIP Wallet Address (USDT BEP-20)</Label>
+                        <Label htmlFor="vipWalletAddress">VIP TON Wallet Address</Label>
                         <Input 
                             id="vipWalletAddress"
                             name="vipWalletAddress"

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import {
@@ -73,7 +74,7 @@ function BenefitCard({
 const faqData = [
     {
         question: "How do I upgrade to VIP?",
-        answer: "Send the specified USDT amount to the wallet address, then come back to the 'Upgrade' tab and submit your Transaction ID for manual verification."
+        answer: "Send the specified TON amount to the wallet address using the 'Pay with Wallet' button, or do it manually and then submit your Transaction ID for verification."
     },
     {
         question: "How long does verification take?",
@@ -113,8 +114,6 @@ function UpgradeToVipForm({ userId, vipPrice, walletAddress }: { userId: string,
             return;
         }
         
-        // Assuming vipPrice is in USDT, we'd need to handle Jetton transfer.
-        // For simplicity, this example sends TON. For real USDT, you need a Jetton transfer payload.
         const amountInNano = toNano(vipPrice.toString());
 
         const transaction = {
@@ -123,9 +122,6 @@ function UpgradeToVipForm({ userId, vipPrice, walletAddress }: { userId: string,
                 {
                     address: parsedRecipientAddress.toString(),
                     amount: amountInNano.toString(),
-                    // For sending Jettons (like USDT), you'd include a payload:
-                    // payload: body.toBoc().toString("base64")
-                    // This is a simplified TON transfer for now.
                 }
             ]
         };
@@ -135,10 +131,9 @@ function UpgradeToVipForm({ userId, vipPrice, walletAddress }: { userId: string,
             toast({ title: "Confirm Transaction", description: `Please confirm the payment of ${vipPrice} TON in your wallet.` });
             const result = await tonConnectUI.sendTransaction(transaction);
             
-            // The result.boc is a base64 encoded 'bag of cells' which contains the transaction.
             // A common practice is to send this boc to a backend to get the transaction hash.
             // For simplicity, we will use a placeholder as transactionId. A real app would get this from the boc.
-            const submittedTxId = result.boc.slice(0, 20) + "..."; // Placeholder
+            const submittedTxId = "tx_" + result.boc.slice(0, 20) + "..."; // Placeholder from boc
             
             toast({ 
                 title: "Transaction Sent!", 
@@ -211,7 +206,7 @@ function UpgradeToVipForm({ userId, vipPrice, walletAddress }: { userId: string,
 function VipStatus({ status, userId, walletAddress, vipPrice }: { status: 'none' | 'pending' | 'approved' | 'rejected', userId: string, walletAddress: string, vipPrice: number }) {
     
     const { toast } = useToast();
-    const finalWalletAddress = walletAddress || "0x10FA107AF74434313841FB36F4547ac";
+    const finalWalletAddress = walletAddress || "EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c"; // Default placeholder if not set
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
@@ -247,8 +242,8 @@ function VipStatus({ status, userId, walletAddress, vipPrice }: { status: 'none'
     return (
         <div className="space-y-6">
             <div className="text-center bg-muted/50 p-4 rounded-lg">
-                <p className="text-3xl font-bold text-accent">${vipPrice} USDT</p>
-                <p className="text-sm text-muted-foreground">Permanent VIP Membership (Paid in TON)</p>
+                <p className="text-3xl font-bold text-accent">{vipPrice} TON</p>
+                <p className="text-sm text-muted-foreground">Permanent VIP Membership Fee</p>
             </div>
             {status === 'rejected' && (
                  <div className="text-center bg-red-900/30 border border-red-500/50 p-4 rounded-lg flex items-center gap-3 text-red-400">
@@ -264,8 +259,8 @@ function VipStatus({ status, userId, walletAddress, vipPrice }: { status: 'none'
                  <div>
                     <label className="text-sm text-muted-foreground">Payment Method</label>
                     <div className="mt-1 bg-background p-3 rounded-md">
-                        <p className="font-bold text-accent">USDT (BEP-20)</p>
-                        <p className="text-xs text-muted-foreground">Binance Smart Chain Network</p>
+                        <p className="font-bold text-accent">TON Coin</p>
+                        <p className="text-xs text-muted-foreground">The Open Network</p>
                     </div>
                 </div>
                  <div>
