@@ -5,7 +5,7 @@
 import { useEffect, useState, useContext } from "react";
 import type { UserData, GlobalSettings, Task, RoadmapPhase, WhitePaperSection, RoadmapItem, ContestSettings, ContestEntry } from "@/lib/types";
 import { getVipRequests, updateVipStatus, getUsers, updateUserFromAdmin, deleteUser, getGlobalSettings, updateGlobalSettings, getTasks, deleteTask, addTask, updateTask, getRoadmap, saveRoadmap, getWhitePaper, saveWhitePaper, getContestSettings, saveContestWinners, migrateOldReferrals } from "@/app/actions";
-import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck, Zap, ListChecks, ExternalLink, Map, FileText, GripVertical, Plus, Image as ImageIcon, Trophy, Database, Search, Settings, FileEdit, Wrench, UserCog } from "lucide-react";
+import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck, Zap, ListChecks, ExternalLink, Map, FileText, GripVertical, Plus, Image as ImageIcon, Trophy, Database, Search, Settings, FileEdit, Wrench, UserCog, Send } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -596,10 +596,10 @@ function TaskDialog({ task, isOpen, onOpenChange, onTaskUpdate }: { task: Partia
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        setEditedTask(prev => ({ ...prev, [name]: ['reward', 'order', 'requiredCount'].includes(name) ? parseFloat(value) || 0 : value }));
+        setEditedTask(prev => ({ ...prev, [name]: ['reward', 'order', 'requiredCount', 'amount'].includes(name) ? parseFloat(value) || 0 : value }));
     };
 
-    const handleSelectChange = (value: 'external' | 'referral_milestone') => {
+    const handleSelectChange = (value: 'external' | 'referral_milestone' | 'onchain_transaction') => {
         setEditedTask(prev => ({...prev, type: value}));
     }
 
@@ -644,6 +644,7 @@ function TaskDialog({ task, isOpen, onOpenChange, onTaskUpdate }: { task: Partia
                             <SelectContent>
                                 <SelectItem value="external">External Link</SelectItem>
                                 <SelectItem value="referral_milestone">Referral Milestone</SelectItem>
+                                <SelectItem value="onchain_transaction">On-Chain Transaction</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -658,6 +659,22 @@ function TaskDialog({ task, isOpen, onOpenChange, onTaskUpdate }: { task: Partia
                             <Label htmlFor="requiredCount" className="text-right">Required Count</Label>
                             <Input id="requiredCount" name="requiredCount" type="number" value={editedTask.requiredCount || 0} onChange={handleInputChange} className="col-span-3" />
                         </div>
+                    )}
+                    {editedTask.type === 'onchain_transaction' && (
+                        <>
+                             <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="network" className="text-right">Network</Label>
+                                <Input id="network" name="network" value="TON" readOnly className="col-span-3" />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="toAddress" className="text-right">To Address</Label>
+                                <Input id="toAddress" name="toAddress" value={editedTask.toAddress || ""} onChange={handleInputChange} className="col-span-3" />
+                            </div>
+                             <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="amount" className="text-right">Amount (TON)</Label>
+                                <Input id="amount" name="amount" type="number" value={editedTask.amount || 0} onChange={handleInputChange} className="col-span-3" />
+                            </div>
+                        </>
                     )}
                 </div>
                 <DialogFooter>
@@ -737,8 +754,14 @@ function TaskManagementSection({ onUpdate }: { onUpdate: () => void }) {
                                 <TableCell>{task.order}</TableCell>
                                 <TableCell className="font-medium">{task.title}</TableCell>
                                 <TableCell>
-                                    <Badge variant={task.type === 'referral_milestone' ? 'default' : 'secondary'}>
-                                        {task.type === 'referral_milestone' ? <Users className="w-3 h-3 mr-1" /> : <ExternalLink className="w-3 h-3 mr-1" />}
+                                    <Badge variant={
+                                        task.type === 'referral_milestone' ? 'default' 
+                                        : task.type === 'onchain_transaction' ? 'destructive'
+                                        : 'secondary'
+                                    }>
+                                        {task.type === 'referral_milestone' ? <Users className="w-3 h-3 mr-1" /> : 
+                                         task.type === 'onchain_transaction' ? <Send className="w-3 h-3 mr-1" /> :
+                                         <ExternalLink className="w-3 h-3 mr-1" />}
                                         {task.type.replace('_', ' ')}
                                     </Badge>
                                 </TableCell>

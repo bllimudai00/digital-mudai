@@ -124,6 +124,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                     baseRate: settings?.baseRate || 10.00,
                     referrals: [],
                     tasks: [],
+                    pendingTasks: {},
                     vip: false,
                     referralCode: userIdStr,
                     name: `${tgUser.first_name || ''} ${tgUser.last_name || ''}`.trim(),
@@ -161,6 +162,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                     baseRate: newUserDocData.baseRate,
                     referrals: newUserDocData.referrals,
                     tasks: newUserDocData.tasks,
+                    pendingTasks: newUserDocData.pendingTasks,
                     vip: newUserDocData.vip,
                     referralCode: newUserDocData.referralCode,
                     name: newUserDocData.name,
@@ -453,7 +455,7 @@ export async function getTasks(): Promise<Task[]> {
     }
 }
 
-export async function claimTaskReward(userId: string, taskId: string) {
+export async function claimTaskReward(userId: string, taskId: string, transactionId?: string) {
     'use server';
     if (!userId || !taskId) {
         return { success: false, error: "User ID and Task ID are required." };
@@ -462,23 +464,38 @@ export async function claimTaskReward(userId: string, taskId: string) {
     const taskRef = doc(db, 'tasks', taskId);
 
     try {
+        const taskDoc = await getDoc(taskRef);
+        if (!taskDoc.exists()) {
+            return { success: false, error: "Task not found."};
+        }
+        const taskData = taskDoc.data() as Task;
+
+        // Handle on-chain transaction proof submission
+        if (taskData.type === 'onchain_transaction') {
+            if (!transactionId) {
+                return { success: false, error: "Transaction ID is required for this task." };
+            }
+             await updateDoc(userRef, {
+                [`pendingTasks.${taskId}`]: transactionId
+            });
+            revalidatePath('/tasks');
+            return { success: true, message: "Transaction proof submitted for verification." };
+        }
+
+        // Handle other task types
         let reward = 0;
         const error = await runTransaction(db, async (transaction) => {
             const userDoc = await transaction.get(userRef);
-            const taskDoc = await transaction.get(taskRef);
-
-            if (!userDoc.exists() || !taskDoc.exists()) {
-                return "User or Task not found";
+            
+            if (!userDoc.exists()) {
+                return "User not found";
             }
             
             const userDataFromDb = userDoc.data();
-            
-            // This is the robust fix: provide default empty arrays.
-            const completedTasks = Array.isArray(userDataFromDb.tasks) ? userDataFromDb.tasks : [];
-            const referrals = Array.isArray(userDataFromDb.referrals) ? userDataFromDb.referrals : [];
-            const history = Array.isArray(userDataFromDb.history) ? userDataFromDb.history : [];
+            const completedTasks = userDataFromDb.tasks || [];
+            const referrals = userDataFromDb.referrals || [];
+            const history = userDataFromDb.history || [];
 
-            const taskData = taskDoc.data() as Task;
             reward = taskData.reward;
 
             if (completedTasks.includes(taskId)) {
@@ -515,6 +532,7 @@ export async function claimTaskReward(userId: string, taskId: string) {
             return { success: false, error: error };
         }
 
+        revalidatePath('/tasks');
         revalidatePath('/');
         return { success: true, reward };
 

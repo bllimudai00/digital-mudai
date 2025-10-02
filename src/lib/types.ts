@@ -1,4 +1,5 @@
 
+
 import { Timestamp } from "firebase/firestore";
 
 export type Transaction = {
@@ -22,7 +23,8 @@ export type UserData = {
   pariBalance: number;
   baseRate: number;
   referrals: string[];
-  tasks: string[];
+  tasks: string[]; // Stores completed task IDs
+  pendingTasks?: { [taskId: string]: string }; // Stores pending tasks, e.g. { taskId: transactionId }
   vip: boolean;
   referralCode: string;
   referredBy?: string;
@@ -62,13 +64,19 @@ export type Referral = {
 };
 
 export type Task = {
-  id: string;
+  id:string;
   title: string;
   reward: number;
   order: number;
-  type: 'external' | 'referral_milestone';
+  type: 'external' | 'referral_milestone' | 'onchain_transaction';
+  // for referral_milestone
   requiredCount?: number;
+  // for external
   url?: string;
+  // for onchain_transaction
+  toAddress?: string;
+  amount?: number; // e.g., in TON
+  network?: 'TON';
 };
 
 export type RoadmapItem = {
