@@ -45,7 +45,15 @@ import { db } from "@/lib/firebase/firestore";
 import { Progress } from "./ui/progress";
 import { AuthContext } from "@/context/AuthContext";
 import { useTonConnectUI, useTonWallet } from "@tonconnect/ui-react";
-import { Address, toNano } from "@ton/core";
+import { Address, toNano, Cell } from "@ton/core";
+import { sha256 } from "@ton/crypto";
+
+async function bocToHash(boc: string) {
+    const cell = Cell.fromBase64(boc);
+    const hash = await cell.hash();
+    return hash.toString('hex');
+}
+
 
 function BenefitCard({
   icon,
@@ -131,17 +139,15 @@ function UpgradeToVipForm({ userId, vipPrice, walletAddress }: { userId: string,
             toast({ title: "Confirm Transaction", description: `Please confirm the payment of ${vipPrice} TON in your wallet.` });
             const result = await tonConnectUI.sendTransaction(transaction);
             
-            // A common practice is to send this boc to a backend to get the transaction hash.
-            // For simplicity, we will use a placeholder as transactionId. A real app would get this from the boc.
-            const submittedTxId = "tx_" + result.boc.slice(0, 20) + "..."; // Placeholder from boc
-            
+            const submittedTxHash = await bocToHash(result.boc);
+
             toast({ 
                 title: "Transaction Sent!", 
                 description: "Your transaction has been broadcasted. Now submitting for verification." 
             });
             
             // Automatically submit for verification
-            await handleSubmit(undefined, submittedTxId);
+            await handleSubmit(undefined, submittedTxHash);
 
         } catch (error) {
             toast({ title: "Transaction Failed", description: (error as Error)?.message || "The transaction was rejected or failed.", variant: "destructive" });
@@ -410,5 +416,7 @@ export default function VipPage() {
     </div>
   );
 }
+
+    
 
     
