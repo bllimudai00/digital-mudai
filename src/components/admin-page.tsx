@@ -4,7 +4,7 @@
 
 import { useEffect, useState, useContext } from "react";
 import type { UserData, GlobalSettings, Task, RoadmapPhase, WhitePaperSection, RoadmapItem, ContestSettings, ContestEntry } from "@/lib/types";
-import { getVipRequests, updateVipStatus, getUsers, updateUserFromAdmin, deleteUser, getGlobalSettings, updateGlobalSettings, getTasks, deleteTask, addTask, updateTask, getRoadmap, saveRoadmap, getWhitePaper, saveWhitePaper, getContestSettings, saveContestWinners, migrateOldReferrals } from "@/app/actions";
+import { getVipRequests, updateVipStatus, getUsers, updateUserFromAdmin, deleteUser, getGlobalSettings, updateGlobalSettings, getTasks, deleteTask, addTask, updateTask, getRoadmap, saveRoadmap, getWhitePaper, saveWhitePaper, getContestSettings, saveContestWinners, migrateOldReferrals, getPendingTaskRequests, approveTask, rejectTask } from "@/app/actions";
 import { Loader, Shield, UserCheck, UserX, Trash2, PlusCircle, Users, Badge, Edit, Clock, ShieldCheck, Zap, ListChecks, ExternalLink, Map, FileText, GripVertical, Plus, Image as ImageIcon, Trophy, Database, Search, Settings, FileEdit, Wrench, UserCog, Send } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -39,16 +39,18 @@ function StatCard({ title, value, icon }: { title: string, value: string | numbe
     );
 }
 
-function DashboardStatsSection({ users, vipRequests }: { users: UserData[], vipRequests: UserData[] }) {
+function DashboardStatsSection({ users, vipRequests, pendingTaskRequests }: { users: UserData[], vipRequests: UserData[], pendingTaskRequests: any[] }) {
     const totalUsers = users.length;
     const vipUsers = users.filter(u => u.vipStatus === 'approved').length;
-    const pendingRequests = vipRequests.length;
+    const pendingVip = vipRequests.length;
+    const pendingTasks = pendingTaskRequests.length;
 
     return (
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <StatCard title="Total Users" value={totalUsers} icon={<Users className="h-4 w-4 text-muted-foreground" />} />
             <StatCard title="VIP Users" value={vipUsers} icon={<ShieldCheck className="h-4 w-4 text-muted-foreground" />} />
-            <StatCard title="Pending VIP Requests" value={pendingRequests} icon={<Clock className="h-4 w-4 text-muted-foreground" />} />
+            <StatCard title="Pending VIP" value={pendingVip} icon={<Clock className="h-4 w-4 text-muted-foreground" />} />
+            <StatCard title="Pending Tasks" value={pendingTasks} icon={<ListChecks className="h-4 w-4 text-muted-foreground" />} />
         </div>
     );
 }
@@ -110,6 +112,69 @@ function VipRequestSection({ vipRequests, loading, onUpdate }: { vipRequests: Us
                     </ul>
                 ) : (
                     <p className="text-muted-foreground text-center p-8">No pending VIP requests found.</p>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
+function TaskVerificationSection({ requests, loading, onUpdate }: { requests: any[], loading: boolean, onUpdate: () => void }) {
+    const { toast } = useToast();
+
+    const handleApprove = async (userId: string, taskId: string) => {
+        const result = await approveTask(userId, taskId);
+        if (result.success) {
+            toast({ title: "Success", description: "Task approved and reward sent." });
+            onUpdate();
+        } else {
+            toast({ title: "Error", description: result.error, variant: "destructive" });
+        }
+    };
+
+    const handleReject = async (userId: string, taskId: string) => {
+        const result = await rejectTask(userId, taskId);
+        if (result.success) {
+            toast({ title: "Task Rejected", description: "The task submission has been rejected." });
+            onUpdate();
+        } else {
+            toast({ title: "Error", description: result.error, variant: "destructive" });
+        }
+    };
+    
+    if(loading) {
+        return <div className="flex justify-center p-8"><Loader className="w-6 h-6 animate-spin"/></div>
+    }
+
+    return (
+        <Card className="bg-card/50 backdrop-blur-sm border-blue-500/20">
+            <CardHeader>
+                <CardTitle>Pending Task Verifications</CardTitle>
+            </CardHeader>
+            <CardContent>
+                {requests.length > 0 ? (
+                    <ul className="space-y-4">
+                        {requests.map((req) => (
+                            <li key={`${req.userId}-${req.taskId}`} className="p-4 bg-background rounded-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                <div>
+                                    <p className="font-bold">{req.userName}</p>
+                                    <p className="text-sm text-muted-foreground">Task: <span className="font-semibold">{req.taskTitle}</span></p>
+                                    <p className="text-xs text-accent mt-1">TxID: <span className="font-mono">{req.transactionId}</span></p>
+                                </div>
+                                <div className="flex gap-2 shrink-0">
+                                    <Button size="sm" variant="outline" className="text-green-400 border-green-400 hover:bg-green-400 hover:text-black" onClick={() => handleApprove(req.userId, req.taskId)}>
+                                        <UserCheck className="w-4 h-4 mr-2" />
+                                        Approve
+                                    </Button>
+                                    <Button size="sm" variant="outline" className="text-red-400 border-red-400 hover:bg-red-400 hover:text-black" onClick={() => handleReject(req.userId, req.taskId)}>
+                                        <UserX className="w-4 h-4 mr-2" />
+                                        Reject
+                                    </Button>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                ) : (
+                    <p className="text-muted-foreground text-center p-8">No pending task submissions found.</p>
                 )}
             </CardContent>
         </Card>
@@ -1107,6 +1172,7 @@ export default function AdminPage() {
     const { user: currentUser } = authContext || {};
     const [allUsers, setAllUsers] = useState<UserData[]>([]);
     const [vipRequests, setVipRequests] = useState<UserData[]>([]);
+    const [pendingTaskRequests, setPendingTaskRequests] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshKey, setRefreshKey] = useState(0);
 
@@ -1114,11 +1180,13 @@ export default function AdminPage() {
         setLoading(true);
         const usersPromise = getUsers();
         const requestsPromise = getVipRequests();
+        const taskRequestsPromise = getPendingTaskRequests();
 
-        const [users, requests] = await Promise.all([usersPromise, requestsPromise]);
+        const [users, requests, taskRequests] = await Promise.all([usersPromise, requestsPromise, taskRequestsPromise]);
         
         setAllUsers(users);
         setVipRequests(requests);
+        setPendingTaskRequests(taskRequests);
         setLoading(false);
     };
     
@@ -1166,7 +1234,7 @@ export default function AdminPage() {
                 </Button>
             </header>
             
-            <DashboardStatsSection users={allUsers} vipRequests={vipRequests} />
+            <DashboardStatsSection users={allUsers} vipRequests={vipRequests} pendingTaskRequests={pendingTaskRequests}/>
 
             <Accordion type="multiple" className="w-full space-y-4" defaultValue={["user-management"]}>
                 <AdminAccordionItem value="global-settings" title="Global App Settings" icon={<Settings className="w-5 h-5 text-primary" />}>
@@ -1177,8 +1245,11 @@ export default function AdminPage() {
                      <UserManagementSection users={allUsers} loading={loading} onUpdate={handleDataUpdate} />
                 </AdminAccordionItem>
                 
-                <AdminAccordionItem value="vip-requests" title="VIP Requests" icon={<ShieldCheck className="w-5 h-5 text-primary" />}>
-                    <VipRequestSection vipRequests={vipRequests} loading={loading} onUpdate={handleDataUpdate} />
+                <AdminAccordionItem value="verification-queues" title="Verification Queues" icon={<ShieldCheck className="w-5 h-5 text-primary" />}>
+                    <div className="space-y-4">
+                        <VipRequestSection vipRequests={vipRequests} loading={loading} onUpdate={handleDataUpdate} />
+                        <TaskVerificationSection requests={pendingTaskRequests} loading={loading} onUpdate={handleDataUpdate} />
+                    </div>
                 </AdminAccordionItem>
                 
                 <AdminAccordionItem value="content-management" title="Content Management" icon={<FileEdit className="w-5 h-5 text-primary" />}>

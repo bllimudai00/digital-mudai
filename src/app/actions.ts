@@ -1,7 +1,8 @@
 
+
 'use server';
 
-import { doc, updateDoc, arrayUnion, getDoc, runTransaction, increment, collection, getDocs, writeBatch, setDoc, query, where, addDoc, deleteDoc, serverTimestamp, Timestamp, orderBy, limit } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, getDoc, runTransaction, increment, collection, getDocs, writeBatch, setDoc, query, where, addDoc, deleteDoc, serverTimestamp, Timestamp, orderBy, limit, deleteField } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/firebase/firestore';
 import type { UserData, Referral, Task, GlobalSettings, RoadmapPhase, WhitePaperSection, TelegramUser, ContestSettings, ContestEntry } from '@/lib/types';
@@ -479,6 +480,7 @@ export async function claimTaskReward(userId: string, taskId: string, transactio
                 [`pendingTasks.${taskId}`]: transactionId
             });
             revalidatePath('/tasks');
+            revalidatePath('/admin');
             return { success: true, message: "Transaction proof submitted for verification." };
         }
 
@@ -724,6 +726,102 @@ export async function updateVipStatus(userId: string, status: 'approved' | 'reje
     
     return { success: true };
 }
+
+export async function getPendingTaskRequests() {
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, where('pendingTasks', '!=', {}));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+        return [];
+    }
+
+    const tasksRef = collection(db, 'tasks');
+    const tasksSnapshot = await getDocs(tasksRef);
+    const tasksMap = new Map(tasksSnapshot.docs.map(doc => [doc.id, doc.data() as Task]));
+
+    const requests: any[] = [];
+    querySnapshot.forEach(userDoc => {
+        const userData = userDoc.data() as UserData;
+        if (userData.pendingTasks) {
+            for (const taskId in userData.pendingTasks) {
+                const task = tasksMap.get(taskId);
+                if (task) {
+                    requests.push({
+                        userId: userDoc.id,
+                        userName: userData.name,
+                        taskId: taskId,
+                        taskTitle: task.title,
+                        transactionId: userData.pendingTasks[taskId]
+                    });
+                }
+            }
+        }
+    });
+
+    return requests;
+}
+
+export async function approveTask(userId: string, taskId: string) {
+    'use server';
+    const userRef = doc(db, 'users', userId);
+    const taskRef = doc(db, 'tasks', taskId);
+
+    try {
+        await runTransaction(db, async (transaction) => {
+            const userDoc = await transaction.get(userRef);
+            const taskDoc = await transaction.get(taskRef);
+
+            if (!userDoc.exists() || !taskDoc.exists()) {
+                throw new Error("User or Task not found.");
+            }
+
+            const userData = userDoc.data() as UserData;
+            const taskData = taskDoc.data() as Task;
+            const reward = taskData.reward;
+
+            const newHistoryItem = {
+                type: 'task' as const,
+                title: taskData.title,
+                amount: reward,
+                claimedAt: new Date().toISOString()
+            };
+
+            transaction.update(userRef, {
+                pariBalance: increment(reward),
+                tasks: arrayUnion(taskId),
+                history: arrayUnion(newHistoryItem),
+                [`pendingTasks.${taskId}`]: deleteField()
+            });
+        });
+
+        revalidatePath('/admin');
+        revalidatePath('/tasks');
+        revalidatePath('/');
+
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error approving task:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function rejectTask(userId: string, taskId: string) {
+    'use server';
+    const userRef = doc(db, 'users', userId);
+    try {
+        await updateDoc(userRef, {
+            [`pendingTasks.${taskId}`]: deleteField()
+        });
+        revalidatePath('/admin');
+        revalidatePath('/tasks');
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error rejecting task:", error);
+        return { success: false, error: error.message };
+    }
+}
+
 
 export async function getUsers(): Promise<UserData[]> {
     const usersRef = collection(db, 'users');
