@@ -46,7 +46,6 @@ import { Progress } from "./ui/progress";
 import { AuthContext } from "@/context/AuthContext";
 import { useTonConnectUI, useTonWallet } from "@tonconnect/ui-react";
 import { Address, toNano, Cell } from "@ton/core";
-import { sha256 } from "@ton/crypto";
 
 async function bocToHash(boc: string) {
     const cell = Cell.fromBase64(boc);
