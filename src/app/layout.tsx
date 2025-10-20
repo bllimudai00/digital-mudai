@@ -4,6 +4,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/context/AuthContext';
 import Script from 'next/script';
+import { TonConnectProvider } from '@/context/TonConnectProvider';
 
 export const metadata: Metadata = {
   title: 'PARI Network',
@@ -24,9 +25,11 @@ export default function RootLayout({
         <Script src="https://telegram.org/js/telegram-web-app.js" strategy="beforeInteractive" />
       </head>
       <body className="font-body antialiased">
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <TonConnectProvider>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </TonConnectProvider>
         <Toaster />
       </body>
     </html>

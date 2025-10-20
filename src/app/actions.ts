@@ -1,7 +1,8 @@
 
+
 'use server';
 
-import { doc, updateDoc, arrayUnion, getDoc, runTransaction, increment, collection, getDocs, writeBatch, setDoc, query, where, addDoc, deleteDoc, serverTimestamp, Timestamp, orderBy, limit } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, getDoc, runTransaction, increment, collection, getDocs, writeBatch, setDoc, query, where, addDoc, deleteDoc, serverTimestamp, Timestamp, orderBy, limit, deleteField } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/firebase/firestore';
 import type { UserData, Referral, Task, GlobalSettings, RoadmapPhase, WhitePaperSection, TelegramUser, ContestSettings, ContestEntry } from '@/lib/types';
@@ -15,8 +16,8 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
     if (!botToken && !isDevEnv) {
-        console.error("Telegram Bot Token not found in environment variables.");
-        return { error: 'Server configuration error.' };
+        console.error("Critical: Telegram Bot Token not found in environment variables.");
+        return { error: 'Server configuration error. Please contact support.' };
     }
 
     const urlParams = new URLSearchParams(initData);
@@ -28,8 +29,8 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
     }
     
     if (!isDevEnv) {
-        if (!hash) {
-            return { error: 'Invalid authentication data: Missing hash.' };
+        if (!hash || !botToken) { // Also check botToken here
+            return { error: 'Invalid authentication data: Missing hash or server token.' };
         }
         const dataCheckArr = [];
         urlParams.sort();
@@ -39,7 +40,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
             }
         }
         const dataCheckString = dataCheckArr.join('\n');
-        const secretKey = createHmac('sha256', 'WebAppData').update(botToken!).digest();
+        const secretKey = createHmac('sha256', 'WebAppData').update(botToken).digest();
         const calculatedHash = createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
 
         if (calculatedHash !== hash) {
@@ -48,7 +49,13 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
         }
     }
     
-    const tgUser: TelegramUser = JSON.parse(userParam);
+    let tgUser: TelegramUser;
+    try {
+        tgUser = JSON.parse(userParam);
+    } catch (e) {
+        return { error: 'Invalid authentication data: Malformed user data.' };
+    }
+
     const userIdStr = tgUser.id.toString();
     const isUserAdmin = ADMIN_USER_IDS.includes(userIdStr);
     const startParam = urlParams.get('start_param');
@@ -124,6 +131,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                     baseRate: settings?.baseRate || 10.00,
                     referrals: [],
                     tasks: [],
+                    pendingTasks: {},
                     vip: false,
                     referralCode: userIdStr,
                     name: `${tgUser.first_name || ''} ${tgUser.last_name || ''}`.trim(),
@@ -161,6 +169,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
                     baseRate: newUserDocData.baseRate,
                     referrals: newUserDocData.referrals,
                     tasks: newUserDocData.tasks,
+                    pendingTasks: newUserDocData.pendingTasks,
                     vip: newUserDocData.vip,
                     referralCode: newUserDocData.referralCode,
                     name: newUserDocData.name,
@@ -453,7 +462,7 @@ export async function getTasks(): Promise<Task[]> {
     }
 }
 
-export async function claimTaskReward(userId: string, taskId: string) {
+export async function claimTaskReward(userId: string, taskId: string, transactionId?: string) {
     'use server';
     if (!userId || !taskId) {
         return { success: false, error: "User ID and Task ID are required." };
@@ -462,23 +471,39 @@ export async function claimTaskReward(userId: string, taskId: string) {
     const taskRef = doc(db, 'tasks', taskId);
 
     try {
+        const taskDoc = await getDoc(taskRef);
+        if (!taskDoc.exists()) {
+            return { success: false, error: "Task not found."};
+        }
+        const taskData = taskDoc.data() as Task;
+
+        // Handle on-chain transaction proof submission
+        if (taskData.type === 'onchain_transaction') {
+            if (!transactionId) {
+                return { success: false, error: "Transaction ID is required for this task." };
+            }
+             await updateDoc(userRef, {
+                [`pendingTasks.${taskId}`]: transactionId
+            });
+            revalidatePath('/tasks');
+            revalidatePath('/admin');
+            return { success: true, message: "Transaction proof submitted for verification." };
+        }
+
+        // Handle other task types
         let reward = 0;
         const error = await runTransaction(db, async (transaction) => {
             const userDoc = await transaction.get(userRef);
-            const taskDoc = await transaction.get(taskRef);
-
-            if (!userDoc.exists() || !taskDoc.exists()) {
-                return "User or Task not found";
+            
+            if (!userDoc.exists()) {
+                return "User not found";
             }
             
             const userDataFromDb = userDoc.data();
-            
-            // This is the robust fix: provide default empty arrays.
-            const completedTasks = Array.isArray(userDataFromDb.tasks) ? userDataFromDb.tasks : [];
-            const referrals = Array.isArray(userDataFromDb.referrals) ? userDataFromDb.referrals : [];
-            const history = Array.isArray(userDataFromDb.history) ? userDataFromDb.history : [];
+            const completedTasks = userDataFromDb.tasks || [];
+            const referrals = userDataFromDb.referrals || [];
+            const history = userDataFromDb.history || [];
 
-            const taskData = taskDoc.data() as Task;
             reward = taskData.reward;
 
             if (completedTasks.includes(taskId)) {
@@ -515,6 +540,7 @@ export async function claimTaskReward(userId: string, taskId: string) {
             return { success: false, error: error };
         }
 
+        revalidatePath('/tasks');
         revalidatePath('/');
         return { success: true, reward };
 
@@ -706,6 +732,102 @@ export async function updateVipStatus(userId: string, status: 'approved' | 'reje
     
     return { success: true };
 }
+
+export async function getPendingTaskRequests() {
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, where('pendingTasks', '!=', {}));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+        return [];
+    }
+
+    const tasksRef = collection(db, 'tasks');
+    const tasksSnapshot = await getDocs(tasksRef);
+    const tasksMap = new Map(tasksSnapshot.docs.map(doc => [doc.id, doc.data() as Task]));
+
+    const requests: any[] = [];
+    querySnapshot.forEach(userDoc => {
+        const userData = userDoc.data() as UserData;
+        if (userData.pendingTasks) {
+            for (const taskId in userData.pendingTasks) {
+                const task = tasksMap.get(taskId);
+                if (task) {
+                    requests.push({
+                        userId: userDoc.id,
+                        userName: userData.name,
+                        taskId: taskId,
+                        taskTitle: task.title,
+                        transactionId: userData.pendingTasks[taskId]
+                    });
+                }
+            }
+        }
+    });
+
+    return requests;
+}
+
+export async function approveTask(userId: string, taskId: string) {
+    'use server';
+    const userRef = doc(db, 'users', userId);
+    const taskRef = doc(db, 'tasks', taskId);
+
+    try {
+        await runTransaction(db, async (transaction) => {
+            const userDoc = await transaction.get(userRef);
+            const taskDoc = await transaction.get(taskRef);
+
+            if (!userDoc.exists() || !taskDoc.exists()) {
+                throw new Error("User or Task not found.");
+            }
+
+            const userData = userDoc.data() as UserData;
+            const taskData = taskDoc.data() as Task;
+            const reward = taskData.reward;
+
+            const newHistoryItem = {
+                type: 'task' as const,
+                title: taskData.title,
+                amount: reward,
+                claimedAt: new Date().toISOString()
+            };
+
+            transaction.update(userRef, {
+                pariBalance: increment(reward),
+                tasks: arrayUnion(taskId),
+                history: arrayUnion(newHistoryItem),
+                [`pendingTasks.${taskId}`]: deleteField()
+            });
+        });
+
+        revalidatePath('/admin');
+        revalidatePath('/tasks');
+        revalidatePath('/');
+
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error approving task:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function rejectTask(userId: string, taskId: string) {
+    'use server';
+    const userRef = doc(db, 'users', userId);
+    try {
+        await updateDoc(userRef, {
+            [`pendingTasks.${taskId}`]: deleteField()
+        });
+        revalidatePath('/admin');
+        revalidatePath('/tasks');
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error rejecting task:", error);
+        return { success: false, error: error.message };
+    }
+}
+
 
 export async function getUsers(): Promise<UserData[]> {
     const usersRef = collection(db, 'users');
@@ -985,3 +1107,26 @@ export async function migrateOldReferrals() {
         return { success: false, error: `Migration failed: ${error.message}` };
     }
 }
+
+// --- TON Wallet ---
+export async function updateTonWalletAddress(userId: string, address: string) {
+    'use server';
+    if (!userId || !address) {
+        return { success: false, error: 'User ID and address are required.' };
+    }
+
+    try {
+        const userRef = doc(db, 'users', userId);
+        await updateDoc(userRef, {
+            tonAddress: address
+        });
+        revalidatePath('/wallet');
+        return { success: true };
+    } catch (error: any) {
+        console.error('Error updating TON wallet address:', error);
+        return { success: false, error: 'Failed to update wallet address in database.' };
+    }
+}
+
+
+      

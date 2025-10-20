@@ -25,6 +25,7 @@ import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/firestore";
 import { AuthContext } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
+import { TonConnectButton } from "@tonconnect/ui-react";
 function BalanceCard({
   icon,
   label,
@@ -332,6 +333,7 @@ export default function MiningPage() {
             />
             <h1 className="text-xl font-bold text-white">PARI NETWORK</h1>
         </div>
+        <TonConnectButton />
       </header>
       
       <main className="flex-1 p-4 space-y-4 pb-24">
@@ -448,3 +450,5 @@ export default function MiningPage() {
     </div>
   );
 }
+
+    

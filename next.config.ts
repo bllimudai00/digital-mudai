@@ -37,12 +37,25 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
       {
-        protocol: 'https',
+        protocol: 'https'
+        ,
         hostname: 'ik.imagekit.io',
         port: '',
         pathname: '/**',
       }
     ],
+  },
+  webpack: (config, { isServer }) => {
+    // This is to polyfill 'buffer' which is required by some of the TON libraries.
+    // Client-side only.
+    if (!isServer) {
+        config.resolve.fallback = {
+            ...config.resolve.fallback,
+            "buffer": require.resolve("buffer/"),
+        };
+    }
+
+    return config;
   },
 };
 
