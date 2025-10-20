@@ -16,8 +16,8 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
     if (!botToken && !isDevEnv) {
-        console.error("Telegram Bot Token not found in environment variables.");
-        return { error: 'Server configuration error.' };
+        console.error("Critical: Telegram Bot Token not found in environment variables.");
+        return { error: 'Server configuration error. Please contact support.' };
     }
 
     const urlParams = new URLSearchParams(initData);
@@ -29,8 +29,8 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
     }
     
     if (!isDevEnv) {
-        if (!hash) {
-            return { error: 'Invalid authentication data: Missing hash.' };
+        if (!hash || !botToken) { // Also check botToken here
+            return { error: 'Invalid authentication data: Missing hash or server token.' };
         }
         const dataCheckArr = [];
         urlParams.sort();
@@ -40,7 +40,7 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
             }
         }
         const dataCheckString = dataCheckArr.join('\n');
-        const secretKey = createHmac('sha256', 'WebAppData').update(botToken!).digest();
+        const secretKey = createHmac('sha256', 'WebAppData').update(botToken).digest();
         const calculatedHash = createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
 
         if (calculatedHash !== hash) {
@@ -49,7 +49,13 @@ export async function verifyTelegramAuth(initData: string): Promise<{ user: User
         }
     }
     
-    const tgUser: TelegramUser = JSON.parse(userParam);
+    let tgUser: TelegramUser;
+    try {
+        tgUser = JSON.parse(userParam);
+    } catch (e) {
+        return { error: 'Invalid authentication data: Malformed user data.' };
+    }
+
     const userIdStr = tgUser.id.toString();
     const isUserAdmin = ADMIN_USER_IDS.includes(userIdStr);
     const startParam = urlParams.get('start_param');
@@ -1121,3 +1127,6 @@ export async function updateTonWalletAddress(userId: string, address: string) {
         return { success: false, error: 'Failed to update wallet address in database.' };
     }
 }
+
+
+      
